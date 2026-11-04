@@ -77,12 +77,35 @@ make routes
 `route="yandex"` означает, что правило не сработало или запрос распознан
 иначе. Тогда смотрите `conversation_log` и добавляйте реальную формулировку.
 
-## Камера в FLAI
+## Камера в FLAI — это целевой сценарий
 
-FLAI подключён к `flai-room-snapshot-api`. Запрос «как дела в комнате A?»
-может уйти не в свободный диалог, а в `camera_snapshot(room=kab)` и вернуть
-описание комнаты A по снимку. Если для голосового пользователя камера не
-нужна, создайте отдельного пользователя FLAI без доступа к камере.
+Так и задумано: **FLAI описывает снимок камеры текстом, Алиса произносит
+этот текст**. Цепочка:
+
+```
+«Алиса, спроси ФЛАЙ: как дела в комнате A?»
+  → Quasar Bridge (правило explicit_llm_phrase)
+  → FLAI /v1/chat/completions
+  → camera_snapshot(room=kab)
+  → flai-room-snapshot-api /snapshot/kab
+  → Qwen3VL описывает изображение
+  → текст возвращается в Bridge
+  → Yandex TTS озвучивает ответ голосом Алисы
+```
+
+В логах FLAI это выглядит так:
+
+```text
+Tool call: camera_snapshot({'room': 'kab'})
+Request to camera: http://flai-room-snapshot-api:5000/snapshot/kab
+Successfully got snapshot from camera kab
+Tool result: {"success": true, "room": "комната A", "description": "..."}
+```
+
+Проверка маршрута на колонке — `make routes`: должно быть
+`route="llm"`. Ответ Bridge — `make flai-log` / журнал разговоров.
+Если камера недоступна, FLAI вернёт ошибку, и Bridge скажет, что не
+получилось получить ответ локальной модели.
 
 ## Отдельный пользователь FLAI (рекомендуется позже)
 

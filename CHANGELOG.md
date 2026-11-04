@@ -32,6 +32,9 @@
   «спроси нейросеть» и уходило Алисе.
 - `conversation_log` включает журнал распознанных фраз и ответов для
   диагностики маршрутизации.
+- Подтверждён целевой сценарий с камерой: FLAI делает
+  `camera_snapshot(room=kab)`, Qwen3VL описывает снимок, Bridge передаёт
+  текст в Yandex TTS, Алиса озвучивает.
 - Docker-стенд `lite-kit` с host-network: DNS 53, HTTP 80, HTTPS 443.
 - Снапшоты `quasar-bridge` v0.6.2, `lite-kit` и station-tools.
 - Конфигурационные примеры для FLAI и колонки.
