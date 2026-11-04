@@ -390,7 +390,17 @@ export SPEAKER_ENV=local/speakers/speaker-b.env
 ./scripts/post-root-ssh.sh
 ./scripts/install-quasar-bridge.sh --non-interactive
 ./scripts/apply-bridge-routing.sh
+./scripts/set-speaker-key.sh
 make status
+```
+
+Ключ FLAI для профиля лежит в `secrets/flai-token-speaker-b` (см. таблицу в
+README). Профиль уже содержит `LLM_TOKEN_FILE` с этим путём. Записать ключ
+в колонку можно и отдельно:
+
+```bash
+SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
+SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/check-flai.sh
 ```
 
 Сброс и привязка — как в шагах 3–4. Остальные колонки на это время
