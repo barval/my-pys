@@ -1,0 +1,349 @@
+# 03. Runbook
+
+Пошаговый порядок. Выполнять с хоста `192.168.1.2` (этот репозиторий),
+если не указано иное.
+
+## 0. Проверка FLAI
+
+```bash
+cd /home/GIT/GITEA/BARVAL-MY/my-pys
+./scripts/check-flai.sh
+```
+
+Ожидаемо:
+
+- `GET /v1/models` → `200`;
+- ответ на тестовый вопрос за 5–40 с;
+- непустой русский текст, `finish_reason=stop`.
+
+Если `401` — проверьте `secrets/flai-token`. Если `000` — FLAI не слушает
+`192.168.1.2:5000`.
+
+## 1. Прошивка и стенд root
+
+### 1.1. Скачать прошивку
+
+```bash
+./scripts/fetch-firmware.sh
+```
+
+Скрипт берёт файл с официального CDN Яндекса (зеркало lite-kit слишком
+медленно отдаёт каталоги) и кладёт его в
+`vendor/lite-kit/firmware/yandexmicro/0.369.1.46.4778262442.20261013.297.zip`,
+рядом пишет `manifest.json`. Проверка:
+
+```bash
+ls -lh vendor/lite-kit/firmware/yandexmicro/
+```
+
+Ожидаемо: файл ~60–70 МБ. Если скачался маленький файл — зеркало отдало
+ошибку; повторите запуск, скрипт умеет брать официальный URL из metadata.
+
+### 1.2. Запустить стенд
+
+```bash
+./scripts/start-lite-kit.sh
+```
+
+Скрипт собирает контейнер `ysl-lite-kit`, запускает его с `network_mode: host`
+и включает режим `run/downgrade`. Проверка DNS:
+
+```bash
+dig +short @192.168.1.2 quasar.yandex.net
+```
+
+Ожидаемо: `192.168.1.2`.
+
+Проверка портов:
+
+```bash
+ss -lntup | grep -E ':(53|80|443)\b'
+```
+
+Ожидаемо: DNS на `192.168.1.2:53`, HTTP/HTTPS на `0.0.0.0:80/443`.
+Порт `192.168.122.1:53` (libvirt) не мешает.
+
+Логи:
+
+```bash
+docker logs -f ysl-lite-kit
+tail -f vendor/lite-kit/log/server.log
+tail -f vendor/lite-kit/log/dnsmasq.log
+```
+
+## 2. Роутер
+
+Роутер: `http://192.168.1.1` (TP-Link).
+
+1. «Дополнительные настройки» → «Сеть» → «DHCP-сервер».
+2. **Предпочитаемый DNS-сервер** = `192.168.1.2`.
+3. **Альтернативный DNS-сервер** — очистить.
+4. Сохранить.
+
+Проверка с ПК:
+
+```bash
+nslookup quasar.yandex.net 192.168.1.1
+```
+
+Ожидаемо: `192.168.1.2`.
+
+Если роутер не даёт менять DNS — используйте раздачу Wi-Fi с Android и
+DNS Changer, но для TP-Link это не нужно.
+
+## 3. Сброс колонки
+
+**Внимание:** сброс очищает `/data`, отвязывает колонку от аккаунта и
+удаляет всё, что было установлено. Это обязательный шаг DNS-метода.
+
+1. Отключите питание колонки, подождите несколько секунд.
+2. Включите питание и **сразу** зажмите кнопку паузы (▶‖).
+3. Держите 6–10 секунд, пока подсветка не станет жёлто-зелёной.
+4. Отпустите: подсветка пульсирует голубым, колонка ждёт настройки.
+
+## 4. Привязка в приложении
+
+1. Включите Bluetooth и геолокацию на телефоне.
+2. «Дом с Алисой» → «+» → «Устройство с Алисой».
+3. Дойдите до экрана «Выберите сеть Wi-Fi и введите пароль».
+4. Введите сеть и пароль, но **не нажимайте «Подключиться»**, пока DNS
+   не указывает на `192.168.1.2`.
+5. Нажмите «Подключиться».
+
+Колонка сходит на стенд, получит `adbd.remoteActivation=true` и, если версия
+отличается, скачает `.46`. В логе появится:
+
+```
+>>> [SYNC-REAL→] ... adbd: ... =on
+```
+
+Скачивание 67 МБ, установка и перезагрузка занимают несколько минут.
+Не выдёргивайте питание.
+
+## 5. ADB
+
+```bash
+adb connect 192.168.1.103:5555
+adb devices
+adb shell id
+```
+
+Ожидаемо:
+
+```
+uid=0(root) gid=0(root) ...
+```
+
+Если `Connection refused`:
+
+- проверьте, что DNS на роутере всё ещё `192.168.1.2`;
+- `dig @192.168.1.2 quasar.yandex.net` → `192.168.1.2`;
+- передёрните питание колонки;
+- отключите на роутере фильтрацию DNS/AdGuard для этой сети;
+- проверьте, что ПК и колонка не в гостевой сети с изоляцией клиентов.
+
+## 6. SSH и отключение OTA
+
+```bash
+./scripts/post-root-ssh.sh
+```
+
+Скрипт:
+
+- проверит root по ADB;
+- создаст `secrets/speaker_ed25519`, если его нет;
+- установит Dropbear и автозапуск `S99zdropbear`;
+- добавит публичный ключ в `/root/.ssh/authorized_keys`;
+- запустит `yandex-noupdate.sh` и заберёт backup в `backups/`;
+- перезагрузит колонку.
+
+После перезагрузки (1–2 минуты):
+
+```bash
+ssh -i secrets/speaker_ed25519 -p 2222 root@192.168.1.103 \
+  'id; sh /data/opt/yandex-noupdate.sh status'
+```
+
+Ожидаемо:
+
+```
+uid=0(root) ...
+launch.json : updatesd убран
+applier     : заглушён
+ota key     : подменён
+```
+
+Только после успешного входа по ключу уберите `-B` из
+`/etc/init.d/S99zdropbear`:
+
+```bash
+ssh -i secrets/speaker_ed25519 -p 2222 root@192.168.1.103
+mount -o remount,rw /
+sed -i 's/ -B / /' /etc/init.d/S99zdropbear
+sync
+mount -o remount,ro /
+/etc/init.d/S99zdropbear restart
+```
+
+Проверьте вход по ключу ещё раз. Пустой пароль после этого работать не должен.
+
+## 7. Quasar Bridge
+
+### Вариант A. Интерактивно
+
+```bash
+./scripts/install-quasar-bridge.sh
+```
+
+Ответы мастера:
+
+| Вопрос | Ответ |
+|---|---|
+| Адрес API нейросети | `http://192.168.1.2:5000/v1` |
+| Название модели | `flai-chat` |
+| Ключ API | содержимое `secrets/flai-token` |
+| API | `1` (Chat Completions) |
+| Home Assistant MCP | Enter (не нужен) |
+| Подключить Алису | `y` |
+| Перезагрузить | `y` |
+
+Ключ вводится скрыто. Скопировать его:
+
+```bash
+cat secrets/flai-token
+```
+
+### Вариант B. Без ручного ввода
+
+После того как SSH по ключу работает:
+
+```bash
+./scripts/install-quasar-bridge.sh --non-interactive
+```
+
+Скрипт поднимает `ssh-agent`, добавляет `secrets/speaker_ed25519` и передаёт
+ответы установщику. Если хотите не перезагружать сразу:
+
+```bash
+REBOOT=n ./scripts/install-quasar-bridge.sh --non-interactive
+```
+
+## 8. Настройка Quasar Bridge
+
+На колонке:
+
+```bash
+ssh -i secrets/speaker_ed25519 -p 2222 root@192.168.1.103
+```
+
+Файл настроек: `/data/opt/quasar-bridge/config.json`.
+Рекомендуемые изменения:
+
+```json
+{
+  "routing": {
+    "classifier": {
+      "timeout_ms": 45000,
+      "on_error": "yandex"
+    }
+  },
+  "assistant_tools": {
+    "enabled": false
+  },
+  "local_progress": {
+    "enabled": true,
+    "after_ms": 2000,
+    "interval_ms": 4000
+  }
+}
+```
+
+Это не полный файл, а фрагмент: добавьте/замените соответствующие блоки,
+не удаляя остальные настройки. Затем:
+
+```bash
+sh /data/opt/quasar-bridge/app/control.sh restart
+sh /data/opt/quasar-bridge/app/control.sh check
+sh /data/opt/quasar-bridge/app/control.sh check-backends
+```
+
+Почему `timeout_ms` = 45000: FLAI на сложном запросе думал ~32 с, а штатные
+8 с не хватает. Верхняя граница в Quasar Bridge — 60 000 мс.
+
+`assistant_tools` выключены на время первого теста: они добавляют лишние
+вызовы и задержку. Включите позже, если нужны чтение страниц и история.
+
+## 9. Проверка
+
+Скажите колонке:
+
+1. «Алиса, какая завтра погода?» — должен ответить Яндекс.
+2. «Алиса, спроси нейросеть: почему небо голубое?» — должен ответить FLAI.
+3. «Алиса, спроси нейросеть: подбери стратегию резервного копирования при бюджете 5000 рублей» — FLAI, ответ до 60 с.
+4. «Алиса, включи музыку» — Яндекс.
+
+Диагностика на колонке:
+
+```bash
+pkg=/data/opt/quasar-bridge/app
+sh "$pkg/control.sh status"
+sh "$pkg/control.sh check"
+sh "$pkg/control.sh check-backends"
+sh "$pkg/control.sh logs"
+```
+
+Веб-чат FLAI: `http://192.168.1.2:5000` — там видны сессии голосовых
+запросов (пользователь `operator`).
+
+## 10. После успеха
+
+1. Остановить стенд:
+
+   ```bash
+   ./scripts/stop-lite-kit.sh
+   ```
+
+2. Вернуть DNS роутера в исходное состояние.
+
+3. Проверить, что колонка и Алиса работают без стенда.
+
+4. Сохранить backup:
+
+   ```bash
+   ls -la backups/
+   ```
+
+5. Закоммитить изменения и поставить тег `v1.0` (после проверки).
+
+## 11. Откат
+
+На колонке:
+
+```sh
+sh /data/opt/quasar-bridge/app/control.sh rollback
+reboot
+```
+
+После успешного отката и проверки Алисы:
+
+```sh
+sh /data/opt/quasar-bridge/app/uninstall.sh
+```
+
+Вернуть OTA (если нужно):
+
+```sh
+sh /data/opt/yandex-noupdate.sh restore
+```
+
+Остановить стенд и вернуть DNS — см. шаг 10.
+
+Если колонка не отвечает после правки `quasar.cfg`, верните копию:
+
+```bash
+adb push backups/<дата>/quasar.cfg.orig /system/vendor/quasar/quasar.cfg
+adb shell sync
+adb shell reboot
+```
+
+(Копия снимается установщиком Quasar Bridge в `/data/opt/quasar-bridge-backup`.)

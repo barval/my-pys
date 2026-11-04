@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.zip binary
+*.gguf binary
+vendor/station-tools/bin/* binary
+
+# Keep upstream snapshots byte-for-byte; don't normalize their line endings
+# and don't report their whitespace as our errors.
+vendor/** -text
+vendor/** whitespace=-trailing-space

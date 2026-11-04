@@ -1,0 +1,18 @@
+secrets/
+.env
+*.log
+.cache/
+backups/
+
+# firmware images are large and downloaded on demand
+vendor/lite-kit/firmware/**/*.zip
+vendor/lite-kit/firmware/**/update.zip
+
+# runtime state of the local root stand
+vendor/lite-kit/run/*
+!vendor/lite-kit/run/.gitkeep
+vendor/lite-kit/log/*
+!vendor/lite-kit/log/.gitkeep
+
+__pycache__/
+*.pyc
