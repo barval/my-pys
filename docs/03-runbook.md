@@ -299,59 +299,57 @@ REBOOT=n ./scripts/install-quasar-bridge.sh --non-interactive
 SSH закрывает соединение раньше, чем удалённый `setup.sh` успевает прочитать
 ответы. Поэтому используется pexpect.
 
-## 8. Настройка Quasar Bridge
+## 8. Политика маршрутизации и прокси
 
-На колонке:
-
-```bash
-ssh -i secrets/speaker_ed25519 -p 2222 root@$(./scripts/resolve-speaker.sh)
-```
-
-Файл настроек: `/data/opt/quasar-bridge/config.json`.
-Рекомендуемые изменения:
-
-```json
-{
-  "routing": {
-    "classifier": {
-      "timeout_ms": 45000,
-      "on_error": "yandex"
-    }
-  },
-  "assistant_tools": {
-    "enabled": false
-  },
-  "local_progress": {
-    "enabled": true,
-    "after_ms": 2000,
-    "interval_ms": 4000
-  }
-}
-```
-
-Это не полный файл, а фрагмент: добавьте/замените соответствующие блоки,
-не удаляя остальные настройки. Затем:
+Поднять прокси нормализации обращения:
 
 ```bash
-sh /data/opt/quasar-bridge/app/control.sh restart
-sh /data/opt/quasar-bridge/app/control.sh check
-sh /data/opt/quasar-bridge/app/control.sh check-backends
+./scripts/start-flai-proxy.sh
 ```
 
-Почему `timeout_ms` = 45000: FLAI на сложном запросе думал ~32 с, а штатные
-8 с не хватает. Верхняя граница в Quasar Bridge — 60 000 мс.
+Применить политику:
 
-`assistant_tools` выключены на время первого теста: они добавляют лишние
-вызовы и задержку. Включите позже, если нужны чтение страниц и история.
+```bash
+./scripts/apply-bridge-routing.sh
+```
+
+Политика `config/quasar-bridge-policy.json`:
+
+- `default_route = llm` — всё непопавшее уходит во внешнюю LLM;
+- `yandex_services` — погода, время, таймеры, музыка, радио;
+- `home_devices` — умный дом (пока Home Assistant не настроен, Яндекс);
+- `speaker_playback` — пауза/продолжение/стоп;
+- `explicit_llm_phrase` — «спроси ФЛАЙ», «спроси у нейросети» и т.п.
+
+`assistant_tools` оставлены выключенными: внешняя LLM сама решает, что ей
+нужно. `local_progress` включён, чтобы колонка не молчала во время
+ожидания.
+
+Проверить маршрут без выполнения запроса:
+
+```bash
+set -a; . /data/opt/quasar-bridge/runtime.env; set +a
+pkg=/data/opt/quasar-bridge/app
+"$pkg/bin/quasar-bridge" -config /data/opt/quasar-bridge/config.json -route "какая погода завтра"
+```
 
 ## 9. Проверка
 
 Скажите колонке:
 
-1. «Алиса, какая завтра погода?» — должен ответить Яндекс.
-2. «Алиса, спроси нейросеть: почему небо голубое?» — должен ответить FLAI.
-3. «Алиса, спроси нейросеть: подбери стратегию резервного копирования при бюджете 5000 рублей» — FLAI, ответ до 60 с.
-4. «Алиса, включи музыку» — Яндекс.
+1. «Алиса, какая завтра погода?» — Яндекс.
+2. «Алиса, который час?» — Яндекс.
+3. «Алиса, включи музыку» / «найди песню …» — Яндекс.
+4. «Алиса, включи свет в комнате A» — Яндекс (или Home Assistant).
+5. «Алиса, почему небо голубое?» — внешняя LLM.
+6. «Алиса, как дела в комнате A?» — внешняя LLM (камера, если настроена).
+7. «Алиса, спроси у ФЛАЙ: …» — внешняя LLM.
+
+Ожидаемые маршруты можно проверить через `-route` (см. выше) или по логу:
+
+```bash
+make routes
+```
 
 Диагностика на колонке:
 
@@ -376,20 +374,21 @@ ssh -i secrets/speaker_ed25519 -p 2222 root@$(./scripts/resolve-speaker.sh) \
   'tail -n 300 /data/opt/quasar-bridge/service.log' | grep native_route_decision
 ```
 
-- `"route":"llm"` — ответила локальная модель FLAI;
+- `"route":"llm"` — ответила внешняя LLM;
 - `"route":"yandex"` — ответила обычная Алиса;
-- `"source":"rule"` — сработало правило (например, «спроси нейросеть»);
-- `"source":"classifier"` — маршрут выбрал классификатор.
+- `"source":"rule"` — сработало правило (например, `yandex_services`
+  или `explicit_llm_phrase`);
+- `"source":"default"` — сработал `default_route=llm`;
+- `"source":"classifier"` в текущей политике не используется.
 
-Подтверждение на стороне FLAI:
+Подтверждение на стороне FLAI (если upstream — FLAI):
 
 ```bash
 docker logs --since 10m flai-web 2>&1 | grep -E "query=|/v1/chat/completions"
 ```
 
 Если в логе есть `query='ваш вопрос'` и `POST /v1/chat/completions 200`,
-ответ действительно пришёл из FLAI. Ещё можно открыть веб-чат FLAI и
-посмотреть историю пользователя `operator`.
+ответ действительно пришёл из FLAI. Для другой LLM смотрите её логи.
 
 Быстрые команды: `make routes` и `make flai-log`.
 

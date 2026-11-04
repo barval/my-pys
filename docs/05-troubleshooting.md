@@ -105,11 +105,11 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5001/v1/models \
 |---|---|---|
 | `HTTP 401` | Неверный/отозванный ключ | Создать новый ключ FLAI, обновить `secrets/flai-token` |
 | `HTTP 400` | Неверное тело запроса | Проверить `llm_api` = `chat_completions`, модель `flai-chat` |
-| `HTTP 000` / timeout | FLAI недоступен | Проверить `http://192.168.1.2:5000/health`, firewall |
-| `LLM returned no answer` | Пустой ответ | Проверить FLAI вручную, `check-backends` |
-| `LLM returned HTTP 429` | Лимит FLAI | Подождать, уменьшить частоту |
-| `finish_reason=length` | Обрезка ответа | FLAI игнорирует `max_tokens`; проверить модель/промпт |
-| Ответ дольше 60 с | Долгий reasoning | Уменьшить сложность, поднять таймаут классификатора, не грузить GPU |
+| `HTTP 000` / timeout | Прокси или LLM недоступны | Проверить `http://127.0.0.1:5001/v1/models` и `http://127.0.0.1:5000/health` |
+| `LLM returned no answer` | Пустой ответ | Проверить upstream вручную, `check-backends` |
+| `LLM returned HTTP 429` | Лимит провайдера | Подождать, уменьшить частоту |
+| `finish_reason=length` | Обрезка ответа | Проверить модель/промпт провайдера |
+| Ответ дольше 60 с | Долгий reasoning | Выбрать более быструю модель, не грузить GPU |
 
 На колонке:
 
@@ -158,9 +158,16 @@ docker logs --tail=100 flai-web
 ## Колонка отвечает как обычно
 
 - Установщик не применил подключение: `sh /data/opt/quasar-bridge/app/control.sh apply` и `reboot`.
-- Нейросеть не выбрана: скажите «Алиса, спроси нейросеть: …».
-- Классификатор вернул `yandex` или упал по таймауту — это нормально для
-  простых вопросов; для сложных поднимите `timeout_ms`.
+- Все не-сервисные запросы должны идти в LLM: проверьте
+  `default_route` и правила в `config.json`.
+- Проверить конкретную фразу:
+  ```bash
+  set -a; . /data/opt/quasar-bridge/runtime.env; set +a
+  pkg=/data/opt/quasar-bridge/app
+  "$pkg/bin/quasar-bridge" -config /data/opt/quasar-bridge/config.json -route "ваша фраза"
+  ```
+- Если сервисная фраза ушла в LLM — дополните `yandex_services` или
+  `home_devices` и примените `./scripts/apply-bridge-routing.sh`.
 - Проверьте `config.json` и `runtime.env` на колонке.
 
 ## Вернуть всё

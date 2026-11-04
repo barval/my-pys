@@ -10,7 +10,3 @@ vendor/station-tools/bin/* binary
 # and don't report their whitespace as our errors.
 vendor/** -text
 vendor/** whitespace=-trailing-space
-
-# Patch files contain context lines with a single space by design.
-patches/** -text
-patches/** whitespace=-trailing-space

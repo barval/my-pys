@@ -15,7 +15,11 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-UPSTREAM = os.environ.get("FLAI_UPSTREAM", "http://127.0.0.1:5000").rstrip("/")
+UPSTREAM = (
+    os.environ.get("LLM_UPSTREAM")
+    or os.environ.get("FLAI_UPSTREAM")
+    or "http://127.0.0.1:5000"
+).rstrip("/")
 PORT = int(os.environ.get("PROXY_PORT", "5001"))
 TIMEOUT = float(os.environ.get("PROXY_TIMEOUT", "600"))
 

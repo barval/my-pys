@@ -7,6 +7,7 @@ services:
     network_mode: host
     restart: unless-stopped
     environment:
+      LLM_UPSTREAM: http://127.0.0.1:5000
       FLAI_UPSTREAM: http://127.0.0.1:5000
       PROXY_PORT: "5001"
       PROXY_TIMEOUT: "600"

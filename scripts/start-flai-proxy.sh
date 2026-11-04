@@ -18,9 +18,11 @@ sleep 2
 "${compose[@]}" -f docker-compose.flai-proxy.yml ps
 echo
 echo "Проверка /v1/models через прокси:"
-if [[ -r "$ROOT/secrets/flai-token" ]]; then
+TOKEN_FILE="${LLM_TOKEN_FILE:-${FLAI_TOKEN_FILE:-$ROOT/secrets/flai-token}}"
+[[ "$TOKEN_FILE" = /* ]] || TOKEN_FILE="$ROOT/$TOKEN_FILE"
+if [[ -r "$TOKEN_FILE" ]]; then
   curl -sS --max-time 10 -o /dev/null -w 'HTTP %{http_code}\n' \
-    -H "Authorization: Bearer $(<"$ROOT/secrets/flai-token")" \
+    -H "Authorization: Bearer $(<"$TOKEN_FILE")" \
     http://127.0.0.1:5001/v1/models || true
 fi
 echo "Прокси: http://192.168.1.2:5001/v1 -> http://127.0.0.1:5000"
