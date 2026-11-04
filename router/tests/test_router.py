@@ -208,6 +208,44 @@ def test_client_history_keeps_everything(tmp_path):
     assert payload["model"] == "flai-chat"
 
 
+def test_response_policy_defaults(tmp_path):
+    config = r.load_config(write_config(tmp_path, "http://127.0.0.1:1/v1"))
+    assert config.response.max_sentences == 3
+    assert config.response.max_chars == 400
+    assert config.response.strip_markdown is True
+
+
+def test_shorten_text_keeps_three_sentences_and_strips_markdown():
+    policy = r.ResponsePolicy(max_sentences=3, max_chars=400, strip_markdown=True)
+    text = "**Первое** предложение. Второе [ссылка](https://example.com). Третье `код`. Четвёртое."
+
+    assert r.shorten_text(text, policy) == "Первое предложение. Второе ссылка. Третье код."
+
+
+def test_shorten_text_caps_characters_without_cutting_words():
+    policy = r.ResponsePolicy(max_sentences=10, max_chars=50, strip_markdown=True)
+    text = "очень длинное предложение " * 20
+
+    result = r.shorten_text(text, policy)
+
+    assert len(result) <= 50
+    assert result.endswith("…")
+    assert not result.rstrip("…").endswith(" ")
+
+
+def test_apply_response_policy_rewrites_only_content():
+    policy = r.ResponsePolicy(max_sentences=3, max_chars=400, strip_markdown=True)
+    payload = {
+        "choices": [{"message": {"role": "assistant", "content": "Раз. Два. Три. Четыре."}}],
+        "usage": {"total_tokens": 7},
+    }
+
+    result = json.loads(r.apply_response_policy(json.dumps(payload).encode(), policy))
+
+    assert result["choices"][0]["message"]["content"] == "Раз. Два. Три."
+    assert result["usage"] == {"total_tokens": 7}
+
+
 def test_config_reloads_when_upstream_key_appears(tmp_path):
     config_path = write_config(tmp_path, "http://127.0.0.1:1/v1")
     key_file = tmp_path / "secrets" / "flai-token-speaker-a"
@@ -342,6 +380,28 @@ def test_stream_is_proxied(tmp_path):
         assert status == 200
         assert b"hello" in data
         assert b"[DONE]" in data
+    finally:
+        stop(router)
+        stop(primary)
+
+
+def test_proxy_shortens_long_non_stream_answer(tmp_path):
+    primary = start_upstream(
+        lambda seen: (
+            200,
+            {"choices": [{"message": {"role": "assistant", "content": "Раз. Два. Три. Четыре."}}]},
+            False,
+        )
+    )
+    router = start_router(write_config(tmp_path, f"http://127.0.0.1:{primary.server_port}/v1"), tmp_path / "state.json")
+    try:
+        status, data = post(
+            router.server_port,
+            "sk-router-test",
+            {"messages": [{"role": "user", "content": "расскажи"}]},
+        )
+        assert status == 200
+        assert json.loads(data)["choices"][0]["message"]["content"] == "Раз. Два. Три."
     finally:
         stop(router)
         stop(primary)

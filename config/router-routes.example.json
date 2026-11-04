@@ -1,4 +1,9 @@
 {
+  "response": {
+    "max_sentences": 3,
+    "max_chars": 400,
+    "strip_markdown": true
+  },
   "routes": [
     {
       "name": "speaker-a",
