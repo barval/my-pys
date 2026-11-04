@@ -57,6 +57,20 @@ ssh -vvv -i secrets/speaker_ed25519 -p 2222 root@$(./scripts/resolve-speaker.sh)
   `700` на каталог, `600` на файл.
 - После `mount -o remount,ro /` ключ должен сохраниться.
 
+## Установщик Quasar Bridge завершился кодом 255, каталога нет
+
+Симптом: `install-quasar-bridge.sh` пишет `Shared connection closed`,
+возвращает `255`, а `/data/opt/quasar-bridge` на колонке не появляется.
+
+Причина: установщик запускает `setup.sh` через `ssh -tt`, а неинтерактивные
+ответы подавались обычным pipe. SSH закрывал соединение раньше, чем
+`setup.sh` успевал прочитать первую строку, поэтому установка отменялась.
+
+Решение: использовать `./scripts/install-quasar-bridge.sh --non-interactive`
+— он проводит мастер через PTY (`bridge_install_pexpect.py`). Локальный
+релиз скачивается `./scripts/fetch-quasar-bridge.sh` и не зависит от
+таймаутов GitHub.
+
 ## Quasar Bridge: «Проверка нейросети не проходит»
 
 Проверьте с ПК:
