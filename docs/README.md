@@ -8,6 +8,7 @@
 | [03-runbook.md](03-runbook.md) | пошаговые команды |
 | [04-risks.md](04-risks.md) | риски, ограничения, откат |
 | [05-troubleshooting.md](05-troubleshooting.md) | диагностика ошибок |
+| [06-flai-all-cameras-api-bug.md](06-flai-all-cameras-api-bug.md) | баг FLAI API: пустой content у all-cameras |
 
 Связанные файлы:
 

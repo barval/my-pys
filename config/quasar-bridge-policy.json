@@ -2,21 +2,6 @@
   "default_route": "llm",
   "rules": [
     {
-      "name": "explicit_llm_phrase",
-      "route": "llm",
-      "match": {
-        "contains_any": [
-          "спроси у нейросети",
-          "спроси у своей модели",
-          "спроси у нейронки",
-          "спроси нейросеть",
-          "спроси свою модель",
-          "спроси флай",
-          "спроси у флай"
-        ]
-      }
-    },
-    {
       "name": "speaker_playback",
       "route": "yandex",
       "match": {

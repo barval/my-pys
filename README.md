@@ -27,7 +27,7 @@ Ollama, vLLM, LM Studio или облачный сервис). Использу�
 | Device ID | `EXAMPLE000000000000000000000001` |
 | MAC | `02:00:00:00:00:01` |
 | Внешняя LLM | FLAI `http://192.168.1.2:5000/v1`, модель `flai-chat` (заменима) |
-| Bridge → LLM | через прокси `http://192.168.1.2:5001/v1` (отрезает «спроси у ФЛАЙ») |
+| Bridge → LLM | напрямую `http://192.168.1.2:5000/v1` |
 | Маршрутизация | `default_route=llm`; Яндекс — погода/время/музыка/умный дом |
 | FLAI GPU | NVIDIA RTX 5060 Ti 16 GB, Qwen3VL-8B Q4 |
 | Quasar Bridge | v0.6.2, ARM64/ARMv7 |
@@ -50,7 +50,7 @@ docs/
 config/
   flai.env.example            пример переменных внешней LLM
   quasar-bridge-policy.json   политика: Яндекс-сервисы vs внешняя LLM
-  quasar-bridge-notes.md      настройки Bridge, прокси и LLM
+  quasar-bridge-notes.md      настройки Bridge и внешней LLM
 scripts/
   check-flai.sh               проверка FLAI и замер ответа
   resolve-speaker.sh          поиск колонки по device ID/MAC, а не по IP
@@ -58,8 +58,6 @@ scripts/
   fetch-quasar-bridge.sh      офлайн-загрузка релиза Quasar Bridge
   bridge_install_pexpect.py   неинтерактивный мастер через PTY
   apply-bridge-routing.sh     применить политику маршрутизации
-  start-flai-proxy.sh         прокси, отрезающий служебное обращение
-  stop-flai-proxy.sh          остановка прокси
   start-lite-kit.sh           запуск стенда root в Docker
   stop-lite-kit.sh            остановка стенда
   post-root-ssh.sh            SSH + отключение OTA после root
