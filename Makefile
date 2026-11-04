@@ -1,4 +1,4 @@
-.PHONY: help check firmware stand stop bridge ssh status resolve lint
+.PHONY: help check firmware stand stop bridge ssh status resolve routes flai-log lint
 
 help:
 	@echo "make check     — проверить FLAI"
@@ -9,6 +9,8 @@ help:
 	@echo "make resolve   — найти колонку по MAC/device ID"
 	@echo "make ssh       — войти на колонку по ключу"
 	@echo "make status    — статус Bridge на колонке"
+	@echo "make routes    — последние решения Bridge: llm или yandex"
+	@echo "make flai-log  — последние запросы в FLAI"
 	@echo "make lint      — bash -n для скриптов"
 
 check:
@@ -35,6 +37,13 @@ ssh:
 status:
 	ssh -i secrets/speaker_ed25519 -p 2222 root@$$(./scripts/resolve-speaker.sh) \
 	  'pkg=/data/opt/quasar-bridge/app; sh "$$pkg/control.sh" status; sh "$$pkg/control.sh" check-backends'
+
+routes:
+	ssh -i secrets/speaker_ed25519 -p 2222 root@$$(./scripts/resolve-speaker.sh) \
+	  'tail -n 300 /data/opt/quasar-bridge/service.log' | grep native_route_decision | tail -20
+
+flai-log:
+	docker logs --since 10m flai-web 2>&1 | grep -E "query=|/v1/chat/completions" | tail -30
 
 lint:
 	bash -n scripts/*.sh

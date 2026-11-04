@@ -340,6 +340,33 @@ sh "$pkg/control.sh logs"
 Веб-чат FLAI: `http://192.168.1.2:5000` — там видны сессии голосовых
 запросов (пользователь `operator`).
 
+### Как понять, кто ответил
+
+Голос у Алисы и у FLAI один — синтез речи делает Яндекс. Поэтому на слух
+это не всегда очевидно. Точный признак — лог Bridge:
+
+```bash
+ssh -i secrets/speaker_ed25519 -p 2222 root@$(./scripts/resolve-speaker.sh) \
+  'tail -n 300 /data/opt/quasar-bridge/service.log' | grep native_route_decision
+```
+
+- `"route":"llm"` — ответила локальная модель FLAI;
+- `"route":"yandex"` — ответила обычная Алиса;
+- `"source":"rule"` — сработало правило (например, «спроси нейросеть»);
+- `"source":"classifier"` — маршрут выбрал классификатор.
+
+Подтверждение на стороне FLAI:
+
+```bash
+docker logs --since 10m flai-web 2>&1 | grep -E "query=|/v1/chat/completions"
+```
+
+Если в логе есть `query='ваш вопрос'` и `POST /v1/chat/completions 200`,
+ответ действительно пришёл из FLAI. Ещё можно открыть веб-чат FLAI и
+посмотреть историю пользователя `operator`.
+
+Быстрые команды: `make routes` и `make flai-log`.
+
 ## 10. После успеха
 
 1. Остановить стенд:
