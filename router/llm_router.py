@@ -261,10 +261,12 @@ class ConfigStore:
 def build_payload(upstream: Upstream, body: dict[str, Any], session_user: str) -> dict[str, Any]:
     """Return the upstream body for one route.
 
-    ``server`` history keeps only system/developer messages and the last user
-    message.  FLAI stores the rest itself, so sending the Bridge's window too
-    would duplicate history and make the router classify a transcript instead
-    of the question.  ``client`` history passes every message through.
+    ``server`` history sends only the last user message.  FLAI concatenates
+    every role into one text and stores it as a user turn, so sending the
+    Bridge's system prompt or history would both duplicate context and make
+    the model quote service instructions back to the user.  The upstream's
+    own system prompt supplies the identity and style.  ``client`` history
+    passes every message through.
     """
     payload = copy.deepcopy(body)
     if upstream.model:
@@ -277,11 +279,6 @@ def build_payload(upstream: Upstream, body: dict[str, Any], session_user: str) -
     if not isinstance(messages, list):
         return payload
 
-    system_messages = [
-        message
-        for message in messages
-        if isinstance(message, dict) and message.get("role") in ("system", "developer")
-    ]
     last_user = next(
         (message for message in reversed(messages) if isinstance(message, dict) and message.get("role") == "user"),
         None,
@@ -289,7 +286,7 @@ def build_payload(upstream: Upstream, body: dict[str, Any], session_user: str) -
     if last_user is None:
         return payload
 
-    payload["messages"] = system_messages + [last_user]
+    payload["messages"] = [last_user]
     payload["user"] = session_user
     metadata = payload.get("metadata")
     if isinstance(metadata, dict):
@@ -300,6 +297,31 @@ def build_payload(upstream: Upstream, body: dict[str, Any], session_user: str) -
         else:
             payload.pop("metadata", None)
     return payload
+
+
+def _message_text(message: dict[str, Any]) -> str:
+    content = message.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = [
+            part["text"]
+            for part in content
+            if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str)
+        ]
+        return " ".join(parts)
+    return ""
+
+
+def is_health_probe(body: dict[str, Any]) -> bool:
+    """True for the Bridge's single-message ``check-backends`` probe."""
+    messages = body.get("messages")
+    if not isinstance(messages, list) or len(messages) != 1:
+        return False
+    message = messages[0]
+    if not isinstance(message, dict) or message.get("role") != "user":
+        return False
+    return _message_text(message).strip().lower() == "ответь одним словом: связь"
 
 
 # ---------------------------------------------------------------------------
@@ -583,7 +605,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
         session_user = route.session.user
         rotated = False
         if body is not None and route.session.mode == "server":
-            session_user, rotated = self.server.sessions.lease(route)
+            if is_health_probe(body):
+                session_user = f"{route.session.user}-health"
+            else:
+                session_user, rotated = self.server.sessions.lease(route)
 
         status, headers, payload, label = self._forward(
             route=route,

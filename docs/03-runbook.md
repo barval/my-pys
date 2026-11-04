@@ -24,6 +24,10 @@ make check
 - ответ на тестовый вопрос за 5–40 с;
 - непустой русский текст, `finish_reason=stop`.
 
+`make check-backends` и установщик Bridge пишут health-check
+«Ответь одним словом: связь» в отдельную сессию `voice-health`, а не в
+основной диалог колонки.
+
 Если `401` — проверьте `secrets/router-token-<колонка>`. Если `503` —
 нет upstream-ключа `secrets/flai-token-<колонка>` или не настроен fallback.
 Если `000` — контейнер `llm-router` не слушает `192.168.1.2:5002`.

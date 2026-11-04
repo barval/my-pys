@@ -149,7 +149,7 @@ def test_config_resolves_relative_secret_files(tmp_path):
     assert route.session.idle_minutes == 30
 
 
-def test_server_history_keeps_system_and_last_user(tmp_path):
+def test_server_history_sends_only_last_user(tmp_path):
     config = r.load_config(write_config(tmp_path, "http://127.0.0.1:1/v1"))
     route = config.by_token("sk-router-test")
     body = {
@@ -166,14 +166,26 @@ def test_server_history_keeps_system_and_last_user(tmp_path):
 
     payload = r.build_payload(route.primary, body, "voice-2")
 
-    assert payload["messages"] == [
-        {"role": "system", "content": "voice"},
-        {"role": "user", "content": "new question"},
-    ]
+    assert payload["messages"] == [{"role": "user", "content": "new question"}]
     assert payload["user"] == "voice-2"
     assert payload["model"] == "flai-chat"
     assert "session_id" not in payload.get("metadata", {})
     assert body["messages"][1]["content"] == "old question"
+
+
+def test_health_probe_is_detected():
+    probe = {"messages": [{"role": "user", "content": "Ответь одним словом: связь"}]}
+    normal = {"messages": [{"role": "user", "content": "Кто ты"}]}
+    with_system = {
+        "messages": [
+            {"role": "system", "content": "voice"},
+            {"role": "user", "content": "Ответь одним словом: связь"},
+        ]
+    }
+
+    assert r.is_health_probe(probe) is True
+    assert r.is_health_probe(normal) is False
+    assert r.is_health_probe(with_system) is False
 
 
 def test_client_history_keeps_everything(tmp_path):
@@ -284,10 +296,7 @@ def test_primary_503_falls_back_and_rebuilds_client_history(tmp_path):
         assert "from fallback" in data.decode()
 
         primary_body = primary.seen[0]["body"]
-        assert primary_body["messages"] == [
-            {"role": "system", "content": "voice"},
-            {"role": "user", "content": "new"},
-        ]
+        assert primary_body["messages"] == [{"role": "user", "content": "new"}]
         assert primary_body["user"] == "voice"
 
         fallback_body = fallback.seen[0]["body"]
@@ -333,6 +342,24 @@ def test_stream_is_proxied(tmp_path):
         assert status == 200
         assert b"hello" in data
         assert b"[DONE]" in data
+    finally:
+        stop(router)
+        stop(primary)
+
+
+def test_health_probe_uses_separate_session(tmp_path):
+    primary = start_upstream(
+        lambda seen: (200, {"choices": [{"message": {"role": "assistant", "content": "связь"}}]}, False)
+    )
+    router = start_router(write_config(tmp_path, f"http://127.0.0.1:{primary.server_port}/v1"), tmp_path / "state.json")
+    try:
+        status, _ = post(
+            router.server_port,
+            "sk-router-test",
+            {"messages": [{"role": "user", "content": "Ответь одним словом: связь"}]},
+        )
+        assert status == 200
+        assert primary.seen[0]["body"]["user"] == "voice-health"
     finally:
         stop(router)
         stop(primary)
