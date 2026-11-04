@@ -30,6 +30,10 @@
 - Тесты роутера: `router/tests/test_router.py` (14 тестов).
 - FLAI назначен `primary` для всех четырёх маршрутов; upstream-ключи
   разложены по учётным записям `speaker-a`, `speaker-b`, `speaker-c`, `speaker-d`.
+- Для всех четырёх маршрутов настроен fallback OrcaRouter Free
+  (`https://api.orcarouter.ai/v1`, модель `orcarouter/free`, ключи
+  `secrets/orca-token-*`). Ключи валидны, но free-тариф может отдавать
+  `429 free_rate_limited`.
 
 ### Changed
 
