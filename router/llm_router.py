@@ -16,6 +16,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import threading
 import time
 import urllib.error
@@ -59,6 +60,15 @@ class SessionConfig:
 
 
 @dataclass(frozen=True)
+class ResponsePolicy:
+    """Voice-output limits applied to non-stream chat completions."""
+
+    max_sentences: int = 3
+    max_chars: int = 400
+    strip_markdown: bool = True
+
+
+@dataclass(frozen=True)
 class Route:
     name: str
     token: str
@@ -72,6 +82,7 @@ class Config:
     routes: tuple[Route, ...]
     mtime_ns: int
     watched_mtimes: Mapping[str, int]
+    response: ResponsePolicy
     by_token_map: Mapping[str, Route]
 
     def by_token(self, token: str) -> Route | None:
@@ -171,6 +182,23 @@ def _parse_session(raw: Any, default_history: str) -> SessionConfig:
     return SessionConfig(mode=mode, user=user.strip(), idle_minutes=idle_minutes, cleanup_keep=cleanup_keep)
 
 
+def _parse_response_policy(raw: Any) -> ResponsePolicy:
+    if not isinstance(raw, dict):
+        raw = {}
+    try:
+        max_sentences = int(raw.get("max_sentences", 3))
+        max_chars = int(raw.get("max_chars", 400))
+    except (TypeError, ValueError) as exc:
+        raise ConfigError(f"invalid response limits: {exc}") from exc
+    if max_sentences < 1 or max_chars < 1:
+        raise ConfigError("response.max_sentences and response.max_chars must be positive")
+    return ResponsePolicy(
+        max_sentences=max_sentences,
+        max_chars=max_chars,
+        strip_markdown=bool(raw.get("strip_markdown", True)),
+    )
+
+
 def load_config(path: Path) -> Config:
     path = Path(path)
     try:
@@ -223,6 +251,7 @@ def load_config(path: Path) -> Config:
         routes=tuple(routes),
         mtime_ns=mtime_ns,
         watched_mtimes=watched,
+        response=_parse_response_policy(raw.get("response")),
         by_token_map=by_token,
     )
 
@@ -322,6 +351,85 @@ def is_health_probe(body: dict[str, Any]) -> bool:
     if not isinstance(message, dict) or message.get("role") != "user":
         return False
     return _message_text(message).strip().lower() == "ответь одним словом: связь"
+
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?…])\s+")
+_FENCED_CODE = re.compile(r"```.*?```", re.S)
+_MARKDOWN_LINK = re.compile(r"\[([^\]]+)\]\([^)]+\)")
+_INLINE_CODE = re.compile(r"`([^`]*)`")
+_HEADING = re.compile(r"^\s{0,3}#{1,6}\s*", re.M)
+_BULLET = re.compile(r"^\s*[-*+]\s+", re.M)
+_NUMBERED = re.compile(r"^\s*\d+[.)]\s+", re.M)
+_EMPHASIS = re.compile(r"(\*\*|__)(.*?)\1")
+_URL = re.compile(r"https?://\S+")
+_WHITESPACE = re.compile(r"\s+")
+
+
+def shorten_text(text: str, policy: ResponsePolicy) -> str:
+    """Trim an LLM answer to the voice budget, preferring sentence boundaries."""
+    original = text.strip()
+    if not original:
+        return original
+
+    if policy.strip_markdown:
+        text = _FENCED_CODE.sub(" ", text)
+        text = _MARKDOWN_LINK.sub(r"\1", text)
+        text = _INLINE_CODE.sub(r"\1", text)
+        text = _HEADING.sub("", text)
+        text = _BULLET.sub("", text)
+        text = _NUMBERED.sub("", text)
+        text = _EMPHASIS.sub(r"\2", text)
+        text = _URL.sub("", text)
+
+    text = _WHITESPACE.sub(" ", text).strip()
+    if not text:
+        text = original
+
+    sentences = [sentence.strip() for sentence in _SENTENCE_SPLIT.split(text) if sentence.strip()]
+    if sentences:
+        text = " ".join(sentences[: policy.max_sentences])
+
+    if len(text) <= policy.max_chars:
+        return text
+
+    limit = max(1, policy.max_chars - 1)
+    head = text[:limit]
+    cut = head.rsplit(" ", 1)[0].rstrip(" ,;:—-.")
+    if not cut:
+        cut = head.rstrip()
+    return cut + "…"
+
+
+def apply_response_policy(data: bytes, policy: ResponsePolicy) -> bytes:
+    """Shorten assistant text in an OpenAI chat-completion JSON response."""
+    try:
+        payload = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return data
+    if not isinstance(payload, dict):
+        return data
+
+    changed = False
+    choices = payload.get("choices")
+    if isinstance(choices, list):
+        for choice in choices:
+            if not isinstance(choice, dict):
+                continue
+            message = choice.get("message")
+            if isinstance(message, dict):
+                content = message.get("content")
+                if isinstance(content, str) and content.strip():
+                    shortened = shorten_text(content, policy)
+                    if shortened != content:
+                        message["content"] = shortened
+                        changed = True
+            text = choice.get("text")
+            if isinstance(text, str) and text.strip():
+                shortened = shorten_text(text, policy)
+                if shortened != text:
+                    choice["text"] = shortened
+                    changed = True
+    return json.dumps(payload, ensure_ascii=False).encode("utf-8") if changed else data
 
 
 # ---------------------------------------------------------------------------
@@ -619,6 +727,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
             stream=stream,
             session_user=session_user,
         )
+
+        if body is not None and not stream and status == 200 and isinstance(payload, bytes):
+            payload = apply_response_policy(payload, config.response)
 
         if stream and isinstance(payload, tuple):
             self._send_stream(status, headers, payload)
