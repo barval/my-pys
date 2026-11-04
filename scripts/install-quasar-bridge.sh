@@ -42,11 +42,25 @@ fi
 TOKEN="$(<"$TOKEN_FILE")"
 [[ -n "$TOKEN" ]] || { echo "Ключ FLAI пустой" >&2; exit 1; }
 
-mkdir -p "$ROOT/.cache"
-INSTALLER="$ROOT/.cache/install-quasar-bridge.sh"
-echo "Скачивание установщика Quasar Bridge…"
-curl -fL --connect-timeout 15 -o "$INSTALLER" \
-  https://github.com/skrashevich/quasar-bridge/releases/latest/download/install.sh
+VERSION="${QUASAR_VERSION:-v0.6.2}"
+LOCAL_RELEASE="$ROOT/.cache/release-$VERSION"
+LOCAL_ASSET="$LOCAL_RELEASE/quasar-bridge-linux-arm64.tar.gz"
+
+if [[ -s "$LOCAL_ASSET" && -s "$LOCAL_ASSET.sha256" ]]; then
+  # Проверенная локальная копия: не зависим от GitHub release-assets.
+  INSTALLER="$ROOT/vendor/quasar-bridge/install.sh"
+  export QUASAR_RELEASE_URL="file://$LOCAL_RELEASE"
+  echo "Версия: $VERSION (локальный релиз, офлайн)"
+else
+  echo "Локального релиза $VERSION нет."
+  echo "Рекомендуется: ./scripts/fetch-quasar-bridge.sh"
+  echo "Пока скачиваю latest install.sh с GitHub…"
+  mkdir -p "$ROOT/.cache"
+  INSTALLER="$ROOT/.cache/install-quasar-bridge.sh"
+  curl -4 -fL --retry 3 --connect-timeout 30 --max-time 120 -o "$INSTALLER" \
+    https://github.com/skrashevich/quasar-bridge/releases/latest/download/install.sh
+  unset QUASAR_RELEASE_URL || true
+fi
 
 if [[ "$NON_INTERACTIVE" -eq 0 ]]; then
   cat <<EOF
@@ -87,21 +101,16 @@ mkdir -p "$BACKUP_DIR"
 "${SSH[@]}" 'cat /system/vendor/quasar/quasar.cfg' > "$BACKUP_DIR/quasar.cfg.orig" 2>/dev/null || \
   echo "Не удалось сохранить quasar.cfg; продолжаю." >&2
 
-has_config=0
-if "${SSH[@]}" 'test -f /data/opt/quasar-bridge/config.json'; then
-  has_config=1
-  echo "На колонке уже есть config.json — мастеру будет передан ответ 'y' на изменение."
+if ! python3 -c 'import pexpect' >/dev/null 2>&1; then
+  echo "Нужен python3-pexpect: apt install python3-pexpect" >&2
+  exit 1
 fi
 
 echo "Установка Quasar Bridge…"
 set +e
-{
-  if [[ "$has_config" -eq 1 ]]; then
-    printf 'y\n'
-  fi
-  printf '%s\n' "$BASE" "$MODEL" "$TOKEN" "1" "" "y" "${REBOOT:-y}"
-} | sh "$INSTALLER" root@"$IP" -p "$PORT"
-rc=${PIPESTATUS[1]}
+python3 "$ROOT/scripts/bridge_install_pexpect.py" \
+  "$INSTALLER" "root@$IP" "$PORT" "$BASE" "$MODEL" "$TOKEN"
+rc=$?
 set -e
 
 if [[ "$rc" -ne 0 ]]; then

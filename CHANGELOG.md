@@ -20,6 +20,12 @@
   `install-quasar-bridge`.
 - `resolve-speaker.sh` ищет колонку по `device_id`/MAC, IP — только
   подсказка. Все установочные скрипты используют его вместо хардкода IP.
+- `fetch-quasar-bridge.sh` скачивает проверенный релиз v0.6.2 в локальный
+  кэш; установка больше не зависит от доступности GitHub release-assets.
+- `bridge_install_pexpect.py` проводит официальный мастер через PTY:
+  обычный pipe с `ssh -tt` закрывался раньше, чем `setup.sh` читал ответы.
+- `install-quasar-bridge.sh --non-interactive` теперь использует этот
+  драйвер и локальный релиз.
 - Docker-стенд `lite-kit` с host-network: DNS 53, HTTP 80, HTTPS 443.
 - Снапшоты `quasar-bridge` v0.6.2, `lite-kit` и station-tools.
 - Конфигурационные примеры для FLAI и колонки.

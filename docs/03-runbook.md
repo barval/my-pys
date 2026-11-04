@@ -219,6 +219,16 @@ mount -o remount,ro /
 
 ## 7. Quasar Bridge
 
+### Подготовка релиза
+
+```bash
+./scripts/fetch-quasar-bridge.sh
+```
+
+Скрипт скачивает **v0.6.2** в `.cache/release-v0.6.2` и проверяет SHA-256.
+Установщик использует локальную копию, поэтому не зависит от того, отдаст ли
+GitHub release-assets файл за 15 секунд.
+
 ### Вариант A. Интерактивно
 
 ```bash
@@ -251,12 +261,17 @@ cat secrets/flai-token
 ./scripts/install-quasar-bridge.sh --non-interactive
 ```
 
-Скрипт поднимает `ssh-agent`, добавляет `secrets/speaker_ed25519` и передаёт
-ответы установщику. Если хотите не перезагружать сразу:
+Скрипт поднимает `ssh-agent`, добавляет `secrets/speaker_ed25519` и проводит
+официальный мастер через PTY (`scripts/bridge_install_pexpect.py`). Нужен
+`python3-pexpect`. Если хотите не перезагружать сразу:
 
 ```bash
 REBOOT=n ./scripts/install-quasar-bridge.sh --non-interactive
 ```
+
+Важно: обычный `printf ... | sh install.sh` с `ssh -tt` не работает —
+SSH закрывает соединение раньше, чем удалённый `setup.sh` успевает прочитать
+ответы. Поэтому используется pexpect.
 
 ## 8. Настройка Quasar Bridge
 
