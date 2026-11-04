@@ -131,6 +131,55 @@ SPEAKER_ENV=local/speakers/speaker-b.env make status
 Без `SPEAKER_ENV` используется профиль из `.env` — сейчас это `speaker-a.env`
 (колонка `192.168.1.101`).
 
+## API-ключи FLAI по колонкам
+
+Ключи лежат **только на хосте** в `secrets/` (gitignored, chmod 600):
+
+| Колонка | FLAI-пользователь | Файл ключа |
+|---|---|---|
+| `192.168.1.101` LG | `speaker-a` | `secrets/flai-token-speaker-a` |
+| `192.168.1.100` LP | `speaker-b` | `secrets/flai-token-speaker-b` |
+| `192.168.1.102` LN | `speaker-c` | `secrets/flai-token-speaker-c` |
+| `192.168.1.103` EXAMPLE-4 | `speaker-d` | `secrets/flai-token-speaker-d` |
+
+Профиль колонки указывает на файл:
+
+```env
+LLM_TOKEN_FILE=secrets/flai-token-speaker-b
+```
+
+Порядок:
+
+1. В FLAI: «Администрирование» → «Пользователи» → создать четыре учётки.
+2. Войти под каждой (или создать ключ из её профиля) → «API keys» → создать
+   ключ. Секрет показывается один раз.
+3. Сохранить ключ на хосте:
+   ```bash
+   printf '%s\n' 'flai-...' > secrets/flai-token-speaker-b
+   chmod 600 secrets/flai-token-speaker-b
+   ```
+4. Записать ключ в колонку:
+   ```bash
+   SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
+   ```
+   Скрипт обновит `/data/opt/quasar-bridge/runtime.env` на колонке:
+   ```env
+   QUASAR_LLM_API_KEY="flai-..."
+   ```
+   и перезапустит Bridge.
+5. Проверить:
+   ```bash
+   SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/check-flai.sh
+   SPEAKER_ENV=local/speakers/speaker-b.env make status
+   ```
+
+Ключ не попадает в `config.json`, git или документацию. На колонке
+`runtime.env` имеет права `600`.
+
+Сейчас `192.168.1.101` использует старый ключ `operator`, скопированный в
+`secrets/flai-token-speaker-a` как временный. После создания `speaker-a` замените
+файл и выполните `./scripts/set-speaker-key.sh`.
+
 ## Безопасность
 
 - `secrets/` исключён из git. Не коммитьте API-ключ FLAI.

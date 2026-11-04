@@ -33,6 +33,10 @@
 - Профили `config/speakers/*.env` и `scripts/lib-env.sh`: все команды
   принимают `SPEAKER_ENV=...` и находят колонку по MAC/device ID.
   Без профиля используется `.env` (`192.168.1.101`).
+- Персональные ключи FLAI по колонкам: `secrets/flai-token-speaker-a`, `-lp`,
+  `-ln`, `-l00fq`; профили содержат `LLM_TOKEN_FILE`.
+- `scripts/set-speaker-key.sh` записывает ключ в
+  `/data/opt/quasar-bridge/runtime.env` на колонке и перезапускает Bridge.
 - `conversation_log` включает журнал распознанных фраз и ответов для
   диагностики маршрутизации.
 - Подтверждён целевой сценарий с камерой: FLAI делает

@@ -1,4 +1,4 @@
-.PHONY: help check firmware stand stop bridge ssh status resolve routing routes flai-log lint
+.PHONY: help check firmware stand stop bridge ssh status resolve routing key routes flai-log lint
 
 help:
 	@echo "make check     — проверить внешнюю LLM"
@@ -8,6 +8,7 @@ help:
 	@echo "make bridge    — установить Quasar Bridge (интерактивно)"
 	@echo "make resolve   — найти колонку по MAC/device ID"
 	@echo "make routing   — применить политику маршрутизации"
+	@echo "make key       — записать ключ LLM из профиля в колонку"
 	@echo "make ssh       — войти на колонку по ключу"
 	@echo "make status    — статус Bridge на колонке"
 	@echo "make routes    — последние решения Bridge: llm или yandex"
@@ -34,6 +35,9 @@ resolve:
 
 routing:
 	./scripts/apply-bridge-routing.sh
+
+key:
+	./scripts/set-speaker-key.sh
 
 ssh:
 	ssh -i secrets/speaker_ed25519 -p 2222 root@$$(./scripts/resolve-speaker.sh)
