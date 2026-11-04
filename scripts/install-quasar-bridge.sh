@@ -4,12 +4,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [[ -f "$ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$ROOT/.env"
-  set +a
-fi
+# shellcheck source=lib-env.sh
+. "$ROOT/scripts/lib-env.sh"
+load_project_env "$ROOT"
 
 # IP не хардкодим: ищем по device ID/MAC, IP — только подсказка.
 IP="$("$ROOT/scripts/resolve-speaker.sh")"
@@ -96,7 +93,8 @@ trap 'ssh-agent -k >/dev/null 2>&1 || true' EXIT
 SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -p "$PORT" -i "$KEY" root@"$IP")
 "${SSH[@]}" true
 
-BACKUP_DIR="$ROOT/backups/$(date +%F)-speaker"
+SPEAKER_NAME="${SPEAKER_NAME:-${SPEAKER_DEVICE_ID:-speaker}}"
+BACKUP_DIR="$ROOT/backups/$(date +%F)-$SPEAKER_NAME"
 mkdir -p "$BACKUP_DIR"
 "${SSH[@]}" 'cat /system/vendor/quasar/quasar.cfg' > "$BACKUP_DIR/quasar.cfg.orig" 2>/dev/null || \
   echo "Не удалось сохранить quasar.cfg; продолжаю." >&2

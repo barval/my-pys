@@ -51,7 +51,9 @@ config/
   flai.env.example            пример переменных внешней LLM
   quasar-bridge-policy.json   политика: Яндекс-сервисы vs внешняя LLM
   quasar-bridge-notes.md      настройки Bridge и внешней LLM
+  speakers/                   профили четырёх колонок (MAC/device ID/IP)
 scripts/
+  lib-env.sh                  общий загрузчик .env и профиля колонки
   check-flai.sh               проверка FLAI и замер ответа
   resolve-speaker.sh          поиск колонки по device ID/MAC, а не по IP
   fetch-firmware.sh           загрузка прошивки .46
@@ -105,6 +107,29 @@ secrets/
    - «Алиса, спроси нейросеть: почему небо голубое?» — отвечает FLAI.
 
 Подробности — в `docs/03-runbook.md`.
+
+## Несколько колонок
+
+В сети четыре Станции Лайт. Профили лежат в `config/speakers/`:
+
+| Профиль | IP | Device ID | Статус |
+|---|---|---|---|
+| `speaker-a.env` | `192.168.1.101` | `EXAMPLE-1...` | готово |
+| `speaker-b.env` | `192.168.1.100` | `EXAMPLE-2...` | ожидает |
+| `speaker-c.env` | `192.168.1.102` | `EXAMPLE-3...` | ожидает |
+| `speaker-d.env` | `192.168.1.103` | `EXAMPLE-4...` | ожидает |
+
+Для любой команды по конкретной колонке:
+
+```bash
+SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/post-root-ssh.sh
+SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/install-quasar-bridge.sh --non-interactive
+SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/apply-bridge-routing.sh
+SPEAKER_ENV=local/speakers/speaker-b.env make status
+```
+
+Без `SPEAKER_ENV` используется профиль из `.env` — сейчас это `speaker-a.env`
+(колонка `192.168.1.101`).
 
 ## Безопасность
 
