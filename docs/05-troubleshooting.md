@@ -3,6 +3,26 @@
 > IP колонки может быть случайным. Всегда сначала проверяйте
 > `./scripts/resolve-speaker.sh`: он ищет по device ID и MAC, а не по IP.
 
+## Обновление Bridge: scp и порт 8443
+
+- `scp` может упасть с `sftp-server: not found`: в Dropbear нет SFTP.
+  Копируйте файл через stdin:
+  ```bash
+  ssh -i secrets/speaker_ed25519 -p 2222 root@IP \
+    'cat > /data/opt/quasar-bridge/app/bin/quasar-bridge.new' < binary
+  ```
+- `control.sh restart` может ответить
+  `Port 8443 already serves another bridge; stop its old launcher first`.
+  Остановите старый процесс и запустите снова:
+  ```bash
+  killall quasar-bridge
+  sh /data/opt/quasar-bridge/app/control.sh start
+  ```
+- Если установщик упал на проверке LLM, сначала проверьте
+  `./scripts/check-flai.sh` с нужным профилем. Иногда это транзиентный
+  сбой; после успешной проверки установку можно повторить или заменить
+  только бинарник.
+
 ## Колонка видна по Bluetooth, но приложение не подключается
 
 Симптом: «Дом с Алисой» находит `Yandex Station Lite ...`, затем пишет
