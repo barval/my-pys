@@ -270,6 +270,31 @@ make router-status
 в её `runtime.env` остаются адрес роутера и промежуточный ключ
 `secrets/router-token-<колонка>`.
 
+### Chunked-Bridge для длинных ответов
+
+Собрать кастомный Bridge (нужен Docker, Go на хосте не требуется):
+
+```bash
+./scripts/build-quasar-bridge.sh
+```
+
+Установщик автоматически выбирает `v0.6.2-chunked`, если сборка есть в
+`.cache/release-v0.6.2-chunked/`. Явно:
+
+```bash
+SPEAKER_ENV=local/speakers/speaker-d.env \
+  QUASAR_VERSION=v0.6.2-chunked \
+  ./scripts/install-quasar-bridge.sh --non-interactive
+```
+
+Bridge режет ответ на куски по ~500 символов (до 6 кусков) и озвучивает
+их подряд. Настройки — в `runtime.env` колонки:
+
+```env
+QUASAR_SPEECH_MAX_CHARS=500
+QUASAR_SPEECH_MAX_CHUNKS=6
+```
+
 ### Вариант A. Интерактивно
 
 ```bash

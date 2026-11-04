@@ -156,14 +156,10 @@ func (n *Native) finishDeferred(p *nativeRequest, text string) error {
 		}
 		return n.deferredPart(p, text, true)
 	}
-	n.mu.Lock()
-	p.ttsID = newID()
-	n.tts[p.ttsID] = p
-	n.mu.Unlock()
 	if err := n.deferredPart(p, text, true); err != nil {
 		return err
 	}
-	return n.synthesize(p, text)
+	return n.startSpeechChunks(p, text)
 }
 
 // Content audio must start after the silent Dialog player releases its focus.

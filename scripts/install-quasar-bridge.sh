@@ -39,7 +39,14 @@ fi
 TOKEN="$(<"$TOKEN_FILE")"
 [[ -n "$TOKEN" ]] || { echo "Ключ FLAI пустой" >&2; exit 1; }
 
-VERSION="${QUASAR_VERSION:-v0.6.2}"
+if [[ -n "${QUASAR_VERSION:-}" ]]; then
+  VERSION="$QUASAR_VERSION"
+elif [[ -s "$ROOT/.cache/release-v0.6.2-chunked/quasar-bridge-linux-arm64.tar.gz" && \
+        -s "$ROOT/.cache/release-v0.6.2-chunked/quasar-bridge-linux-arm64.tar.gz.sha256" ]]; then
+  VERSION="v0.6.2-chunked"
+else
+  VERSION="v0.6.2"
+fi
 LOCAL_RELEASE="$ROOT/.cache/release-$VERSION"
 LOCAL_ASSET="$LOCAL_RELEASE/quasar-bridge-linux-arm64.tar.gz"
 

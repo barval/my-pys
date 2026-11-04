@@ -66,6 +66,9 @@ type nativeRequest struct {
 	continuation                    []byte
 	ttsID                           string
 	progressTTS                     string
+	speechChunks                    []string
+	speechIndex                     int
+	speechIDs                       []string
 	audio                           oggSpeech
 	audioIsProgress                 bool
 	audioStarted                    bool
@@ -343,6 +346,16 @@ func (n *Native) Server(ctx context.Context, k websocket.MessageType, data []byt
 					n.mu.Unlock()
 					return nil
 				}
+				if p.speechIndex < len(p.speechChunks) {
+					n.mu.Unlock()
+					return n.synthesizeNextChunk(p)
+				}
+				for _, id := range p.speechIDs {
+					delete(n.tts, id)
+				}
+				p.speechChunks = nil
+				p.speechIDs = nil
+				p.speechIndex = 0
 				end := p.audio.finish()
 				if err := n.down(ctx, k, append(binary.BigEndian.AppendUint32(nil, p.audioStream), end...)); err != nil {
 					n.mu.Unlock()
@@ -635,6 +648,10 @@ func (n *Native) reply(p *nativeRequest, text string) error {
 	if p.streaming {
 		return n.finishDeferred(p, text)
 	}
+	chunks := splitSpeech(text, speechChunkChars(), speechChunkLimit())
+	if len(chunks) > 1 {
+		return n.replyChunked(p, text, chunks)
+	}
 	requestID := p.request.GetHeader().GetRequestId()
 	if requestID == "" {
 		requestID = p.id
@@ -673,6 +690,80 @@ func (n *Native) synthesize(p *nativeRequest, text string) error {
 		return err
 	}
 	return n.up(p.ctx, websocket.MessageBinary, b)
+}
+
+// replyChunked speaks a long answer through the deferred streaming path so
+// consecutive Opus segments are joined into one continuous Ogg stream.
+func (n *Native) replyChunked(p *nativeRequest, text string, chunks []string) error {
+	n.mu.Lock()
+	if p.canceled {
+		n.mu.Unlock()
+		return p.ctx.Err()
+	}
+	p.local = true
+	p.streaming = true
+	p.responseID = newID()
+	p.ttsID = newID()
+	p.progressTTS = p.ttsID
+	p.progressAudioDone = make(chan struct{})
+	p.speechChunks = chunks
+	p.speechIndex = 0
+	p.speechIDs = append(p.speechIDs, p.ttsID)
+	n.tts[p.ttsID] = p
+	n.mu.Unlock()
+
+	if p.gated {
+		if err := n.sendCancel(p.ctx, p.id); err != nil {
+			return err
+		}
+	} else if err := n.ack(p); err != nil {
+		return err
+	}
+	if err := n.beginDeferred(p); err != nil {
+		return err
+	}
+
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-p.ctx.Done():
+		return p.ctx.Err()
+	case <-p.progressAudioDone:
+	case <-timer.C:
+		return errors.New("TTS header timeout")
+	}
+
+	if err := n.deferredPart(p, text, true); err != nil {
+		return err
+	}
+	return n.synthesizeNextChunk(p)
+}
+
+func (n *Native) startSpeechChunks(p *nativeRequest, text string) error {
+	chunks := splitSpeech(text, speechChunkChars(), speechChunkLimit())
+	if len(chunks) == 0 {
+		return nil
+	}
+	n.mu.Lock()
+	p.speechChunks = chunks
+	p.speechIndex = 0
+	n.mu.Unlock()
+	return n.synthesizeNextChunk(p)
+}
+
+func (n *Native) synthesizeNextChunk(p *nativeRequest) error {
+	n.mu.Lock()
+	if p.canceled || p.speechIndex >= len(p.speechChunks) {
+		n.mu.Unlock()
+		return nil
+	}
+	chunk := p.speechChunks[p.speechIndex]
+	p.speechIndex++
+	p.ttsID = newID()
+	p.speechIDs = append(p.speechIDs, p.ttsID)
+	n.tts[p.ttsID] = p
+	n.mu.Unlock()
+	return n.synthesize(p, chunk)
 }
 func requestTag(id string) string {
 	sum := sha256.Sum256([]byte(id))
