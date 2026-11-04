@@ -37,6 +37,8 @@
   `-ln`, `-l00fq`; профили содержат `LLM_TOKEN_FILE`.
 - `scripts/set-speaker-key.sh` записывает ключ в
   `/data/opt/quasar-bridge/runtime.env` на колонке и перезапускает Bridge.
+- `make status` больше не вызывает LLM; health-probe «Ответь одним словом:
+  связь» вынесен в `make check-backends`, чтобы не засорять историю FLAI.
 - `conversation_log` включает журнал распознанных фраз и ответов для
   диагностики маршрутизации.
 - Подтверждён целевой сценарий с камерой: FLAI делает

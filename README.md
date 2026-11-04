@@ -172,6 +172,10 @@ LLM_TOKEN_FILE=secrets/flai-token-speaker-b
    SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/check-flai.sh
    SPEAKER_ENV=local/speakers/speaker-b.env make status
    ```
+   `make status` проверяет только процесс Bridge. `make check-backends`
+   дополнительно дергает LLM тестовым запросом «Ответь одним словом: связь»
+   и создаёт такую сессию в истории FLAI — используйте его только после
+   смены ключа/конфига.
 
 Ключ не попадает в `config.json`, git или документацию. На колонке
 `runtime.env` имеет права `600`.

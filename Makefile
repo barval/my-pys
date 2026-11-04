@@ -1,4 +1,4 @@
-.PHONY: help check firmware stand stop bridge ssh status resolve routing key routes flai-log lint
+.PHONY: help check firmware stand stop bridge ssh status check-backends resolve routing key routes flai-log lint
 
 help:
 	@echo "make check     — проверить внешнюю LLM"
@@ -10,7 +10,8 @@ help:
 	@echo "make routing   — применить политику маршрутизации"
 	@echo "make key       — записать ключ LLM из профиля в колонку"
 	@echo "make ssh       — войти на колонку по ключу"
-	@echo "make status    — статус Bridge на колонке"
+	@echo "make status    — статус процесса Bridge (без запроса к LLM)"
+	@echo "make check-backends — проверить LLM (создаёт тестовую сессию)"
 	@echo "make routes    — последние решения Bridge: llm или yandex"
 	@echo "make flai-log  — последние запросы в FLAI"
 	@echo "make lint      — bash -n для скриптов"
@@ -44,7 +45,11 @@ ssh:
 
 status:
 	ssh -i secrets/speaker_ed25519 -p 2222 root@$$(./scripts/resolve-speaker.sh) \
-	  'pkg=/data/opt/quasar-bridge/app; sh "$$pkg/control.sh" status; sh "$$pkg/control.sh" check-backends'
+	  'pkg=/data/opt/quasar-bridge/app; sh "$$pkg/control.sh" status'
+
+check-backends:
+	ssh -i secrets/speaker_ed25519 -p 2222 root@$$(./scripts/resolve-speaker.sh) \
+	  'pkg=/data/opt/quasar-bridge/app; sh "$$pkg/control.sh" check-backends'
 
 routes:
 	ssh -i secrets/speaker_ed25519 -p 2222 root@$$(./scripts/resolve-speaker.sh) \
