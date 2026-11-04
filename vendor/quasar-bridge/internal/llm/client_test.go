@@ -43,6 +43,41 @@ func TestCompleteUsesOpenAIContractAndRejectsEmptyAnswers(t *testing.T) {
 	}
 }
 
+func TestCompleteStreamReadsSSE(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Stream bool `json:"stream"`
+		}
+		if err := json.UnmarshalRead(r.Body, &body); err != nil || !body.Stream {
+			http.Error(w, "expected stream", 400)
+			return
+		}
+		if r.Header.Get("X-Quasar-Voice-Chunking") != "1" {
+			http.Error(w, "missing chunking header", 400)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"При\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"вет\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"!\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer s.Close()
+	c := Client{BaseURL: s.URL, Model: "fixture-model", APIKey: "fixture-key"}
+
+	var deltas []string
+	got, err := c.CompleteStream(t.Context(), []Message{{Role: "user", Content: "Привет"}}, func(delta string) error {
+		deltas = append(deltas, delta)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "Привет!" || strings.Join(deltas, "") != "Привет!" {
+		t.Fatalf("answer=%q deltas=%v", got, deltas)
+	}
+}
+
 func TestCompleteHonorsCancellation(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
