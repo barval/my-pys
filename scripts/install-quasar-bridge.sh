@@ -11,7 +11,8 @@ if [[ -f "$ROOT/.env" ]]; then
   set +a
 fi
 
-IP="${SPEAKER_IP:-192.168.1.103}"
+# IP не хардкодим: ищем по device ID/MAC, IP — только подсказка.
+IP="$("$ROOT/scripts/resolve-speaker.sh")"
 PORT="${SPEAKER_SSH_PORT:-2222}"
 BASE="${FLAI_BASE_URL:-http://192.168.1.2:5000/v1}"
 MODEL="${FLAI_MODEL:-flai-chat}"

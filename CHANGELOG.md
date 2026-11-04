@@ -15,16 +15,19 @@
 - `docs/03-runbook.md`: пошаговые команды root, SSH, OTA, Bridge.
 - `docs/04-risks.md`: риски, ограничения, откат.
 - `docs/05-troubleshooting.md`: диагностика типовых ошибок.
-- Скрипты `check-flai`, `fetch-firmware`, `start-lite-kit`,
-  `stop-lite-kit`, `post-root-ssh`, `install-quasar-bridge`.
+- Скрипты `check-flai`, `resolve-speaker`, `fetch-firmware`,
+  `start-lite-kit`, `stop-lite-kit`, `post-root-ssh`,
+  `install-quasar-bridge`.
+- `resolve-speaker.sh` ищет колонку по `device_id`/MAC, IP — только
+  подсказка. Все установочные скрипты используют его вместо хардкода IP.
 - Docker-стенд `lite-kit` с host-network: DNS 53, HTTP 80, HTTPS 443.
 - Снапшоты `quasar-bridge` v0.6.2, `lite-kit` и station-tools.
 - Конфигурационные примеры для FLAI и колонки.
 
 ### Verified
 
-- Колонка `192.168.1.103` — `yandexmicro`, deviceId
-  `EXAMPLE000000000000000000000004`.
+- Колонка `192.168.1.101` — `yandexmicro`, deviceId
+  `EXAMPLE000000000000000000000001`.
 - FLAI `http://192.168.1.2:5000/v1` отвечает; создан ключ
   `quasar-bridge` (префикс `flai-_XGpOA`).
 - Простой ответ FLAI — 5,3–38,4 с (зависит от загрузки модели и чужих
@@ -36,10 +39,16 @@
   `quasar.yandex.ru`, `scbh.yandex.net` → `192.168.1.2`;
   HTTPS 443 отвечает, порты 80/443/53 слушают.
 - Порт `1961` (glagol) открыт, но требует облачный `conversationToken`.
+- Целевая колонка `192.168.1.101` (`EXAMPLE-1...`, MAC
+  `02:00:00:00:00:01`) сброшена, получила `.46` и ADB с `uid=0(root)`.
+- После живой проверки цель исправлена: сначала предполагалась
+  `EXAMPLE-4...` на `192.168.1.103`, но физически настроена `EXAMPLE-1...` на `192.168.1.101`.
+  Остальные три станции выключены и не затрагивались.
+- Установлен Dropbear на `2222`, добавлен SSH-ключ, OTA отключён
+  (`updatesd` не запущен), пустой пароль `-B` убран.
 
 ### Pending
 
-- Сброс колонки и получение root.
-- Установка Dropbear, отключение OTA.
+- Установка Quasar Bridge и голосовые тесты.
 - Установка Quasar Bridge и голосовые тесты.
 - Тег `v1.0` после успешной проверки на живой колонке.
