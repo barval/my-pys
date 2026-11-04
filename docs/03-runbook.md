@@ -229,6 +229,32 @@ mount -o remount,ro /
 Установщик использует локальную копию, поэтому не зависит от того, отдаст ли
 GitHub release-assets файл за 15 секунд.
 
+### Прокси нормализации обращения
+
+Чтобы FLAI не получала «Спроси у ФЛАЙ: …», поднимите прокси:
+
+```bash
+./scripts/start-flai-proxy.sh
+```
+
+Он слушает `http://192.168.1.2:5001/v1` и вырезает служебные фразы,
+передавая в FLAI только сам вопрос. Для уже установленного Bridge:
+
+```bash
+# на колонке
+sed -i 's|http://192.168.1.2:5000/v1|http://192.168.1.2:5001/v1|' \
+  /data/opt/quasar-bridge/runtime.env
+pkg=/data/opt/quasar-bridge/app
+sh "$pkg/control.sh" restart
+sh "$pkg/control.sh" check-backends
+```
+
+Проверка через прокси:
+
+```bash
+./scripts/check-flai.sh
+```
+
 ### Вариант A. Интерактивно
 
 ```bash
@@ -239,7 +265,7 @@ GitHub release-assets файл за 15 секунд.
 
 | Вопрос | Ответ |
 |---|---|
-| Адрес API нейросети | `http://192.168.1.2:5000/v1` |
+| Адрес API нейросети | `http://192.168.1.2:5001/v1` (прокси) |
 | Название модели | `flai-chat` |
 | Ключ API | содержимое `secrets/flai-token` |
 | API | `1` (Chat Completions) |

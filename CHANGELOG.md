@@ -35,6 +35,13 @@
 - Подтверждён целевой сценарий с камерой: FLAI делает
   `camera_snapshot(room=kab)`, Qwen3VL описывает снимок, Bridge передаёт
   текст в Yandex TTS, Алиса озвучивает.
+- Добавлен прокси `docker/flai_invocation_proxy.py` на `5001`: он вырезает
+  «спроси у ФЛАЙ», «спроси нейросеть» и родственные обращения до передачи
+  запроса в FLAI. Bridge переключён на `http://192.168.1.2:5001/v1`.
+- Добавлены `scripts/start-flai-proxy.sh`, `stop-flai-proxy.sh`, `make proxy`
+  и `make proxy-stop`.
+- Добавлен необязательный патч `patches/flai-camera-invocation.patch`:
+  второй слой очистки для vision-задачи камеры в FLAI.
 - Docker-стенд `lite-kit` с host-network: DNS 53, HTTP 80, HTTPS 443.
 - Снапшоты `quasar-bridge` v0.6.2, `lite-kit` и station-tools.
 - Конфигурационные примеры для FLAI и колонки.

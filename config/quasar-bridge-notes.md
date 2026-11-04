@@ -44,6 +44,41 @@ cp config/flai.env.example .env
 5. FLAI хранит сессии. Голосовые запросы появляются в веб-чате.
 6. `model` в ответе всегда `flai-chat`.
 
+## Нормализация служебного обращения
+
+Bridge отправляет распознанный текст целиком. Чтобы FLAI не видела
+«Спроси у ФЛАЙ: …», между ними стоит маленький прокси:
+
+```text
+колонка → Bridge → http://192.168.1.2:5001/v1
+                         │  вырезает «спроси у ФЛАЙ», «спроси нейросеть» и т.п.
+                         ▼
+                    FLAI http://127.0.0.1:5000/v1
+```
+
+Запуск:
+
+```bash
+./scripts/start-flai-proxy.sh
+```
+
+На колонке в `/data/opt/quasar-bridge/runtime.env`:
+
+```sh
+QUASAR_LLM_BASE_URL="http://192.168.1.2:5001/v1"
+```
+
+После изменения:
+
+```sh
+pkg=/data/opt/quasar-bridge/app
+sh "$pkg/control.sh" restart
+sh "$pkg/control.sh" check-backends
+```
+
+Прокси не требует ключа: он прозрачно передаёт `Authorization` в FLAI.
+Порт 5001 — только для локальной сети.
+
 ## Фразы для вызова FLAI
 
 Правило `explicit_llm_phrase` (файл `config/quasar-bridge-routing.json`)
