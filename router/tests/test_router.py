@@ -120,11 +120,13 @@ def start_router(config_path, state_path):
     return server
 
 
-def post(port, token, body, path="/v1/chat/completions"):
+def post(port, token, body, path="/v1/chat/completions", extra_headers=None):
     conn = HTTPConnection("127.0.0.1", port, timeout=10)
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = "Bearer " + token
+    if extra_headers:
+        headers.update(extra_headers)
     conn.request("POST", path, json.dumps(body), headers)
     response = conn.getresponse()
     data = response.read()
@@ -213,6 +215,20 @@ def test_response_policy_defaults(tmp_path):
     assert config.response.max_sentences == 3
     assert config.response.max_chars == 400
     assert config.response.strip_markdown is True
+    assert config.response_chunked.max_sentences == 100
+    assert config.response_chunked.max_chars == 3000
+
+
+def test_config_reads_chunked_policy(tmp_path):
+    path = write_config(tmp_path, "http://127.0.0.1:1/v1")
+    raw = json.loads(path.read_text())
+    raw["response"] = {"chunked": {"max_sentences": 50, "max_chars": 1000}}
+    path.write_text(json.dumps(raw))
+
+    config = r.load_config(path)
+
+    assert config.response_chunked.max_sentences == 50
+    assert config.response_chunked.max_chars == 1000
 
 
 def test_shorten_text_keeps_three_sentences_and_strips_markdown():
@@ -402,6 +418,29 @@ def test_proxy_shortens_long_non_stream_answer(tmp_path):
         )
         assert status == 200
         assert json.loads(data)["choices"][0]["message"]["content"] == "Раз. Два. Три."
+    finally:
+        stop(router)
+        stop(primary)
+
+
+def test_chunking_header_allows_long_answer(tmp_path):
+    primary = start_upstream(
+        lambda seen: (
+            200,
+            {"choices": [{"message": {"role": "assistant", "content": "Раз. Два. Три. Четыре."}}]},
+            False,
+        )
+    )
+    router = start_router(write_config(tmp_path, f"http://127.0.0.1:{primary.server_port}/v1"), tmp_path / "state.json")
+    try:
+        status, data = post(
+            router.server_port,
+            "sk-router-test",
+            {"messages": [{"role": "user", "content": "расскажи"}]},
+            extra_headers={"X-Quasar-Voice-Chunking": "1"},
+        )
+        assert status == 200
+        assert json.loads(data)["choices"][0]["message"]["content"] == "Раз. Два. Три. Четыре."
     finally:
         stop(router)
         stop(primary)

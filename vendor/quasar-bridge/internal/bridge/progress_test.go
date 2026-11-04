@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -206,6 +207,83 @@ func feedSpeech(t *testing.T, n *Native, id string, streamID uint32, omitID bool
 	closeStream := &server.TServerMessage{Message: &server.TServerMessage_StreamControl{StreamControl: &stream.TStreamControl{MessageId: id, StreamId: int64(streamID), Action: &stream.TStreamControl_Close{Close: &stream.TStreamControl_TActionClose{}}}}}
 	if err := n.Server(t.Context(), websocket.MessageBinary, aa(closeStream)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLongLocalAnswerUsesMultipleTTSChunks(t *testing.T) {
+	answer := strings.TrimSpace(strings.Repeat("Это длинное предложение для проверки нарезки. ", 30))
+	down := make(chan wire.Frame, 128)
+	up := make(chan wire.Frame, 128)
+	n := NewNative(t.Context(), func(_ context.Context, _ websocket.MessageType, b []byte) error {
+		up <- wire.Decode(b, wire.ClientToServer)
+		return nil
+	}, func(_ context.Context, _ websocket.MessageType, b []byte) error {
+		down <- wire.Decode(b, wire.ServerToClient)
+		return nil
+	}, resolverFunc(func(context.Context, string) (Resolution, error) {
+		return Resolution{Route: "llm", Answer: answer}, nil
+	}))
+	defer n.Close()
+	n.ShouldListen = false
+	n.ProgressAfter = time.Hour
+
+	input := &client.TClientMessage{Message: &client.TClientMessage_Event{Event: &client.TClientMessage_TEvent{Header: &header.TEventHeader{MessageId: "long-request"}, Event: &client.TClientMessage_TEvent_TextInput{TextInput: &request.TAliceRequestProto{Header: &request.TAliceRequestProto_THeader{RequestId: new("long-app")}, Request: &request.TAliceRequestProto_TRequest{Event: &common.TEvent{Text: new("расскажи")}}}}}}}
+	if err := n.Client(t.Context(), websocket.MessageBinary, aa(input)); err != nil {
+		t.Fatal(err)
+	}
+
+	var placeholder wire.Frame
+	deadline := time.After(3 * time.Second)
+	for placeholder.Kind() != "TtsGenerate" {
+		select {
+		case placeholder = <-up:
+		case <-deadline:
+			t.Fatal("missing placeholder TTS")
+		}
+	}
+	if got := placeholder.Client.GetEvent().GetTtsGenerate().GetText(); got != "а" {
+		t.Fatalf("placeholder text=%q", got)
+	}
+	feedSpeech(t, n, placeholder.Client.GetEvent().GetHeader().GetMessageId(), 72, false)
+
+	want := splitSpeech(answer, speechChunkChars(), speechChunkLimit())
+	if len(want) < 2 {
+		t.Fatalf("expected several chunks, got %d", len(want))
+	}
+	var got []string
+	for i := range want {
+		var frame wire.Frame
+		deadline := time.After(3 * time.Second)
+		for {
+			select {
+			case frame = <-up:
+			case <-deadline:
+				t.Fatalf("missing TTS chunk %d", i)
+			}
+			if frame.Kind() == "TtsGenerate" {
+				break
+			}
+		}
+		got = append(got, frame.Client.GetEvent().GetTtsGenerate().GetText())
+		feedSpeech(t, n, frame.Client.GetEvent().GetHeader().GetMessageId(), 72, false)
+	}
+	if strings.Join(got, " ") != answer {
+		t.Fatalf("chunks lost text:\n%q", strings.Join(got, " "))
+	}
+
+	deadline = time.After(3 * time.Second)
+	for {
+		select {
+		case f := <-down:
+			if sc := f.Server.GetStreamControl(); sc != nil && sc.GetClose() != nil {
+				if sc.GetStreamId() != 72 {
+					t.Fatalf("final close stream=%d", sc.GetStreamId())
+				}
+				return
+			}
+		case <-deadline:
+			t.Fatal("missing final stream close")
+		}
 	}
 }
 

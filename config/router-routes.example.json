@@ -2,7 +2,12 @@
   "response": {
     "max_sentences": 3,
     "max_chars": 400,
-    "strip_markdown": true
+    "strip_markdown": true,
+    "chunked": {
+      "max_sentences": 100,
+      "max_chars": 3000,
+      "strip_markdown": true
+    }
   },
   "routes": [
     {

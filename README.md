@@ -129,10 +129,10 @@ secrets/
 
 | Профиль | IP | Device ID | Статус |
 |---|---|---|---|
-| `speaker-a.env` | `192.168.1.101` | `EXAMPLE-1...` | готово |
-| `speaker-b.env` | `192.168.1.100` | `EXAMPLE-2...` | готово (комната B) |
-| `speaker-c.env` | `192.168.1.102` | `EXAMPLE-3...` | готово (комната C) |
-| `speaker-d.env` | `192.168.1.103` | `EXAMPLE-4...` | готово (комната D) |
+| `speaker-a.env` | `192.168.1.101` | `EXAMPLE-1...` | готово, нужен chunked-Bridge |
+| `speaker-b.env` | `192.168.1.100` | `EXAMPLE-2...` | готово, chunked |
+| `speaker-c.env` | `192.168.1.102` | `EXAMPLE-3...` | готово, нужен chunked-Bridge |
+| `speaker-d.env` | `192.168.1.103` | `EXAMPLE-4...` | готово, chunked |
 
 Для любой команды по конкретной колонке:
 
@@ -262,8 +262,30 @@ keys:     secrets/orca-token-speaker-a, -lp, -ln, -l00fq
 ```
 
 Обрезаются только не-stream ответы (`stream: false`); Bridge использует
-именно такой режим. Длинные ответы сейчас не разбиваются на несколько
-TTS-фрагментов — это в планах на доработку.
+именно такой режим.
+
+Новый Bridge `0.6.2-chunked` присылает заголовок
+`X-Quasar-Voice-Chunking: 1`. Для таких запросов роутер отдаёт до
+**3000 символов**, а Bridge сам режет ответ на куски по ~500 символов
+(до 6 кусков) и озвучивает их подряд. Старые Bridge без заголовка
+продолжают получать 3/400.
+
+Собрать кастомный Bridge:
+
+```bash
+./scripts/build-quasar-bridge.sh
+```
+
+Установщик автоматически берёт `v0.6.2-chunked`, если сборка есть в
+`.cache/release-v0.6.2-chunked/`; явно задать версию можно через
+`QUASAR_VERSION`.
+
+Лимиты чанкинга на колонке:
+
+```env
+QUASAR_SPEECH_MAX_CHARS=500
+QUASAR_SPEECH_MAX_CHUNKS=6
+```
 
 ### Upstream-ключи FLAI
 

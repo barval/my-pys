@@ -83,6 +83,7 @@ class Config:
     mtime_ns: int
     watched_mtimes: Mapping[str, int]
     response: ResponsePolicy
+    response_chunked: ResponsePolicy
     by_token_map: Mapping[str, Route]
 
     def by_token(self, token: str) -> Route | None:
@@ -182,12 +183,12 @@ def _parse_session(raw: Any, default_history: str) -> SessionConfig:
     return SessionConfig(mode=mode, user=user.strip(), idle_minutes=idle_minutes, cleanup_keep=cleanup_keep)
 
 
-def _parse_response_policy(raw: Any) -> ResponsePolicy:
+def _parse_response_policy(raw: Any, default_sentences: int = 3, default_chars: int = 400) -> ResponsePolicy:
     if not isinstance(raw, dict):
         raw = {}
     try:
-        max_sentences = int(raw.get("max_sentences", 3))
-        max_chars = int(raw.get("max_chars", 400))
+        max_sentences = int(raw.get("max_sentences", default_sentences))
+        max_chars = int(raw.get("max_chars", default_chars))
     except (TypeError, ValueError) as exc:
         raise ConfigError(f"invalid response limits: {exc}") from exc
     if max_sentences < 1 or max_chars < 1:
@@ -247,11 +248,14 @@ def load_config(path: Path) -> Config:
     if not routes:
         raise ConfigError("config has no routes")
     mtime_ns = _mtime_ns(path)
+    response_raw = raw.get("response")
+    chunked_raw = response_raw.get("chunked") if isinstance(response_raw, dict) else None
     return Config(
         routes=tuple(routes),
         mtime_ns=mtime_ns,
         watched_mtimes=watched,
-        response=_parse_response_policy(raw.get("response")),
+        response=_parse_response_policy(response_raw),
+        response_chunked=_parse_response_policy(chunked_raw, 100, 3000),
         by_token_map=by_token,
     )
 
@@ -729,7 +733,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
         )
 
         if body is not None and not stream and status == 200 and isinstance(payload, bytes):
-            payload = apply_response_policy(payload, config.response)
+            chunked = self.headers.get("X-Quasar-Voice-Chunking", "").strip().lower() in ("1", "true", "yes")
+            payload = apply_response_policy(payload, config.response_chunked if chunked else config.response)
 
         if stream and isinstance(payload, tuple):
             self._send_stream(status, headers, payload)
