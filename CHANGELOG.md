@@ -24,7 +24,10 @@
   ключи `secrets/router-token-*`.
 - `scripts/set-speaker-key.sh` теперь записывает в Bridge адрес роутера,
   модель и промежуточный ключ.
-- Тесты роутера: `router/tests/test_router.py` (12 тестов).
+- `history=server` больше не отправляет system-промпт: FLAI склеивает роли
+  и мог цитировать служебные инструкции в ответе. Health-check вынесен в
+  отдельную сессию `voice-health` и не засоряет основной диалог.
+- Тесты роутера: `router/tests/test_router.py` (14 тестов).
 - FLAI назначен `primary` для всех четырёх маршрутов; upstream-ключи
   разложены по учётным записям `speaker-a`, `speaker-b`, `speaker-c`, `speaker-d`.
 
