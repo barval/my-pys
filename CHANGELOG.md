@@ -24,7 +24,9 @@
   ключи `secrets/router-token-*`.
 - `scripts/set-speaker-key.sh` теперь записывает в Bridge адрес роутера,
   модель и промежуточный ключ.
-- Тесты роутера: `router/tests/test_router.py` (11 тестов).
+- Тесты роутера: `router/tests/test_router.py` (12 тестов).
+- FLAI назначен `primary` для всех четырёх маршрутов; upstream-ключи
+  разложены по учётным записям `speaker-a`, `speaker-b`, `speaker-c`, `speaker-d`.
 
 ### Changed
 
