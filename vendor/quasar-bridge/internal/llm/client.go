@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json/jsontext"
@@ -118,9 +119,9 @@ func (c *Client) chat(ctx context.Context, messages []Message, structured bool, 
 	return m, nil
 }
 
-func (c *Client) chatCompletions(ctx context.Context, messages []Message, structured bool, tools []Tool) (Message, error) {
+func (c *Client) chatPayload(messages []Message, structured bool, tools []Tool, stream bool) map[string]any {
 	request := map[string]any{
-		"model": c.Model, "messages": messages, "stream": false,
+		"model": c.Model, "messages": messages, "stream": stream,
 		"temperature": 0, "max_tokens": 1024,
 		"chat_template_kwargs": map[string]any{"enable_thinking": false},
 	}
@@ -142,6 +143,11 @@ func (c *Client) chatCompletions(ctx context.Context, messages []Message, struct
 		request["tool_choice"] = "auto"
 		request["parallel_tool_calls"] = false
 	}
+	return request
+}
+
+func (c *Client) chatCompletions(ctx context.Context, messages []Message, structured bool, tools []Tool) (Message, error) {
+	request := c.chatPayload(messages, structured, tools, false)
 	data, err := c.post(ctx, "/chat/completions", request)
 	if err != nil {
 		return Message{}, err
@@ -164,6 +170,107 @@ func (c *Client) chatCompletions(ctx context.Context, messages []Message, struct
 	m := result.Choices[0].Message
 	m.Role = "assistant"
 	return m, nil
+}
+
+// CompleteStream reads an OpenAI-compatible SSE stream and calls onContent for
+// every non-empty text delta. The full answer is returned for dialogue memory.
+func (c *Client) CompleteStream(ctx context.Context, messages []Message, onContent func(string) error) (string, error) {
+	if c.API != "" && c.API != "chat_completions" {
+		return "", errors.New("streaming requires chat_completions API")
+	}
+	request := c.chatPayload(messages, false, nil, true)
+	body, err := json.Marshal(request)
+	if err != nil {
+		return "", errors.New("cannot encode LLM request")
+	}
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(streamCtx, http.MethodPost, strings.TrimRight(c.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return "", errors.New("invalid LLM endpoint")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("X-Quasar-Voice-Chunking", "1")
+	if c.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	}
+	hc := c.HTTP
+	if hc == nil {
+		hc = http.DefaultClient
+	}
+	resp, err := hc.Do(req)
+	if err != nil {
+		if streamCtx.Err() != nil {
+			return "", fmt.Errorf("LLM transport: %w", streamCtx.Err())
+		}
+		return "", errors.New("LLM transport failed")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+		return "", fmt.Errorf("LLM returned HTTP %d", resp.StatusCode)
+	}
+
+	idle := time.AfterFunc(30*time.Second, cancel)
+	defer idle.Stop()
+	reader := bufio.NewReader(resp.Body)
+	var full strings.Builder
+	for {
+		line, readErr := reader.ReadString('\n')
+		if line != "" {
+			idle.Reset(30 * time.Second)
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "data:") {
+				data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+				if data == "[DONE]" {
+					break
+				}
+				var event struct {
+					Choices []struct {
+						Delta struct {
+							Content string `json:"content"`
+						} `json:"delta"`
+					} `json:"choices"`
+					Error *struct {
+						Message string `json:"message"`
+					} `json:"error"`
+				}
+				if err := json.Unmarshal([]byte(data), &event); err != nil {
+					continue
+				}
+				if event.Error != nil {
+					return full.String(), errors.New("LLM stream error")
+				}
+				for _, choice := range event.Choices {
+					if choice.Delta.Content == "" {
+						continue
+					}
+					full.WriteString(choice.Delta.Content)
+					if onContent != nil {
+						if err := onContent(choice.Delta.Content); err != nil {
+							return full.String(), err
+						}
+					}
+				}
+			}
+		}
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				break
+			}
+			if streamCtx.Err() != nil {
+				return full.String(), fmt.Errorf("LLM stream: %w", streamCtx.Err())
+			}
+			return full.String(), errors.New("cannot read LLM stream")
+		}
+	}
+	answer := strings.TrimSpace(full.String())
+	if answer == "" {
+		return "", errors.New("LLM returned no answer")
+	}
+	return answer, nil
 }
 
 func (c *Client) post(ctx context.Context, path string, request any) ([]byte, error) {
