@@ -10,7 +10,7 @@ if [[ -f "$ROOT/.env" ]]; then
   set +a
 fi
 
-BASE="${LLM_BASE_URL:-${FLAI_BASE_URL:-http://192.168.1.2:5001/v1}}"
+BASE="${LLM_BASE_URL:-${FLAI_BASE_URL:-http://192.168.1.2:5000/v1}}"
 MODEL="${LLM_MODEL:-${FLAI_MODEL:-flai-chat}}"
 TOKEN_FILE="${LLM_TOKEN_FILE:-${FLAI_TOKEN_FILE:-$ROOT/secrets/flai-token}}"
 [[ "$TOKEN_FILE" = /* ]] || TOKEN_FILE="$ROOT/$TOKEN_FILE"

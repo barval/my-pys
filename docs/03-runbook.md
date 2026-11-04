@@ -229,31 +229,16 @@ mount -o remount,ro /
 Установщик использует локальную копию, поэтому не зависит от того, отдаст ли
 GitHub release-assets файл за 15 секунд.
 
-### Прокси нормализации обращения
+### Endpoint внешней LLM
 
-Чтобы FLAI не получала «Спроси у ФЛАЙ: …», поднимите прокси:
+Bridge подключается напрямую к OpenAI-совместимому endpoint. По умолчанию:
 
-```bash
-./scripts/start-flai-proxy.sh
+```text
+http://192.168.1.2:5000/v1
 ```
 
-Он слушает `http://192.168.1.2:5001/v1` и вырезает служебные фразы,
-передавая в FLAI только сам вопрос. Для уже установленного Bridge:
-
-```bash
-# на колонке
-sed -i 's|http://192.168.1.2:5000/v1|http://192.168.1.2:5001/v1|' \
-  /data/opt/quasar-bridge/runtime.env
-pkg=/data/opt/quasar-bridge/app
-sh "$pkg/control.sh" restart
-sh "$pkg/control.sh" check-backends
-```
-
-Проверка через прокси:
-
-```bash
-./scripts/check-flai.sh
-```
+Для другой LLM поменяйте `LLM_BASE_URL`, `LLM_MODEL` и ключ в `.env`,
+затем переустановите/перезапустите Bridge.
 
 ### Вариант A. Интерактивно
 
@@ -265,7 +250,7 @@ sh "$pkg/control.sh" check-backends
 
 | Вопрос | Ответ |
 |---|---|
-| Адрес API нейросети | `http://192.168.1.2:5001/v1` (прокси) |
+| Адрес API нейросети | `http://192.168.1.2:5000/v1` |
 | Название модели | `flai-chat` |
 | Ключ API | содержимое `secrets/flai-token` |
 | API | `1` (Chat Completions) |
@@ -299,13 +284,7 @@ REBOOT=n ./scripts/install-quasar-bridge.sh --non-interactive
 SSH закрывает соединение раньше, чем удалённый `setup.sh` успевает прочитать
 ответы. Поэтому используется pexpect.
 
-## 8. Политика маршрутизации и прокси
-
-Поднять прокси нормализации обращения:
-
-```bash
-./scripts/start-flai-proxy.sh
-```
+## 8. Политика маршрутизации
 
 Применить политику:
 
@@ -319,7 +298,6 @@ SSH закрывает соединение раньше, чем удалённ�
 - `yandex_services` — погода, время, таймеры, музыка, радио;
 - `home_devices` — умный дом (пока Home Assistant не настроен, Яндекс);
 - `speaker_playback` — пауза/продолжение/стоп;
-- `explicit_llm_phrase` — «спроси ФЛАЙ», «спроси у нейросети» и т.п.
 
 `assistant_tools` оставлены выключенными: внешняя LLM сама решает, что ей
 нужно. `local_progress` включён, чтобы колонка не молчала во время
@@ -343,7 +321,6 @@ pkg=/data/opt/quasar-bridge/app
 4. «Алиса, включи свет в комнате A» — Яндекс (или Home Assistant).
 5. «Алиса, почему небо голубое?» — внешняя LLM.
 6. «Алиса, как дела в комнате A?» — внешняя LLM (камера, если настроена).
-7. «Алиса, спроси у ФЛАЙ: …» — внешняя LLM.
 
 Ожидаемые маршруты можно проверить через `-route` (см. выше) или по логу:
 
@@ -376,8 +353,8 @@ ssh -i secrets/speaker_ed25519 -p 2222 root@$(./scripts/resolve-speaker.sh) \
 
 - `"route":"llm"` — ответила внешняя LLM;
 - `"route":"yandex"` — ответила обычная Алиса;
-- `"source":"rule"` — сработало правило (например, `yandex_services`
-  или `explicit_llm_phrase`);
+- `"source":"rule"` — сработало правило (`yandex_services`,
+  `home_devices` или `speaker_playback`);
 - `"source":"default"` — сработал `default_route=llm`;
 - `"source":"classifier"` в текущей политике не используется.
 

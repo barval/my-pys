@@ -71,25 +71,21 @@ ssh -vvv -i secrets/speaker_ed25519 -p 2222 root@$(./scripts/resolve-speaker.sh)
 релиз скачивается `./scripts/fetch-quasar-bridge.sh` и не зависит от
 таймаутов GitHub.
 
-## Прокси 5001 недоступен
+## Внешняя LLM недоступна
 
 Симптом: `check-backends` не проходит, в логах Bridge `LLM returned HTTP 000`
 или `connection refused`.
 
 ```bash
-docker ps --filter name=flai-invocation-proxy
-docker logs --tail=50 flai-invocation-proxy
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5001/v1/models \
+curl -s -o /dev/null -w '%{http_code}\n' http://192.168.1.2:5000/v1/models \
   -H "Authorization: Bearer $(cat secrets/flai-token)"
 ```
 
-- `5001` не слушает — `./scripts/start-flai-proxy.sh`.
-- `502` — прокси работает, но FLAI на `5000` недоступен; проверьте
-  `http://127.0.0.1:5000/health`.
-- Bridge всё ещё смотрит на `5000` — в
-  `/data/opt/quasar-bridge/runtime.env` должно быть
-  `QUASAR_LLM_BASE_URL="http://192.168.1.2:5001/v1"`, затем
-  `control.sh restart`.
+- FLAI/LLM не отвечает — проверьте `http://192.168.1.2:5000/health`.
+- Bridge смотрит не туда — в `/data/opt/quasar-bridge/runtime.env`
+  должно быть `QUASAR_LLM_BASE_URL="http://192.168.1.2:5000/v1"`,
+  затем `control.sh restart`.
+- Для другой LLM проверьте `LLM_BASE_URL`, `LLM_MODEL` и ключ.
 
 ## Quasar Bridge: «Проверка нейросети не проходит»
 
@@ -105,7 +101,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5001/v1/models \
 |---|---|---|
 | `HTTP 401` | Неверный/отозванный ключ | Создать новый ключ FLAI, обновить `secrets/flai-token` |
 | `HTTP 400` | Неверное тело запроса | Проверить `llm_api` = `chat_completions`, модель `flai-chat` |
-| `HTTP 000` / timeout | Прокси или LLM недоступны | Проверить `http://127.0.0.1:5001/v1/models` и `http://127.0.0.1:5000/health` |
+| `HTTP 000` / timeout | LLM недоступна | Проверить `http://192.168.1.2:5000/health` и `./scripts/check-flai.sh` |
 | `LLM returned no answer` | Пустой ответ | Проверить upstream вручную, `check-backends` |
 | `LLM returned HTTP 429` | Лимит провайдера | Подождать, уменьшить частоту |
 | `finish_reason=length` | Обрезка ответа | Проверить модель/промпт провайдера |
