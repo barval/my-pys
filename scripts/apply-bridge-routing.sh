@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Применяет правило explicit_llm_phrase к config.json на колонке.
+# Применяет политику маршрутизации: Яндекс — только сервисы, всё остальное — LLM.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,7 +11,8 @@ if [[ -f "$ROOT/.env" ]]; then
 fi
 
 IP="$("$ROOT/scripts/resolve-speaker.sh")"
-RULE="$ROOT/config/quasar-bridge-routing.json"
+POLICY="$ROOT/config/quasar-bridge-policy.json"
+EXAMPLE="$ROOT/vendor/quasar-bridge/config.example.json"
 TMP_OLD="$(mktemp)"
 TMP_NEW="$(mktemp)"
 trap 'rm -f "$TMP_OLD" "$TMP_NEW"' EXIT
@@ -19,24 +20,24 @@ trap 'rm -f "$TMP_OLD" "$TMP_NEW"' EXIT
 ssh -o BatchMode=yes -i "$ROOT/secrets/speaker_ed25519" -p "${SPEAKER_SSH_PORT:-2222}" \
   root@"$IP" 'cat /data/opt/quasar-bridge/config.json' > "$TMP_OLD"
 
-python3 - "$TMP_OLD" "$TMP_NEW" "$RULE" "$ROOT/vendor/quasar-bridge/config.example.json" <<'PY'
+python3 - "$TMP_OLD" "$TMP_NEW" "$POLICY" "$EXAMPLE" <<'PY'
 import json
 import sys
 
-old, new, rule_path, example_path = sys.argv[1:5]
+old, new, policy_path, example_path = sys.argv[1:5]
 cfg = json.load(open(old, encoding="utf-8"))
-rule = json.load(open(rule_path, encoding="utf-8"))
+policy = json.load(open(policy_path, encoding="utf-8"))
+example = json.load(open(example_path, encoding="utf-8"))["routing"]
 
-if "routing" not in cfg:
-    cfg["routing"] = json.load(open(example_path, encoding="utf-8"))["routing"]
+# Keep classifier/refusal defaults from upstream, replace only routing policy.
+routing = dict(example)
+routing["default_route"] = policy["default_route"]
+routing["rules"] = policy["rules"]
+cfg["routing"] = routing
 
-rules = [r for r in cfg["routing"].get("rules", []) if r.get("name") != rule["name"]]
-rules.insert(0, rule)
-cfg["routing"]["rules"] = rules
 json.dump(cfg, open(new, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-print("rules:", len(rules))
-print("first:", rules[0]["name"])
-print("terms:", ", ".join(rules[0]["match"]["contains_any"]))
+print("default_route:", routing["default_route"])
+print("rules:", ", ".join(rule["name"] for rule in routing["rules"]))
 PY
 
 ssh -T -o BatchMode=yes -i "$ROOT/secrets/speaker_ed25519" -p "${SPEAKER_SSH_PORT:-2222}" \
