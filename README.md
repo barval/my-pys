@@ -52,6 +52,7 @@ scripts/
   fetch-firmware.sh           загрузка прошивки .46
   fetch-quasar-bridge.sh      офлайн-загрузка релиза Quasar Bridge
   bridge_install_pexpect.py   неинтерактивный мастер через PTY
+  apply-bridge-routing.sh     применить правило «спроси ФЛАЙ» и др.
   start-lite-kit.sh           запуск стенда root в Docker
   stop-lite-kit.sh            остановка стенда
   post-root-ssh.sh            SSH + отключение OTA после root
