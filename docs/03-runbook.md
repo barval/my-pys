@@ -7,21 +7,33 @@
 > по `SPEAKER_DEVICE_ID`/`SPEAKER_MAC` через `./scripts/resolve-speaker.sh`.
 > Если ниже в примере стоит конкретный IP — это текущий снимок, а не гарантия.
 
-## 0. Проверка FLAI
+## 0. Проверка LLM-роутера
 
 ```bash
 cd /home/GIT/GITEA/BARVAL-MY/my-pys
-./scripts/check-flai.sh
+make router-init
+make router
+make router-status
+make check
 ```
 
 Ожидаемо:
 
-- `GET /v1/models` → `200`;
+- `GET /health` → `{"status":"ok",...}`;
+- `GET /v1/models` через роутер → `200`;
 - ответ на тестовый вопрос за 5–40 с;
 - непустой русский текст, `finish_reason=stop`.
 
-Если `401` — проверьте `secrets/flai-token`. Если `000` — FLAI не слушает
-`192.168.1.2:5000`.
+Если `401` — проверьте `secrets/router-token-<колонка>`. Если `503` —
+нет upstream-ключа `secrets/flai-token-<колонка>` или не настроен fallback.
+Если `000` — контейнер `llm-router` не слушает `192.168.1.2:5002`.
+
+Прямая проверка FLAI (в обход роутера):
+
+```bash
+curl -sS -H "Authorization: Bearer $(cat secrets/flai-token-speaker-a)" \
+  http://192.168.1.2:5000/v1/models | head -c 200
+```
 
 ## 1. Прошивка и стенд root
 
@@ -229,16 +241,26 @@ mount -o remount,ro /
 Установщик использует локальную копию, поэтому не зависит от того, отдаст ли
 GitHub release-assets файл за 15 секунд.
 
-### Endpoint внешней LLM
+### LLM-роутер
 
-Bridge подключается напрямую к OpenAI-совместимому endpoint. По умолчанию:
+Bridge подключается к локальному роутеру, а не напрямую к FLAI:
 
 ```text
-http://192.168.1.2:5000/v1
+http://192.168.1.2:5002/v1
 ```
 
-Для другой LLM поменяйте `LLM_BASE_URL`, `LLM_MODEL` и ключ в `.env`,
-затем переустановите/перезапустите Bridge.
+Перед установкой Bridge роутер должен быть запущен:
+
+```bash
+make router-init
+make router
+make router-status
+```
+
+Маршруты и fallback лежат в `secrets/router-routes.json`; изменения
+подхватываются без перезапуска. Колонка при смене upstream не меняется:
+в её `runtime.env` остаются адрес роутера и промежуточный ключ
+`secrets/router-token-<колонка>`.
 
 ### Вариант A. Интерактивно
 
@@ -250,9 +272,9 @@ http://192.168.1.2:5000/v1
 
 | Вопрос | Ответ |
 |---|---|
-| Адрес API нейросети | `http://192.168.1.2:5000/v1` |
+| Адрес API нейросети | `http://192.168.1.2:5002/v1` |
 | Название модели | `flai-chat` |
-| Ключ API | содержимое `secrets/flai-token` |
+| Ключ API | содержимое `secrets/router-token-speaker-a` (для `192.168.1.101`) |
 | API | `1` (Chat Completions) |
 | Home Assistant MCP | Enter (не нужен) |
 | Подключить Алису | `y` |
@@ -261,8 +283,10 @@ http://192.168.1.2:5000/v1
 Ключ вводится скрыто. Скопировать его:
 
 ```bash
-cat secrets/flai-token
+cat secrets/router-token-speaker-a
 ```
+
+Для остальных колонок используйте `secrets/router-token-<колонка>`.
 
 ### Вариант B. Без ручного ввода
 
@@ -283,6 +307,15 @@ REBOOT=n ./scripts/install-quasar-bridge.sh --non-interactive
 Важно: обычный `printf ... | sh install.sh` с `ssh -tt` не работает —
 SSH закрывает соединение раньше, чем удалённый `setup.sh` успевает прочитать
 ответы. Поэтому используется pexpect.
+
+После установки проверьте/обновите `runtime.env` колонки:
+
+```bash
+SPEAKER_ENV=local/speakers/speaker-a.env ./scripts/set-speaker-key.sh
+```
+
+Скрипт выставит `QUASAR_LLM_BASE_URL`, `QUASAR_LLM_MODEL` и
+`QUASAR_LLM_API_KEY` и перезапустит Bridge.
 
 ## 8. Политика маршрутизации
 

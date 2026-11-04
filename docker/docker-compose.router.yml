@@ -1,0 +1,17 @@
+name: llm-router
+
+services:
+  llm-router:
+    build:
+      context: ../router
+    container_name: llm-router
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    environment:
+      ROUTER_CONFIG: /app/secrets/router-routes.json
+      ROUTER_STATE: /app/state/router-state.json
+      ROUTER_LOG_LEVEL: INFO
+    volumes:
+      - ../secrets:/app/secrets:ro
+      - ../router-state:/app/state

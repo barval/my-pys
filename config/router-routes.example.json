@@ -1,0 +1,30 @@
+{
+  "routes": [
+    {
+      "name": "speaker-a",
+      "token_file": "router-token-speaker-a",
+      "session": {
+        "mode": "server",
+        "user": "voice",
+        "idle_minutes": 30,
+        "cleanup_keep": 3
+      },
+      "primary": {
+        "base_url": "http://192.168.1.2:5000/v1",
+        "api_key_file": "flai-token-speaker-a",
+        "model": "flai-chat",
+        "history": "server",
+        "timeout_seconds": 180,
+        "fallback_on": [429, 500, 502, 503, 504]
+      },
+      "fallback": {
+        "base_url": "https://api.example.com/v1",
+        "api_key": "sk-replace-me",
+        "model": "qwen3-32b",
+        "history": "client",
+        "timeout_seconds": 120,
+        "fallback_on": [429, 500, 502, 503, 504]
+      }
+    }
+  ]
+}

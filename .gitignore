@@ -8,6 +8,9 @@ backups/
 vendor/lite-kit/firmware/**/*.zip
 vendor/lite-kit/firmware/**/update.zip
 
+# runtime state of the LLM router
+router-state/
+
 # runtime state of the local root stand
 vendor/lite-kit/run/*
 !vendor/lite-kit/run/.gitkeep
