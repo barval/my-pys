@@ -12,7 +12,8 @@ if [[ -f "$ROOT/.env" ]]; then
 fi
 
 ADB="${ADB:-adb}"
-IP="${SPEAKER_IP:-192.168.1.103}"
+# IP не хардкодим: ищем по device ID/MAC, IP — только подсказка.
+IP="$("$ROOT/scripts/resolve-speaker.sh")"
 ADB_PORT="${SPEAKER_ADB_PORT:-5555}"
 SERIAL="$IP:$ADB_PORT"
 TOOLS="$ROOT/vendor/station-tools"

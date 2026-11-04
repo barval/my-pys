@@ -1,4 +1,4 @@
-.PHONY: help check firmware stand stop bridge ssh status lint
+.PHONY: help check firmware stand stop bridge ssh status resolve lint
 
 help:
 	@echo "make check     — проверить FLAI"
@@ -6,6 +6,7 @@ help:
 	@echo "make stand     — запустить lite-kit в Docker"
 	@echo "make stop      — остановить lite-kit"
 	@echo "make bridge    — установить Quasar Bridge (интерактивно)"
+	@echo "make resolve   — найти колонку по MAC/device ID"
 	@echo "make ssh       — войти на колонку по ключу"
 	@echo "make status    — статус Bridge на колонке"
 	@echo "make lint      — bash -n для скриптов"
@@ -25,11 +26,14 @@ stop:
 bridge:
 	./scripts/install-quasar-bridge.sh
 
+resolve:
+	./scripts/resolve-speaker.sh
+
 ssh:
-	ssh -i secrets/speaker_ed25519 -p 2222 root@192.168.1.103
+	ssh -i secrets/speaker_ed25519 -p 2222 root@$$(./scripts/resolve-speaker.sh)
 
 status:
-	ssh -i secrets/speaker_ed25519 -p 2222 root@192.168.1.103 \
+	ssh -i secrets/speaker_ed25519 -p 2222 root@$$(./scripts/resolve-speaker.sh) \
 	  'pkg=/data/opt/quasar-bridge/app; sh "$$pkg/control.sh" status; sh "$$pkg/control.sh" check-backends'
 
 lint:

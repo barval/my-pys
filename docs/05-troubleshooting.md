@@ -1,8 +1,11 @@
 # 05. Диагностика
 
+> IP колонки может быть случайным. Всегда сначала проверяйте
+> `./scripts/resolve-speaker.sh`: он ищет по device ID и MAC, а не по IP.
+
 ## ADB не подключается
 
-Симптом: `adb connect 192.168.1.103:5555` → `Connection refused` или
+Симптом: `adb connect "$(./scripts/resolve-speaker.sh):5555"` → `Connection refused` или
 `unable to connect`.
 
 1. Колонка и ПК в одной сети, без изоляции клиентов.
@@ -43,7 +46,7 @@ adb shell id
 ## SSH не пускает
 
 ```bash
-ssh -vvv -i secrets/speaker_ed25519 -p 2222 root@192.168.1.103
+ssh -vvv -i secrets/speaker_ed25519 -p 2222 root@$(./scripts/resolve-speaker.sh)
 ```
 
 - `Connection refused` — Dropbear не запущен. Через ADB:
