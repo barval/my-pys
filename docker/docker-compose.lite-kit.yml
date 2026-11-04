@@ -1,0 +1,12 @@
+services:
+  lite-kit:
+    build:
+      context: ..
+      dockerfile: docker/lite-kit.Dockerfile
+    container_name: ysl-lite-kit
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ../vendor/lite-kit/firmware:/app/firmware:ro
+      - ../vendor/lite-kit/run:/app/run
+      - ../vendor/lite-kit/log:/app/log
