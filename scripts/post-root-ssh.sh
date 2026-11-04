@@ -4,12 +4,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [[ -f "$ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$ROOT/.env"
-  set +a
-fi
+# shellcheck source=lib-env.sh
+. "$ROOT/scripts/lib-env.sh"
+load_project_env "$ROOT"
 
 ADB="${ADB:-adb}"
 # IP не хардкодим: ищем по device ID/MAC, IP — только подсказка.
@@ -18,7 +15,8 @@ ADB_PORT="${SPEAKER_ADB_PORT:-5555}"
 SERIAL="$IP:$ADB_PORT"
 TOOLS="$ROOT/vendor/station-tools"
 KEY="$ROOT/secrets/speaker_ed25519"
-BACKUP_DIR="$ROOT/backups/$(date +%F)-speaker"
+SPEAKER_NAME="${SPEAKER_NAME:-${SPEAKER_DEVICE_ID:-speaker}}"
+BACKUP_DIR="$ROOT/backups/$(date +%F)-$SPEAKER_NAME"
 
 echo "== ADB =="
 "$ADB" connect "$SERIAL"

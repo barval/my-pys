@@ -3,12 +3,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [[ -f "$ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$ROOT/.env"
-  set +a
-fi
+# shellcheck source=lib-env.sh
+. "$ROOT/scripts/lib-env.sh"
+load_project_env "$ROOT"
 
 IP="$("$ROOT/scripts/resolve-speaker.sh")"
 POLICY="$ROOT/config/quasar-bridge-policy.json"

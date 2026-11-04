@@ -369,7 +369,35 @@ docker logs --since 10m flai-web 2>&1 | grep -E "query=|/v1/chat/completions"
 
 Быстрые команды: `make routes` и `make flai-log`.
 
-## 10. После успеха
+## 10. Остальные три колонки
+
+Для каждой колонки повторяется тот же путь: сброс → привязка → ADB → SSH/OTA
+→ Bridge → политика. Делать **по одной**, чтобы не путать логи и приложение.
+
+Профили:
+
+```text
+local/speakers/speaker-b.env    192.168.1.100  EXAMPLE-2...
+local/speakers/speaker-c.env    192.168.1.102  EXAMPLE-3...
+local/speakers/speaker-d.env 192.168.1.103  EXAMPLE-4...
+```
+
+Для выбранной колонки:
+
+```bash
+export SPEAKER_ENV=local/speakers/speaker-b.env
+
+./scripts/post-root-ssh.sh
+./scripts/install-quasar-bridge.sh --non-interactive
+./scripts/apply-bridge-routing.sh
+make status
+```
+
+Сброс и привязка — как в шагах 3–4. Остальные колонки на это время
+выключены. Уже готовую `192.168.1.101` можно оставить включённой, но для чистоты
+лучше выключить на время настройки остальных.
+
+## 11. После успеха
 
 1. Остановить стенд:
 
@@ -389,7 +417,7 @@ docker logs --since 10m flai-web 2>&1 | grep -E "query=|/v1/chat/completions"
 
 5. Закоммитить изменения и поставить тег `v1.0` (после проверки).
 
-## 11. Откат
+## 12. Откат
 
 На колонке:
 
