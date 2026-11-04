@@ -217,6 +217,21 @@ SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
 FLAI получает только текущий вопрос, обычная LLM — всю историю Bridge.
 Изменения `secrets/router-routes.json` применяются без перезапуска.
 
+Сейчас для всех четырёх маршрутов настроен fallback
+**OrcaRouter Free**:
+
+```text
+base_url: https://api.orcarouter.ai/v1
+model:    orcarouter/free
+keys:     secrets/orca-token-speaker-a, -lp, -ln, -l00fq
+```
+
+Ключи проверены: `/v1/models` отвечает `200`, модель `orcarouter/free`
+доступна. Но free-тариф сейчас отдаёт `429 free_rate_limited` с
+`Retry-After` около двух часов, поэтому fallback работает по остаточному
+принципу — когда у OrcaRouter есть свободная ёмкость. FLAI остаётся
+основным маршрутом.
+
 ### История и сессии
 
 - `history=server` (FLAI): роутер отправляет **только последний вопрос** и

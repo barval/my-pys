@@ -18,11 +18,11 @@
         "fallback_on": [429, 500, 502, 503, 504]
       },
       "fallback": {
-        "base_url": "https://api.example.com/v1",
-        "api_key": "sk-replace-me",
-        "model": "qwen3-32b",
+        "base_url": "https://api.orcarouter.ai/v1",
+        "api_key": "sk-orca-replace-me",
+        "model": "orcarouter/free",
         "history": "client",
-        "timeout_seconds": 120,
+        "timeout_seconds": 180,
         "fallback_on": [429, 500, 502, 503, 504]
       }
     }
