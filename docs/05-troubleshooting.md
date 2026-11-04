@@ -71,6 +71,26 @@ ssh -vvv -i secrets/speaker_ed25519 -p 2222 root@$(./scripts/resolve-speaker.sh)
 релиз скачивается `./scripts/fetch-quasar-bridge.sh` и не зависит от
 таймаутов GitHub.
 
+## Прокси 5001 недоступен
+
+Симптом: `check-backends` не проходит, в логах Bridge `LLM returned HTTP 000`
+или `connection refused`.
+
+```bash
+docker ps --filter name=flai-invocation-proxy
+docker logs --tail=50 flai-invocation-proxy
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5001/v1/models \
+  -H "Authorization: Bearer $(cat secrets/flai-token)"
+```
+
+- `5001` не слушает — `./scripts/start-flai-proxy.sh`.
+- `502` — прокси работает, но FLAI на `5000` недоступен; проверьте
+  `http://127.0.0.1:5000/health`.
+- Bridge всё ещё смотрит на `5000` — в
+  `/data/opt/quasar-bridge/runtime.env` должно быть
+  `QUASAR_LLM_BASE_URL="http://192.168.1.2:5001/v1"`, затем
+  `control.sh restart`.
+
 ## Quasar Bridge: «Проверка нейросети не проходит»
 
 Проверьте с ПК:

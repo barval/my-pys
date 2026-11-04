@@ -25,6 +25,7 @@
 | Device ID | `EXAMPLE000000000000000000000001` |
 | MAC | `02:00:00:00:00:01` |
 | FLAI | `http://192.168.1.2:5000/v1`, модель `flai-chat` |
+| Bridge → FLAI | через прокси `http://192.168.1.2:5001/v1` (отрезает «спроси у ФЛАЙ») |
 | FLAI GPU | NVIDIA RTX 5060 Ti 16 GB, Qwen3VL-8B Q4 |
 | Quasar Bridge | v0.6.2, ARM64/ARMv7 |
 | Root | DNS-метод + локальный стенд `lite-kit`, прошивка `.46` |
@@ -53,6 +54,8 @@ scripts/
   fetch-quasar-bridge.sh      офлайн-загрузка релиза Quasar Bridge
   bridge_install_pexpect.py   неинтерактивный мастер через PTY
   apply-bridge-routing.sh     применить правило «спроси ФЛАЙ» и др.
+  start-flai-proxy.sh         прокси, отрезающий служебное обращение
+  stop-flai-proxy.sh          остановка прокси
   start-lite-kit.sh           запуск стенда root в Docker
   stop-lite-kit.sh            остановка стенда
   post-root-ssh.sh            SSH + отключение OTA после root
