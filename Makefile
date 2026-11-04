@@ -1,4 +1,4 @@
-.PHONY: help check firmware stand stop bridge ssh status check-backends resolve routing key routes flai-log lint
+.PHONY: help check firmware stand stop bridge ssh status check-backends resolve routing key routes flai-log router-init router router-stop router-logs router-status router-test lint
 
 help:
 	@echo "make check     — проверить внешнюю LLM"
@@ -14,6 +14,12 @@ help:
 	@echo "make check-backends — проверить LLM (создаёт тестовую сессию)"
 	@echo "make routes    — последние решения Bridge: llm или yandex"
 	@echo "make flai-log  — последние запросы в FLAI"
+	@echo "make router-init — создать ключи и конфиг роутера"
+	@echo "make router    — собрать и запустить LLM-роутер на 5002"
+	@echo "make router-stop — остановить роутер"
+	@echo "make router-logs — логи роутера"
+	@echo "make router-status — health роутера"
+	@echo "make router-test — тесты роутера"
 	@echo "make lint      — bash -n для скриптов"
 
 check:
@@ -57,6 +63,24 @@ routes:
 
 flai-log:
 	docker logs --since 10m flai-web 2>&1 | grep -E "query=|/v1/chat/completions" | tail -30
+
+router-init:
+	./scripts/router-init.sh
+
+router:
+	./scripts/start-router.sh
+
+router-stop:
+	./scripts/stop-router.sh
+
+router-logs:
+	docker logs -f llm-router
+
+router-status:
+	curl -fsS http://192.168.1.2:5002/health
+
+router-test:
+	pytest router/tests/test_router.py -q
 
 lint:
 	bash -n scripts/*.sh

@@ -49,12 +49,20 @@ docs/
   05-troubleshooting.md       диагностика типовых ошибок
 config/
   flai.env.example            пример переменных внешней LLM
+  router-routes.example.json  пример таблицы маршрутов роутера
   quasar-bridge-policy.json   политика: Яндекс-сервисы vs внешняя LLM
   quasar-bridge-notes.md      настройки Bridge и внешней LLM
   speakers/                   профили четырёх колонок (MAC/device ID/IP)
+router/
+  llm_router.py               локальный OpenAI-совместимый роутер
+  Dockerfile                  контейнер без pip-зависимостей
+  tests/                      тесты роутера
 scripts/
   lib-env.sh                  общий загрузчик .env и профиля колонки
-  check-flai.sh               проверка FLAI и замер ответа
+  router-init.sh              ключи колонок и secrets/router-routes.json
+  start-router.sh             сборка и запуск llm-router
+  stop-router.sh              остановка llm-router
+  check-flai.sh               проверка LLM через роутер и замер ответа
   resolve-speaker.sh          поиск колонки по device ID/MAC, а не по IP
   fetch-firmware.sh           загрузка прошивки .46
   fetch-quasar-bridge.sh      офлайн-загрузка релиза Quasar Bridge
@@ -67,20 +75,25 @@ scripts/
 docker/
   lite-kit.Dockerfile         контейнер со стендом (dnsmasq + Python)
   docker-compose.lite-kit.yml
+  docker-compose.router.yml   контейнер llm-router на 5002
 vendor/
   lite-kit/                   снапшот krevetkqqq/lite-kit
   quasar-bridge/              снапшот skrashevich/quasar-bridge v0.6.2
   station-tools/              dropbear, dropbearkey, yandex-noupdate.sh
 secrets/
-  flai-token                  API-ключ FLAI (gitignored, chmod 600)
+  router-token-*              промежуточные ключи колонок (gitignored)
+  flai-token-*                upstream-ключи FLAI (gitignored)
+  router-routes.json          таблица маршрутов с ключами (gitignored)
 ```
 
 ## Быстрый старт (после подтверждения сброса)
 
-1. Проверить FLAI:
+1. Запустить LLM-роутер и проверить его:
 
    ```bash
-   ./scripts/check-flai.sh
+   make router-init
+   make router
+   make check
    ```
 
 2. Запустить стенд root:
@@ -131,62 +144,105 @@ SPEAKER_ENV=local/speakers/speaker-b.env make status
 Без `SPEAKER_ENV` используется профиль из `.env` — сейчас это `speaker-a.env`
 (колонка `192.168.1.101`).
 
-## API-ключи FLAI по колонкам
+## LLM-роутер
+
+Все колонки ходят на один адрес:
+
+```text
+http://192.168.1.2:5002/v1
+```
+
+Роутер по промежуточному ключу выбирает upstream: FLAI или любую другую
+OpenAI-совместимую LLM. Колонку при смене провайдера трогать не нужно.
+
+```bash
+make router-init   # создать ключи колонок и secrets/router-routes.json
+make router        # собрать и запустить контейнер llm-router
+make router-status # health
+make router-logs   # логи
+```
 
 Ключи лежат **только на хосте** в `secrets/` (gitignored, chmod 600):
 
-| Колонка | FLAI-пользователь | Файл ключа |
+| Колонка | Промежуточный ключ | Upstream-ключ FLAI |
 |---|---|---|
-| `192.168.1.101` LG | `speaker-a` | `secrets/flai-token-speaker-a` |
-| `192.168.1.100` LP | `speaker-b` | `secrets/flai-token-speaker-b` |
-| `192.168.1.102` LN | `speaker-c` | `secrets/flai-token-speaker-c` |
-| `192.168.1.103` EXAMPLE-4 | `speaker-d` | `secrets/flai-token-speaker-d` |
+| `192.168.1.101` LG | `secrets/router-token-speaker-a` | `secrets/flai-token-speaker-a` |
+| `192.168.1.100` LP | `secrets/router-token-speaker-b` | `secrets/flai-token-speaker-b` |
+| `192.168.1.102` LN | `secrets/router-token-speaker-c` | `secrets/flai-token-speaker-c` |
+| `192.168.1.103` EXAMPLE-4 | `secrets/router-token-speaker-d` | `secrets/flai-token-speaker-d` |
 
-Профиль колонки указывает на файл:
+`secrets/router-routes.json` — таблица маршрутов. Пример без секретов:
+`config/router-routes.example.json`. Если upstream-ключ ещё не создан,
+маршрут отвечает `503`, остальные колонки работают.
+
+Профиль колонки указывает только на промежуточный ключ:
 
 ```env
-LLM_TOKEN_FILE=secrets/flai-token-speaker-b
+LLM_BASE_URL=http://192.168.1.2:5002/v1
+LLM_TOKEN_FILE=secrets/router-token-speaker-b
 ```
 
-Порядок:
+Записать адрес и ключ в колонку:
 
-1. В FLAI: «Администрирование» → «Пользователи» → создать четыре учётки.
-2. Войти под каждой (или создать ключ из её профиля) → «API keys» → создать
-   ключ. Секрет показывается один раз.
-3. Сохранить ключ на хосте:
-   ```bash
-   printf '%s\n' 'flai-...' > secrets/flai-token-speaker-b
-   chmod 600 secrets/flai-token-speaker-b
-   ```
-4. Записать ключ в колонку:
-   ```bash
-   SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
-   ```
-   Скрипт обновит `/data/opt/quasar-bridge/runtime.env` на колонке:
-   ```env
-   QUASAR_LLM_API_KEY="flai-..."
-   ```
-   и перезапустит Bridge.
-5. Проверить:
-   ```bash
-   SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/check-flai.sh
-   SPEAKER_ENV=local/speakers/speaker-b.env make status
-   ```
-   `make status` проверяет только процесс Bridge. `make check-backends`
-   дополнительно дергает LLM тестовым запросом «Ответь одним словом: связь»
-   и создаёт такую сессию в истории FLAI — используйте его только после
-   смены ключа/конфига.
+```bash
+SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
+```
 
-Ключ не попадает в `config.json`, git или документацию. На колонке
-`runtime.env` имеет права `600`.
+Скрипт обновляет `QUASAR_LLM_BASE_URL`, `QUASAR_LLM_MODEL` и
+`QUASAR_LLM_API_KEY` в `/data/opt/quasar-bridge/runtime.env`, затем
+перезапускает Bridge.
 
-Сейчас `192.168.1.101` использует старый ключ `operator`, скопированный в
-`secrets/flai-token-speaker-a` как временный. После создания `speaker-a` замените
-файл и выполните `./scripts/set-speaker-key.sh`.
+### Fallback
+
+У каждого маршрута может быть резервный upstream:
+
+```json
+"fallback": {
+  "base_url": "https://api.example.com/v1",
+  "api_key": "sk-...",
+  "model": "qwen3-32b",
+  "history": "client"
+}
+```
+
+Если основной маршрут недоступен, отдаёт `429`/`5xx` или не ответил за
+таймаут, запрос уходит в fallback. Тело пересобирается под его режим:
+FLAI получает только текущий вопрос, обычная LLM — всю историю Bridge.
+Изменения `secrets/router-routes.json` применяются без перезапуска.
+
+### История и сессии
+
+- `history=server` (FLAI): роутер отправляет system + последний вопрос и
+  стабильный `user`, историю хранит FLAI. Это не даёт роутеру FLAI
+  классифицировать длинный транскрипт вместо вопроса.
+- `history=client` (обычная LLM): уходит окно Bridge — 6 ходов, 12k
+  символов, TTL 5 минут.
+- Сессия FLAI одна на колонку. После 30 минут простоя начинается новая.
+  Автоматически остаются текущая и две предыдущие сессии.
+
+### Upstream-ключи FLAI
+
+Ключи создаются в FLAI под отдельными пользователями `speaker-a`, `speaker-b`,
+`speaker-c`, `speaker-d` и кладутся в `secrets/flai-token-*`. Формат:
+
+```bash
+printf '%s\n' 'flai-...' > secrets/flai-token-speaker-b
+chmod 600 secrets/flai-token-speaker-b
+```
+
+После этого маршрут `lp` станет доступен автоматически. Проверка:
+
+```bash
+SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/check-flai.sh
+SPEAKER_ENV=local/speakers/speaker-b.env make status
+```
+
+`make status` проверяет только процесс Bridge. `make check-backends`
+дополнительно дергает LLM тестовым запросом «Ответь одним словом: связь».
 
 ## Безопасность
 
-- `secrets/` исключён из git. Не коммитьте API-ключ FLAI.
+- `secrets/` исключён из git. Не коммитьте ключи роутера и upstream-ключи.
 - FLAI слушает `0.0.0.0:5000`; не публикуйте порт в интернет.
 - SSH на колонке по умолчанию с пустым паролем. После настройки добавьте
   свой публичный ключ и уберите `-B` из Dropbear.

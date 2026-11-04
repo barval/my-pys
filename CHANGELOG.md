@@ -3,6 +3,35 @@
 Все заметные изменения проекта. Формат — Keep a Changelog,
 версии — SemVer.
 
+## [Unreleased] — 2026-11-05
+
+### Added
+
+- Локальный LLM-роутер `llm-router` на `192.168.1.2:5002`:
+  OpenAI-совместимые `/v1/chat/completions` и `/v1/models`, выбор
+  upstream по промежуточному ключу колонки, hot reload конфига.
+- Резервные (fallback) маршруты для каждого промежуточного ключа; при
+  недоступности основного upstream запрос пересобирается под режим
+  резервного (`history=client|server`).
+- Режимы истории: `server` (FLAI хранит историю, роутер отправляет только
+  текущий вопрос) и `client` (обычная LLM получает окно Bridge).
+- Сессии FLAI: одна на колонку, ротация после 30 минут простоя,
+  автоматическая чистка — остаются текущая и две предыдущие.
+- `scripts/router-init.sh`, `scripts/start-router.sh`,
+  `scripts/stop-router.sh`, `config/router-routes.example.json`,
+  `docker/docker-compose.router.yml`, `make router*`.
+- Профили колонок и `.env` переведены на адрес роутера и промежуточные
+  ключи `secrets/router-token-*`.
+- `scripts/set-speaker-key.sh` теперь записывает в Bridge адрес роутера,
+  модель и промежуточный ключ.
+- Тесты роутера: `router/tests/test_router.py` (11 тестов).
+
+### Changed
+
+- `check-flai.sh` проверяет LLM через роутер, а не напрямую FLAI.
+- `README.md` и `docs/03-runbook.md` описывают роутер, fallback и
+  управление сессиями.
+
 ## [1.0.0] — 2026-11-04
 
 Первая версия: подготовка инфраструктуры и документации.

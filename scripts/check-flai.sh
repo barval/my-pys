@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Проверка FLAI: список моделей + один голосовой запрос с замером времени.
+# Проверка LLM через роутер: список моделей + один запрос с замером времени.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,7 +19,7 @@ fi
 TOKEN="$(<"$TOKEN_FILE")"
 [[ -n "$TOKEN" ]] || { echo "Ключ пустой: $TOKEN_FILE" >&2; exit 1; }
 
-echo "FLAI:  $BASE"
+echo "LLM:   $BASE"
 echo "Model: $MODEL"
 echo "Key:   ${TOKEN:0:11}…"
 
@@ -27,7 +27,7 @@ models_code="$(curl -sS -o /tmp/flai-models.json -w '%{http_code}' --max-time 15
   -H "Authorization: Bearer $TOKEN" "$BASE/models" || true)"
 echo "GET /models -> $models_code"
 if [[ "$models_code" != "200" ]]; then
-  echo "FLAI не принял ключ или недоступен. Тело ответа:" >&2
+  echo "LLM-роутер не принял ключ или недоступен. Тело ответа:" >&2
   head -c 500 /tmp/flai-models.json >&2 || true
   echo >&2
   exit 1
