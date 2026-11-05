@@ -1,17 +1,22 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import urllib.request
 from pathlib import Path
 
+import tempfile
+
 from flask import (
     Flask,
     abort,
+    flash,
     jsonify,
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -21,6 +26,14 @@ from router.llm_router import ConfigError
 from .actions import CommandBuilder, HOST_ACTIONS, SPEAKER_ACTIONS
 from .audit import record, redact
 from .auth import init_auth
+from .backup import (
+    BackupError,
+    create_backup,
+    inspect_backup,
+    list_backups,
+    resolve_backup,
+    restore_backup,
+)
 from .jobs import JobRunner
 from .keys import key_inventory, rotate_router_token, set_upstream_key
 from .profiles import load_profiles, mask_secret
@@ -106,6 +119,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         static_folder=str(settings.static_dir),
     )
     app.config["WEBUI_SETTINGS"] = settings
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
     init_auth(app, settings)
 
     profiles = {profile.name: profile for profile in load_profiles(settings.speakers_dir)}
@@ -121,6 +135,12 @@ def create_app(settings: Settings | None = None) -> Flask:
     )
     app.extensions["profiles"] = profiles
     app.extensions["jobs"] = runner
+
+    def reload_profiles() -> None:
+        profiles.clear()
+        profiles.update(
+            {profile.name: profile for profile in load_profiles(settings.speakers_dir)}
+        )
 
     def get_profile(name: str):
         profile = profiles.get(name)
@@ -338,6 +358,106 @@ def create_app(settings: Settings | None = None) -> Flask:
             return str(exc), 400
         audit(f"keys.upstream.{provider}", route)
         return redirect(url_for("keys_page"))
+
+    @app.get("/backup")
+    def backup_page():
+        return render_template(
+            "backup.html",
+            backups=list_backups(settings),
+            profiles=sorted(profiles.values(), key=lambda item: item.name),
+            inspection=None,
+        )
+
+    @app.post("/backup/create")
+    def backup_create():
+        scope = request.form.get("scope", "all")
+        passphrase = request.form.get("passphrase", "")
+        confirm = request.form.get("confirm", "")
+        if passphrase != confirm:
+            flash("Пароли архива не совпадают")
+            return redirect(url_for("backup_page"))
+        try:
+            path = create_backup(settings, scope, passphrase)
+        except BackupError as exc:
+            flash(str(exc))
+            return redirect(url_for("backup_page"))
+        audit("backup.create", scope, detail=path.name)
+        flash(f"Архив создан: {path.name}")
+        return redirect(url_for("backup_page"))
+
+    @app.post("/backup/inspect")
+    def backup_inspect():
+        name = request.form.get("backup", "")
+        passphrase = request.form.get("passphrase", "")
+        try:
+            manifest = inspect_backup(settings, name, passphrase)
+        except BackupError as exc:
+            flash(str(exc))
+            return redirect(url_for("backup_page"))
+        return render_template(
+            "backup.html",
+            backups=list_backups(settings),
+            profiles=sorted(profiles.values(), key=lambda item: item.name),
+            inspection=manifest,
+        )
+
+    @app.get("/backup/download/<name>")
+    def backup_download(name: str):
+        try:
+            path = resolve_backup(settings, name)
+        except BackupError:
+            abort(404)
+        response = send_file(
+            path,
+            as_attachment=True,
+            download_name=path.name,
+            mimetype="application/octet-stream",
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.post("/backup/restore")
+    def backup_restore():
+        passphrase = request.form.get("passphrase", "")
+        confirm = request.form.get("confirm", "")
+        uploaded = request.files.get("archive")
+        temp_path: Path | None = None
+        try:
+            if uploaded is not None and uploaded.filename:
+                if not uploaded.filename.endswith(".tar.gz.enc"):
+                    raise BackupError("ожидается файл .tar.gz.enc")
+                descriptor, name = tempfile.mkstemp(
+                    dir=str(settings.state_dir), suffix=".tar.gz.enc"
+                )
+                os.close(descriptor)
+                temp_path = Path(name)
+                os.chmod(temp_path, 0o600)
+                uploaded.save(temp_path)
+                source = temp_path
+            else:
+                source = resolve_backup(
+                    settings, request.form.get("backup", "")
+                )
+            summary = restore_backup(
+                settings, source, passphrase, confirm
+            )
+            reload_profiles()
+            audit(
+                "backup.restore",
+                summary.get("speaker") or "all",
+                detail=f"files={summary['restored']}",
+            )
+            flash(
+                "Конфигурация восстановлена. "
+                f"Файлов: {summary['restored']}. "
+                f"Снапшот: {summary['snapshot']}"
+            )
+        except BackupError as exc:
+            flash(str(exc))
+        finally:
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
+        return redirect(url_for("backup_page"))
 
     @app.get("/audit")
     def audit_page():

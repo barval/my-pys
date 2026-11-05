@@ -231,3 +231,95 @@ def test_job_log_redacts_secret(client, app, login):
     body = client.get(f"/jobs/{job.id}").get_data(as_text=True)
     assert secret not in body
     assert "***" in body
+
+
+def test_backup_page_requires_login(client):
+    assert client.get("/backup").status_code == 302
+
+
+def test_backup_create_and_download(client, app, login, csrf):
+    from webui.backup import list_backups
+
+    login()
+    response = client.post(
+        "/backup/create",
+        data={
+            "scope": "all",
+            "passphrase": "correct horse",
+            "confirm": "correct horse",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert ".tar.gz.enc" in response.get_data(as_text=True)
+
+    settings = app.config["WEBUI_SETTINGS"]
+    name = list_backups(settings)[0].name
+    download = client.get(f"/backup/download/{name}")
+    assert download.status_code == 200
+    assert download.headers["Cache-Control"] == "no-store"
+
+
+def test_backup_restore_requires_replace(client, app, login, csrf):
+    from webui.backup import list_backups
+
+    login()
+    profile = app.config["WEBUI_SETTINGS"].root / "local" / "speakers" / "speaker-a.env"
+    original = profile.read_text(encoding="utf-8")
+    client.post(
+        "/backup/create",
+        data={
+            "scope": "all",
+            "passphrase": "correct horse",
+            "confirm": "correct horse",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    profile.write_text("CHANGED\n", encoding="utf-8")
+    name = list_backups(app.config["WEBUI_SETTINGS"])[0].name
+    response = client.post(
+        "/backup/restore",
+        data={
+            "backup": name,
+            "passphrase": "correct horse",
+            "confirm": "",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert "REPLACE" in response.get_data(as_text=True)
+    assert profile.read_text(encoding="utf-8") == "CHANGED\n"
+    profile.write_text(original, encoding="utf-8")
+
+
+def test_backup_restore_all_from_stored_archive(client, app, login, csrf):
+    from webui.backup import list_backups
+
+    login()
+    settings = app.config["WEBUI_SETTINGS"]
+    profile = settings.root / "local" / "speakers" / "speaker-a.env"
+    original = profile.read_text(encoding="utf-8")
+    client.post(
+        "/backup/create",
+        data={
+            "scope": "all",
+            "passphrase": "correct horse",
+            "confirm": "correct horse",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    name = list_backups(settings)[0].name
+    profile.write_text("CHANGED\n", encoding="utf-8")
+    response = client.post(
+        "/backup/restore",
+        data={
+            "backup": name,
+            "passphrase": "correct horse",
+            "confirm": "REPLACE",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert profile.read_text(encoding="utf-8") == original
