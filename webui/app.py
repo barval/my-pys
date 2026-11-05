@@ -47,7 +47,14 @@ from .backup import (
     restore_backup,
 )
 from .jobs import JobRunner
-from .keys import key_inventory, rotate_router_token, set_upstream_key
+from .keys import (
+    add_upstream_key,
+    delete_upstream_key,
+    key_inventory,
+    rotate_router_token,
+    set_upstream_key,
+    upstream_key_list,
+)
 from .profiles import load_profiles, parse_env
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
@@ -375,6 +382,13 @@ def create_app(settings: Settings | None = None) -> Flask:
             result.append(item)
         return result
 
+    registry_path = settings.state_dir / "upstream-keys.json"
+
+    def upstream_keys():
+        return upstream_key_list(
+            registry_path, settings.secrets_dir, normalized_routes()
+        )
+
     @app.get("/firmware")
     def firmware_page():
         return render_template(
@@ -432,19 +446,25 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/router/routes/new")
     def route_new():
-        return render_template("route_new.html", error=None)
+        return render_template(
+            "route_new.html", error=None, upstream_keys=upstream_keys()
+        )
 
     @app.post("/router/routes/new")
     def route_create():
         name = request.form.get("name", "").strip()
         if not _NAME_RE.fullmatch(name):
             return render_template(
-                "route_new.html", error="Имя: латиница, цифры и дефис"
+                "route_new.html",
+                error="Имя: латиница, цифры и дефис",
+                upstream_keys=upstream_keys(),
             ), 400
         raw = router_config()
         if find_route(raw, name) is not None:
             return render_template(
-                "route_new.html", error="Маршрут уже существует"
+                "route_new.html",
+                error="Маршрут уже существует",
+                upstream_keys=upstream_keys(),
             ), 400
         try:
             token = rotate_router_token(settings.secrets_dir, f"router-token-{name}")
@@ -456,7 +476,9 @@ def create_app(settings: Settings | None = None) -> Flask:
             )
             save_config(settings.router_config, upsert_route(raw, route))
         except (ValueError, ConfigError, OSError) as exc:
-            return render_template("route_new.html", error=str(exc)), 400
+            return render_template(
+                "route_new.html", error=str(exc), upstream_keys=upstream_keys()
+            ), 400
         session["new_route_token"] = token
         audit("router.create", name)
         flash(f"Маршрут {name} создан")
@@ -471,7 +493,12 @@ def create_app(settings: Settings | None = None) -> Flask:
         route = dict(route)
         route["fallbacks"] = route_fallbacks(route)
         route.pop("fallback", None)
-        return render_template("route_edit.html", route=route, error=None)
+        return render_template(
+            "route_edit.html",
+            route=route,
+            error=None,
+            upstream_keys=upstream_keys(),
+        )
 
     @app.post("/router/routes/<name>")
     def route_save(name: str):
@@ -489,6 +516,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                     "route_edit.html",
                     route=existing or {"name": name},
                     error=str(exc),
+                    upstream_keys=upstream_keys(),
                 ),
                 400,
             )
@@ -509,6 +537,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             fallback={},
             index=None,
             error=None,
+            upstream_keys=upstream_keys(),
         )
 
     @app.post("/router/routes/<name>/fallback/new")
@@ -537,6 +566,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 fallback=request.form,
                 index=None,
                 error=str(exc),
+                upstream_keys=upstream_keys(),
             ), 400
         return redirect(url_for("router_page"))
 
@@ -555,6 +585,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             fallback=fallbacks[index],
             index=index,
             error=None,
+            upstream_keys=upstream_keys(),
         )
 
     @app.post("/router/routes/<name>/fallback/<int:index>")
@@ -582,6 +613,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 fallback=request.form,
                 index=index,
                 error=str(exc),
+                upstream_keys=upstream_keys(),
             ), 400
         return redirect(url_for("router_page"))
 
@@ -685,6 +717,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         return render_template(
             "keys.html",
             items=key_inventory(settings.secrets_dir, normalized_routes()),
+            upstream_keys=upstream_keys(),
             new_token=session.pop("new_token", None),
             new_token_note=session.pop("new_token_note", None),
             new_token_job=session.pop("new_token_job", None),
@@ -732,20 +765,27 @@ def create_app(settings: Settings | None = None) -> Flask:
             audit("keys.rotate", route, detail=f"job={job.id}")
         return redirect(url_for("keys_page"))
 
-    @app.post("/keys/upstream/<route>")
-    def keys_upstream(route: str):
-        raw = router_config()
-        item = find_route(raw, route)
-        if item is None:
+    @app.post("/keys/upstream")
+    def keys_upstream_add():
+        try:
+            key_file = add_upstream_key(
+                registry_path,
+                settings.secrets_dir,
+                request.form.get("label", ""),
+                request.form.get("file", ""),
+                request.form.get("value", ""),
+            )
+        except ValueError as exc:
+            flash(str(exc))
+            return redirect(url_for("keys_page"))
+        audit("keys.upstream.add", key_file)
+        flash(f"Ключ {key_file} добавлен")
+        return redirect(url_for("keys_page"))
+
+    @app.post("/keys/upstream/<key_file>")
+    def keys_upstream_save(key_file: str):
+        if key_file not in {item.file for item in upstream_keys()}:
             abort(404)
-        key_file = request.form.get("key_file", "")
-        allowed = {
-            value.get("api_key_file", "")
-            for value in [item.get("primary"), *item.get("fallbacks", [])]
-            if isinstance(value, dict) and value.get("api_key_file")
-        }
-        if key_file not in allowed:
-            return "неизвестный файл ключа", 400
         try:
             set_upstream_key(
                 settings.secrets_dir,
@@ -754,7 +794,23 @@ def create_app(settings: Settings | None = None) -> Flask:
             )
         except ValueError as exc:
             return str(exc), 400
-        audit("keys.upstream", route, detail=key_file)
+        audit("keys.upstream", key_file)
+        return redirect(url_for("keys_page"))
+
+    @app.post("/keys/upstream/<key_file>/delete")
+    def keys_upstream_delete(key_file: str):
+        try:
+            delete_upstream_key(
+                registry_path,
+                settings.secrets_dir,
+                key_file,
+                normalized_routes(),
+            )
+        except ValueError as exc:
+            flash(str(exc))
+            return redirect(url_for("keys_page"))
+        audit("keys.upstream.delete", key_file)
+        flash(f"Ключ {key_file} удалён")
         return redirect(url_for("keys_page"))
 
     @app.get("/backup")

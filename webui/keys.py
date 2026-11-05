@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import secrets
@@ -123,3 +124,154 @@ def set_upstream_key(
     if not value.strip():
         raise ValueError("key value must not be empty")
     write_secret(secrets_dir, key_file, value.strip())
+
+
+# ---------------------------------------------------------------------------
+# Registry of upstream keys
+# ---------------------------------------------------------------------------
+
+# Keys are first-class: a key exists once and any route can reference its file.
+# The registry stores only labels and file names, never values.
+
+
+@dataclass(frozen=True)
+class UpstreamKeyEntry:
+    label: str
+    file: str
+    exists: bool
+    used_by: tuple[str, ...]
+
+
+def _load_registry(path: Path) -> list[dict[str, str]]:
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    items = raw.get("keys") if isinstance(raw, dict) else raw
+    if not isinstance(items, list):
+        return []
+    entries: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        file = str(item.get("file", "")).strip()
+        try:
+            validate_secret_name(file)
+        except ValueError:
+            continue
+        if file in seen:
+            continue
+        seen.add(file)
+        label = str(item.get("label", "")).strip() or file
+        entries.append({"label": label[:80], "file": file})
+    return entries
+
+
+def save_registry(path: Path, entries: Iterable[dict[str, str]]) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(f".{path.name}.tmp")
+    with open(temp, "w", encoding="utf-8") as stream:
+        json.dump({"keys": list(entries)}, stream, ensure_ascii=False, indent=2)
+        stream.write("\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.chmod(temp, 0o600)
+    os.replace(temp, path)
+
+
+def key_usage(routes: Iterable[dict]) -> dict[str, list[str]]:
+    usage: dict[str, list[str]] = {}
+    for route in routes:
+        name = str(route.get("name", ""))
+        upstreams = [route.get("primary"), *(route.get("fallbacks") or [])]
+        for upstream in upstreams:
+            if not isinstance(upstream, dict):
+                continue
+            file = str(upstream.get("api_key_file", "")).strip()
+            if file:
+                usage.setdefault(file, []).append(name)
+    return usage
+
+
+def sync_registry(
+    entries: list[dict[str, str]], routes: Iterable[dict]
+) -> list[dict[str, str]]:
+    """Register files already referenced by routes, so old configs keep working."""
+    known = {entry["file"] for entry in entries}
+    for file in key_usage(routes):
+        if file in known:
+            continue
+        try:
+            validate_secret_name(file)
+        except ValueError:
+            continue
+        entries.append({"label": file, "file": file})
+        known.add(file)
+    return entries
+
+
+def upstream_key_list(
+    registry_path: Path,
+    secrets_dir: Path,
+    routes: Iterable[dict],
+) -> list[UpstreamKeyEntry]:
+    routes = list(routes)
+    entries = _load_registry(registry_path)
+    synced = sync_registry(list(entries), routes)
+    if synced != entries:
+        save_registry(registry_path, synced)
+    usage = key_usage(routes)
+    secrets_dir = Path(secrets_dir)
+    return [
+        UpstreamKeyEntry(
+            label=entry["label"],
+            file=entry["file"],
+            exists=_present(secrets_dir / entry["file"]),
+            used_by=tuple(usage.get(entry["file"], ())),
+        )
+        for entry in synced
+    ]
+
+
+def add_upstream_key(
+    registry_path: Path,
+    secrets_dir: Path,
+    label: str,
+    key_file: str,
+    value: str,
+) -> str:
+    key_file = key_file.strip()
+    validate_secret_name(key_file)
+    if not value.strip():
+        raise ValueError("key value must not be empty")
+    entries = _load_registry(registry_path)
+    if any(entry["file"] == key_file for entry in entries):
+        raise ValueError("ключ с таким файлом уже добавлен")
+    write_secret(secrets_dir, key_file, value.strip())
+    entries.append({"label": label.strip()[:80] or key_file, "file": key_file})
+    save_registry(registry_path, entries)
+    return key_file
+
+
+def delete_upstream_key(
+    registry_path: Path,
+    secrets_dir: Path,
+    key_file: str,
+    routes: Iterable[dict],
+) -> None:
+    validate_secret_name(key_file)
+    usage = key_usage(routes).get(key_file, [])
+    if usage:
+        raise ValueError("ключ используется маршрутами: " + ", ".join(usage))
+    entries = [
+        entry
+        for entry in _load_registry(registry_path)
+        if entry["file"] != key_file
+    ]
+    save_registry(registry_path, entries)
+    try:
+        (Path(secrets_dir) / key_file).unlink()
+    except FileNotFoundError:
+        pass

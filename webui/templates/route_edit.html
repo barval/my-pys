@@ -20,8 +20,14 @@
     <label>Base URL
       <input name="base_url" value="{{ request.form.get('base_url', primary.get('base_url', '')) }}" required>
     </label>
-    <label>Файл ключа
-      <input name="api_key_file" value="{{ request.form.get('api_key_file', primary.get('api_key_file', '')) }}">
+    <label>Ключ
+      {% set current_key = request.form.get('api_key_file', primary.get('api_key_file', '')) %}
+      <select name="api_key_file">
+        <option value="">— без ключа —</option>
+        {% for key in upstream_keys %}
+        <option value="{{ key.file }}"{% if key.file == current_key %} selected{% endif %}>{{ key.label }} ({{ key.file }})</option>
+        {% endfor %}
+      </select>
     </label>
     <label>Модель
       <input name="model" value="{{ request.form.get('model', primary.get('model', '')) }}" required>

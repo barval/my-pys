@@ -18,8 +18,14 @@
     <label>Base URL
       <input name="base_url" value="{{ fallback.get('base_url', '') }}" required>
     </label>
-    <label>Файл ключа
-      <input name="api_key_file" value="{{ fallback.get('api_key_file', '') }}">
+    <label>Ключ
+      {% set current_key = fallback.get('api_key_file', '') %}
+      <select name="api_key_file">
+        <option value="">— без ключа —</option>
+        {% for key in upstream_keys %}
+        <option value="{{ key.file }}"{% if key.file == current_key %} selected{% endif %}>{{ key.label }} ({{ key.file }})</option>
+        {% endfor %}
+      </select>
     </label>
     <label>Модель
       <input name="model" value="{{ fallback.get('model', '') }}" required>

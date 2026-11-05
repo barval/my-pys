@@ -197,12 +197,60 @@ def test_upstream_key_is_not_rendered(client, app, login, csrf):
     login()
     write_router_config(app.config["WEBUI_SETTINGS"].router_config)
     client.post(
-        "/keys/upstream/speaker-a",
-        data={"key_file": "flai-token-speaker-a", "value": "flai-very-secret"},
+        "/keys/upstream/flai-token-speaker-a",
+        data={"value": "flai-very-secret"},
         headers={"X-CSRF-Token": csrf(client)},
     )
     assert "flai-very-secret" not in client.get("/keys").get_data(as_text=True)
     assert "flai-very-secret" not in client.get("/audit").get_data(as_text=True)
+
+
+def test_upstream_key_can_be_added_from_keys_page(client, app, login, csrf):
+    login()
+    response = client.post(
+        "/keys/upstream",
+        data={
+            "label": "Orca free",
+            "file": "orca-token-free",
+            "value": "orca-secret",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "Orca free" in body
+    assert "orca-token-free" in body
+    assert "orca-secret" not in body
+    path = app.config["WEBUI_SETTINGS"].secrets_dir / "orca-token-free"
+    assert path.read_text(encoding="utf-8").strip() == "orca-secret"
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_route_form_lists_existing_upstream_keys(client, app, login, csrf):
+    login()
+    client.post(
+        "/keys/upstream",
+        data={"label": "Orca free", "file": "orca-token-free", "value": "x"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    body = client.get("/router/routes/new").get_data(as_text=True)
+    assert 'name="api_key_file"' in body
+    assert "Orca free (orca-token-free)" in body
+
+
+def test_used_upstream_key_cannot_be_deleted(client, app, login, csrf):
+    login()
+    write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    path = app.config["WEBUI_SETTINGS"].secrets_dir / "flai-token-speaker-a"
+    path.write_text("key\n", encoding="utf-8")
+    client.post(
+        "/keys/upstream/flai-token-speaker-a/delete",
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert path.exists()
+    assert "flai-token-speaker-a" in client.get("/keys").get_data(as_text=True)
 
 
 def test_audit_page_lists_login(client, login):

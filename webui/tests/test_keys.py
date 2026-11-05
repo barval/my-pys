@@ -5,9 +5,12 @@ import stat
 import pytest
 
 from webui.keys import (
+    add_upstream_key,
+    delete_upstream_key,
     key_inventory,
     rotate_router_token,
     set_upstream_key,
+    upstream_key_list,
     write_secret,
 )
 
@@ -48,3 +51,66 @@ def test_set_upstream_key_writes_private_file(tmp_path):
 def test_set_upstream_key_rejects_invalid_name(tmp_path):
     with pytest.raises(ValueError):
         set_upstream_key(tmp_path, "../evil", "x")
+
+
+def _routes():
+    return [
+        {
+            "name": "speaker-a",
+            "primary": {"api_key_file": "flai-token-speaker-a"},
+            "fallbacks": [],
+        }
+    ]
+
+
+def test_registry_imports_keys_referenced_by_routes(tmp_path):
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    write_secret(secrets, "flai-token-speaker-a", "secret")
+    registry = tmp_path / "upstream-keys.json"
+    items = upstream_key_list(registry, secrets, _routes())
+    assert [(item.label, item.file) for item in items] == [
+        ("flai-token-speaker-a", "flai-token-speaker-a")
+    ]
+    assert items[0].exists is True
+    assert items[0].used_by == ("speaker-a",)
+
+
+def test_add_upstream_key_writes_secret_and_registry(tmp_path):
+    secrets = tmp_path / "secrets"
+    registry = tmp_path / "upstream-keys.json"
+    add_upstream_key(registry, secrets, "Orca free", "orca-token-1", "orca-secret")
+    path = secrets / "orca-token-1"
+    assert path.read_text(encoding="utf-8").strip() == "orca-secret"
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    items = upstream_key_list(registry, secrets, [])
+    assert [(item.label, item.file) for item in items] == [
+        ("Orca free", "orca-token-1")
+    ]
+
+
+def test_add_upstream_key_rejects_duplicate_file(tmp_path):
+    registry = tmp_path / "upstream-keys.json"
+    add_upstream_key(registry, tmp_path, "one", "orca-token-1", "a")
+    with pytest.raises(ValueError):
+        add_upstream_key(registry, tmp_path, "two", "orca-token-1", "b")
+
+
+def test_delete_upstream_key_refuses_used_key(tmp_path):
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    registry = tmp_path / "upstream-keys.json"
+    write_secret(secrets, "flai-token-speaker-a", "secret")
+    upstream_key_list(registry, secrets, _routes())
+    with pytest.raises(ValueError):
+        delete_upstream_key(registry, secrets, "flai-token-speaker-a", _routes())
+    assert (secrets / "flai-token-speaker-a").exists()
+
+
+def test_delete_unused_upstream_key_removes_secret(tmp_path):
+    secrets = tmp_path / "secrets"
+    registry = tmp_path / "upstream-keys.json"
+    add_upstream_key(registry, secrets, "free", "orca-token-1", "a")
+    delete_upstream_key(registry, secrets, "orca-token-1", [])
+    assert not (secrets / "orca-token-1").exists()
+    assert upstream_key_list(registry, secrets, []) == []
