@@ -324,6 +324,8 @@ make router-logs   # логи
 | `speaker-c` | `secrets/router-token-speaker-c` | `secrets/upstream-token-speaker-c` |
 | `speaker-d` | `secrets/router-token-speaker-d` | `secrets/upstream-token-speaker-d` |
 
+Имя маршрута — произвольный идентификатор: латиница, цифры и дефис.
+Оно задаётся при создании и может совпадать с комнатой или аккаунтом.
 Имя upstream-файла задаётся в `api_key_file` маршрута. Это может быть
 любое имя: `upstream-token-speaker-a`, `openai-token-speaker-a`,
 `local-llm-token` и т.п. Если в существующем конфиге указано другое имя,
