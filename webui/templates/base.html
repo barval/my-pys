@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Web UI{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <header>
+    <strong>Станции</strong>
+    {% if session.get('user') %}
+      <nav>
+        <a href="{{ url_for('speakers') }}">Колонки</a>
+        <a href="{{ url_for('router_page') }}">Роутер</a>
+        <a href="{{ url_for('keys_page') }}">Ключи</a>
+        <a href="{{ url_for('audit_page') }}">Аудит</a>
+      </nav>
+      <form method="post" action="{{ url_for('logout') }}" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Выйти</button>
+      </form>
+    {% endif %}
+  </header>
+  <main>
+    {% with messages = get_flashed_messages() %}
+      {% for message in messages %}
+        <p class="flash">{{ message }}</p>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

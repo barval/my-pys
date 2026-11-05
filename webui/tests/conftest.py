@@ -3,13 +3,27 @@ from __future__ import annotations
 import pytest
 
 from webui.app import create_app
+from webui.auth import hash_password
 from webui.profiles import load_profiles
 from webui.settings import load_settings
 
 
 @pytest.fixture
 def settings(tmp_path):
-    return load_settings(root=tmp_path, env={})
+    settings = load_settings(root=tmp_path, env={})
+    settings.secrets_dir.mkdir(parents=True, exist_ok=True)
+    settings.admin_hash_file.write_text(hash_password("correct horse"), encoding="utf-8")
+    return settings
+
+
+@pytest.fixture
+def csrf():
+    def token(client):
+        client.get("/login")
+        with client.session_transaction() as session:
+            return session["csrf"]
+
+    return token
 
 
 @pytest.fixture
