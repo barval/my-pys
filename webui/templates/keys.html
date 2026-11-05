@@ -61,7 +61,7 @@ upstream. Файлы берутся из <code>api_key_file</code> маршру�
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Маршрут</th><th>Роль</th><th>Файл ключа</th><th>Статус</th><th>Новый ключ</th></tr>
+      <tr><th>Маршрут</th><th>Роль</th><th>Файл ключа</th><th>Статус</th><th>Ключ</th></tr>
     </thead>
     <tbody>
       {% for item in items %}
@@ -80,7 +80,7 @@ upstream. Файлы берутся из <code>api_key_file</code> маршру�
           <form method="post" action="/keys/upstream/{{ item.route }}" class="key-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="key_file" value="{{ upstream.key_file }}">
-            <input type="password" name="value" required autocomplete="off" placeholder="Новый ключ"
+            <input type="password" name="value" required autocomplete="off" placeholder="Ключ"
                    onfocus="this.type='text'" onblur="this.type='password'">
             <button class="btn btn-success btn-sm" type="submit">Сохранить</button>
           </form>
