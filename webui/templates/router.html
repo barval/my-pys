@@ -89,18 +89,15 @@
         <tr>
           <td class="route-cell">
             <strong>{{ route.name }}</strong>
+            {% if route.fallbacks %}
             <div class="move-actions">
               <form method="post" action="/router/routes/{{ route.name }}/primary/move">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="direction" value="up">
-                <button class="btn btn-sm move-btn" type="submit" title="Выше некуда" disabled>▲</button>
-              </form>
-              <form method="post" action="/router/routes/{{ route.name }}/primary/move">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="direction" value="down">
-                <button class="btn btn-sm move-btn" type="submit" title="Сделать запасным 1"{% if not route.fallbacks %} disabled{% endif %}>▼</button>
+                <button class="btn btn-sm move-btn" type="submit" title="Сделать запасным 1">▼</button>
               </form>
             </div>
+            {% endif %}
           </td>
           <td><span class="badge badge-ok">основной</span></td>
           <td class="mono">{{ primary.get("base_url", "") }}</td>
@@ -132,11 +129,13 @@
                 <input type="hidden" name="direction" value="up">
                 <button class="btn btn-sm move-btn" type="submit" title="Выше">▲</button>
               </form>
+              {% if not loop.last %}
               <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/move">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="direction" value="down">
-                <button class="btn btn-sm move-btn" type="submit" title="Ниже"{% if loop.last %} disabled{% endif %}>▼</button>
+                <button class="btn btn-sm move-btn" type="submit" title="Ниже">▼</button>
               </form>
+              {% endif %}
             </div>
           </td>
           <td><span class="badge badge-warn">запасной {{ loop.index }}</span></td>
