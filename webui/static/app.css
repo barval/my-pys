@@ -415,7 +415,6 @@ pre {
 }
 @media (max-width: 640px) {
   .site-header { padding: .6rem .8rem; }
-  .brand small { display: none; }
   .brand { font-size: .95rem; }
   .admin-container { padding: 1rem .8rem 2.5rem; }
   .admin-panel-title { font-size: 1.25rem; }
