@@ -10,7 +10,7 @@
 ## 0. Проверка LLM-роутера
 
 ```bash
-cd /home/GIT/GITEA/BARVAL-MY/my-pys
+cd /path/to/my-pys
 make router-init
 make router
 make router-status

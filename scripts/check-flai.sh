@@ -9,7 +9,7 @@ load_project_env "$ROOT"
 
 BASE="${LLM_BASE_URL:-${FLAI_BASE_URL:-http://192.168.1.2:5002/v1}}"
 MODEL="${LLM_MODEL:-${FLAI_MODEL:-flai-chat}}"
-TOKEN_FILE="${LLM_TOKEN_FILE:-${FLAI_TOKEN_FILE:-$ROOT/secrets/router-token-speaker-a}}"
+TOKEN_FILE="${LLM_TOKEN_FILE:-${FLAI_TOKEN_FILE:-$ROOT/secrets/router-token-example}}"
 [[ "$TOKEN_FILE" = /* ]] || TOKEN_FILE="$ROOT/$TOKEN_FILE"
 
 if [[ ! -r "$TOKEN_FILE" ]]; then

@@ -7,7 +7,7 @@ LM Studio, облачный OpenAI-совместимый сервис и т.п.
 ## Переменные
 
 ```bash
-cp config/flai.env.example .env
+cp config/flai.env.example local/.env
 ```
 
 | Переменная | Значение по умолчанию | Что значит |

@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRETS="$ROOT/secrets"
 mkdir -p "$SECRETS" "$ROOT/router-state"
 
-for name in lg lp ln l00fq; do
+for name in speaker-a speaker-b speaker-c speaker-d; do
   token_file="$SECRETS/router-token-$name"
   if [[ ! -s "$token_file" ]]; then
     token="$(python3 -c 'import secrets; print("sk-router-" + secrets.token_hex(24))')"
@@ -56,7 +56,7 @@ PY
 fi
 chmod 600 "$config"
 
-for name in lg lp ln l00fq; do
+for name in speaker-a speaker-b speaker-c speaker-d; do
   if [[ ! -s "$SECRETS/flai-token-$name" ]]; then
     echo "Внимание: нет upstream-ключа secrets/flai-token-$name — маршрут $name будет отвечать 503." >&2
   fi

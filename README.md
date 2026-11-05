@@ -125,14 +125,19 @@ secrets/
 
 ## Несколько колонок
 
-В сети четыре Станции Лайт. Профили лежат в `config/speakers/`:
+Профили колонок — это отдельные файлы окружения. Публичный пример лежит в
+`config/speakers/example.env`; реальные профили храните в
+`local/speakers/<имя>.env` — папка `local/` исключена из git.
 
-| Профиль | IP | Device ID | Статус |
-|---|---|---|---|
-| `speaker-a.env` | `192.168.1.101` | `EXAMPLE-1...` | готово, chunked + stream |
-| `speaker-b.env` | `192.168.1.100` | `EXAMPLE-2...` | готово, chunked + stream |
-| `speaker-c.env` | `192.168.1.102` | `EXAMPLE-3...` | готово, chunked + stream |
-| `speaker-d.env` | `192.168.1.103` | `EXAMPLE-4...` | готово, chunked + stream |
+| Пример профиля | IP | Device ID |
+|---|---|---|
+| `local/speakers/speaker-a.env` | `192.168.1.101` | `EXAMPLE...001` |
+| `local/speakers/speaker-b.env` | `192.168.1.100` | `EXAMPLE...002` |
+| `local/speakers/speaker-c.env` | `192.168.1.102` | `EXAMPLE...003` |
+| `local/speakers/speaker-d.env` | `192.168.1.103` | `EXAMPLE...004` |
+
+Имена и количество профилей произвольны: скрипты читают любой файл,
+переданный через `SPEAKER_ENV`.
 
 Для любой команды по конкретной колонке:
 
@@ -143,8 +148,8 @@ SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/apply-bridge-routing.sh
 SPEAKER_ENV=local/speakers/speaker-b.env make status
 ```
 
-Без `SPEAKER_ENV` используется профиль из `.env` — сейчас это `speaker-a.env`
-(колонка `192.168.1.101`).
+Без `SPEAKER_ENV` используются переменные из `local/.env` (или `.env` в
+корне, если локального файла нет).
 
 IP в профиле — только подсказка для ускорения поиска. Привязка идёт по
 `SPEAKER_DEVICE_ID`/`SPEAKER_MAC`; `resolve-speaker.sh` проверяет MAC и не
@@ -173,10 +178,10 @@ make router-logs   # логи
 
 | Колонка | Промежуточный ключ | Upstream-ключ FLAI |
 |---|---|---|
-| `192.168.1.101` LG | `secrets/router-token-speaker-a` | `secrets/flai-token-speaker-a` |
-| `192.168.1.100` LP | `secrets/router-token-speaker-b` | `secrets/flai-token-speaker-b` |
-| `192.168.1.102` LN | `secrets/router-token-speaker-c` | `secrets/flai-token-speaker-c` |
-| `192.168.1.103` EXAMPLE-4 | `secrets/router-token-speaker-d` | `secrets/flai-token-speaker-d` |
+| `speaker-a` | `secrets/router-token-speaker-a` | `secrets/flai-token-speaker-a` |
+| `speaker-b` | `secrets/router-token-speaker-b` | `secrets/flai-token-speaker-b` |
+| `speaker-c` | `secrets/router-token-speaker-c` | `secrets/flai-token-speaker-c` |
+| `speaker-d` | `secrets/router-token-speaker-d` | `secrets/flai-token-speaker-d` |
 
 `secrets/router-routes.json` — таблица маршрутов. Пример без секретов:
 `config/router-routes.example.json`. Если upstream-ключ ещё не создан,
@@ -223,7 +228,7 @@ FLAI получает только текущий вопрос, обычная L
 ```text
 base_url: https://api.orcarouter.ai/v1
 model:    orcarouter/free
-keys:     secrets/orca-token-speaker-a, -lp, -ln, -l00fq
+keys:     secrets/orca-token-speaker-a, -speaker-b, -speaker-c, -speaker-d
 ```
 
 Ключи проверены: `/v1/models` отвечает `200`, модель `orcarouter/free`

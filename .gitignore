@@ -1,4 +1,5 @@
 secrets/
+local/
 .env
 *.log
 .cache/

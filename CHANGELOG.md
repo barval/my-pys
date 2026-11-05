@@ -90,11 +90,12 @@
   Яндекс обрабатывает только погоду, время, музыку, таймеры и умный дом.
 - Переменные `LLM_*` (endpoint, upstream, модель, ключ) с алиасами
   `FLAI_*`: вместо FLAI подойдёт любая OpenAI-совместимая LLM.
-- Профили `config/speakers/*.env` и `scripts/lib-env.sh`: все команды
+- Профили `config/speakers/example.env` и `scripts/lib-env.sh`: все команды
   принимают `SPEAKER_ENV=...` и находят колонку по MAC/device ID.
-  Без профиля используется `.env` (`192.168.1.101`).
-- Персональные ключи FLAI по колонкам: `secrets/flai-token-speaker-a`, `-lp`,
-  `-ln`, `-l00fq`; профили содержат `LLM_TOKEN_FILE`.
+  Без профиля используется `local/.env` (или `.env` в корне).
+- Персональные ключи FLAI по колонкам: `secrets/flai-token-speaker-a`,
+  `-speaker-b`, `-speaker-c`, `-speaker-d`; профили содержат
+  `LLM_TOKEN_FILE`.
 - `scripts/set-speaker-key.sh` записывает ключ в
   `/data/opt/quasar-bridge/runtime.env` на колонке и перезапускает Bridge.
 - `make status` больше не вызывает LLM; health-probe «Ответь одним словом:
