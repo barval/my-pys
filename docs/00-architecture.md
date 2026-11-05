@@ -13,8 +13,8 @@
    │  распознанный текст
    ▼
 Quasar Bridge (на колонке, 127.0.0.1:8443)
-   ├─ yandex_services / home_devices / speaker_playback ──► Яндекс
-   │     погода, время, музыка, умный дом, пауза/стоп
+   ├─ yandex_services / home_devices / speaker_playback / yandex_intercom ──► Яндекс
+   │     погода, время, музыка, умный дом, пауза/стоп, сообщения между колонками
    │
    └─ всё остальное (default_route=llm) ────────────────► LLM-роутер :5002 /v1
                                                        │  выбор по ключу колонки

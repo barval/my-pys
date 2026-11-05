@@ -56,6 +56,10 @@ pkg=/data/opt/quasar-bridge/app
 | «найди песню Pink Floyd» | `yandex` / `yandex_services` |
 | «включи свет в комнате A» | `yandex` / `home_devices` (пока нет Home Assistant) |
 | «выключи музыку» | `yandex` / `speaker_playback` |
+| «передай в кабинет…» | `yandex` / `yandex_intercom` |
+| «скажи всем…» | `yandex` / `yandex_intercom` |
+| «включи трансляцию» | `yandex` / `yandex_intercom` |
+| «позвони…» | `yandex` / `yandex_intercom` |
 | «почему небо голубое» | `llm` / `default` |
 | «как дела в комнате A» | `llm` / `default` |
 

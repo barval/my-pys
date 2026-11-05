@@ -285,8 +285,8 @@ docker logs --tail=100 flai-web
   pkg=/data/opt/quasar-bridge/app
   "$pkg/bin/quasar-bridge" -config /data/opt/quasar-bridge/config.json -route "ваша фраза"
   ```
-- Если сервисная фраза ушла в LLM — дополните `yandex_services` или
-  `home_devices` и примените `./scripts/apply-bridge-routing.sh`.
+- Если сервисная фраза ушла в LLM — дополните `yandex_services`, `home_devices` или
+  `yandex_intercom` и примените `./scripts/apply-bridge-routing.sh`.
 - Проверьте `config.json` и `runtime.env` на колонке.
 
 ## Вернуть всё

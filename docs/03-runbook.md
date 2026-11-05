@@ -429,6 +429,8 @@ SPEAKER_ENV=local/speakers/speaker-a.env ./scripts/set-speaker-key.sh
 - `yandex_services` — погода, время, таймеры, музыка, радио;
 - `home_devices` — умный дом (пока Home Assistant не настроен, Яндекс);
 - `speaker_playback` — пауза/продолжение/стоп;
+- `yandex_intercom` — «передай…», «скажи всем…», объявления,
+  трансляции и звонки;
 
 `assistant_tools` оставлены выключенными: внешняя LLM сама решает, что ей
 нужно. `local_progress` включён, чтобы колонка не молчала во время
@@ -485,7 +487,7 @@ ssh -i secrets/speaker_ed25519 -p 2222 root@$(./scripts/resolve-speaker.sh) \
 - `"route":"llm"` — ответила внешняя LLM;
 - `"route":"yandex"` — ответила обычная Алиса;
 - `"source":"rule"` — сработало правило (`yandex_services`,
-  `home_devices` или `speaker_playback`);
+  `home_devices`, `speaker_playback` или `yandex_intercom`);
 - `"source":"default"` — сработал `default_route=llm`;
 - `"source":"classifier"` в текущей политике не используется.
 
