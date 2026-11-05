@@ -11,6 +11,7 @@ vendor/lite-kit/firmware/**/update.zip
 
 # runtime state of the LLM router
 router-state/
+webui-state/
 
 # runtime state of the local root stand
 vendor/lite-kit/run/*

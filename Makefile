@@ -1,4 +1,4 @@
-.PHONY: help check firmware stand stop bridge ssh status check-backends resolve routing key routes flai-log router-init router router-stop router-logs router-status router-test lint
+.PHONY: help check firmware stand stop bridge ssh status check-backends resolve routing key routes flai-log router-init router router-stop router-logs router-status router-test lint webui webui-test
 
 help:
 	@echo "make check     — проверить внешнюю LLM"
@@ -81,6 +81,12 @@ router-status:
 
 router-test:
 	pytest router/tests/test_router.py -q
+
+webui:
+	python3 -m webui
+
+webui-test:
+	python3 -m pytest webui/tests -q
 
 lint:
 	bash -n scripts/*.sh
