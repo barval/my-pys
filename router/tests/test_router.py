@@ -50,7 +50,10 @@ class UpstreamHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Transfer-Encoding", "chunked")
             self.end_headers()
-            for chunk in payload:
+            delay = getattr(self.server, "chunk_delay", 0.0)
+            for index, chunk in enumerate(payload):
+                if delay and index:
+                    time.sleep(delay)
                 data = chunk.encode()
                 self.wfile.write(f"{len(data):X}\r\n".encode() + data + b"\r\n")
                 self.wfile.flush()
@@ -438,6 +441,37 @@ def test_stream_is_proxied(tmp_path):
         assert status == 200
         assert b"hello" in data
         assert b"[DONE]" in data
+    finally:
+        stop(router)
+        stop(primary)
+
+
+def test_stream_is_forwarded_before_upstream_finishes(tmp_path):
+    def behavior(seen):
+        return 200, ['data: {"delta":"first"}\n\n', 'data: {"delta":"second"}\n\n'], True
+
+    primary = start_upstream(behavior)
+    primary.chunk_delay = 0.6
+    router = start_router(
+        write_config(tmp_path, f"http://127.0.0.1:{primary.server_port}/v1"),
+        tmp_path / "state.json",
+    )
+    try:
+        conn = HTTPConnection("127.0.0.1", router.server_port, timeout=10)
+        conn.request(
+            "POST",
+            "/v1/chat/completions",
+            json.dumps({"messages": [{"role": "user", "content": "hi"}], "stream": True}),
+            {"Content-Type": "application/json", "Authorization": "Bearer sk-router-test"},
+        )
+        response = conn.getresponse()
+        started = time.monotonic()
+        line = response.readline()
+        elapsed = time.monotonic() - started
+        assert b"first" in line
+        assert elapsed < 0.4, f"first SSE event took {elapsed:.2f}s"
+        response.read()
+        conn.close()
     finally:
         stop(router)
         stop(primary)

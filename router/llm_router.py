@@ -970,8 +970,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
         try:
             if first:
                 self._write_chunk(first)
+            # read1() returns as soon as the upstream has any bytes. read(n)
+            # on a chunked response waits for n bytes or EOF, which buffers
+            # SSE events and keeps the speaker silent until the stream ends.
+            read = getattr(response, "read1", None) or response.read
             while True:
-                chunk = response.read(8192)
+                chunk = read(8192)
                 if not chunk:
                     break
                 self._write_chunk(chunk)
