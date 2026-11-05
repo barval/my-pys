@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import json
+import re
+import urllib.request
+from pathlib import Path
+
 from flask import (
     Flask,
     abort,
@@ -10,11 +15,77 @@ from flask import (
     url_for,
 )
 
-from .actions import CommandBuilder, SPEAKER_ACTIONS
+from router.llm_router import ConfigError
+
+from .actions import CommandBuilder, HOST_ACTIONS, SPEAKER_ACTIONS
 from .auth import init_auth
 from .jobs import JobRunner
 from .profiles import load_profiles, mask_secret
+from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
+
+_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
+_ROUTER_ACTIONS = {"router-start", "router-stop", "router-restart"}
+
+
+def _route_from_form(form, name: str, existing: dict) -> dict:
+    base_url = form.get("base_url", "").strip()
+    model = form.get("model", "").strip()
+    token_file = form.get("token_file", "").strip()
+    history = form.get("history", "server").strip()
+    api_key_file = form.get("api_key_file", "").strip()
+    try:
+        timeout_seconds = float(form.get("timeout_seconds", "180") or "180")
+    except ValueError as exc:
+        raise ValueError("timeout_seconds должен быть числом") from exc
+
+    errors: list[str] = []
+    if not model:
+        errors.append("model обязателен")
+    if not base_url.startswith(("http://", "https://")):
+        errors.append("base_url должен начинаться с http:// или https://")
+    if not token_file or Path(token_file).name != token_file:
+        errors.append("token_file должен быть именем файла без каталогов")
+    if history not in ("server", "client"):
+        errors.append("history должен быть server или client")
+    if errors:
+        raise ValueError("; ".join(errors))
+
+    fallback = None
+    fallback_base = form.get("fallback_base_url", "").strip()
+    if fallback_base:
+        if not fallback_base.startswith(("http://", "https://")):
+            raise ValueError("fallback_base_url должен быть http(s)-адресом")
+        fallback = {
+            "base_url": fallback_base,
+            "api_key_file": form.get("fallback_api_key_file", "").strip(),
+            "model": form.get("fallback_model", "").strip(),
+            "history": form.get("fallback_history", "client").strip(),
+            "timeout_seconds": timeout_seconds,
+        }
+
+    primary = dict(existing.get("primary") or {})
+    primary.update(
+        {
+            "base_url": base_url,
+            "api_key_file": api_key_file,
+            "model": model,
+            "history": history,
+            "timeout_seconds": timeout_seconds,
+        }
+    )
+    session = dict(existing.get("session") or {})
+    session.setdefault("mode", "server")
+    session.setdefault("user", "voice")
+    session.setdefault("idle_minutes", 30)
+    session.setdefault("cleanup_keep", 3)
+    return {
+        "name": name,
+        "token_file": token_file,
+        "session": session,
+        "primary": primary,
+        "fallback": fallback,
+    }
 
 
 def create_app(settings: Settings | None = None) -> Flask:
@@ -42,6 +113,33 @@ def create_app(settings: Settings | None = None) -> Flask:
         if profile is None:
             abort(404)
         return profile
+
+    def router_config() -> dict:
+        try:
+            return read_config(settings.router_config)
+        except (OSError, ValueError):
+            return {"routes": []}
+
+    def health() -> tuple[dict, int]:
+        try:
+            with urllib.request.urlopen(
+                "http://127.0.0.1:5002/health", timeout=2
+            ) as response:
+                return json.loads(response.read().decode("utf-8")), 200
+        except Exception:
+            return {"status": "unavailable", "routes": []}, 503
+
+    def find_route(raw: dict, name: str) -> dict | None:
+        for route in raw.get("routes", []):
+            if route.get("name") == name:
+                return route
+        return None
+
+    def submit_host(action: str):
+        if action not in _ROUTER_ACTIONS:
+            abort(404)
+        job = app.extensions["jobs"].submit(action, None)
+        return redirect(url_for("job_page", job_id=job.id), code=303)
 
     @app.get("/healthz")
     def healthz():
@@ -97,11 +195,73 @@ def create_app(settings: Settings | None = None) -> Flask:
         if job is None:
             abort(404)
         text, offset = app.extensions["jobs"].tail(job_id, 0)
+        return render_template("job_log.html", job=job, text=text, offset=offset)
+
+    @app.get("/router")
+    def router_page():
+        payload, status = health()
         return render_template(
-            "job_log.html",
-            job=job,
-            text=text,
-            offset=offset,
+            "router.html",
+            routes=router_config().get("routes", []),
+            health=payload,
+            health_status=status,
+            actions={
+                key: value
+                for key, value in HOST_ACTIONS.items()
+                if key in _ROUTER_ACTIONS
+            },
         )
+
+    @app.get("/router/health")
+    def router_health():
+        payload, status = health()
+        return jsonify(payload), status
+
+    @app.get("/router/routes/<name>")
+    def route_edit(name: str):
+        raw = router_config()
+        route = find_route(raw, name)
+        if route is None:
+            abort(404)
+        return render_template("route_edit.html", route=route, error=None)
+
+    @app.post("/router/routes/<name>")
+    def route_save(name: str):
+        if not _NAME_RE.fullmatch(name):
+            abort(404)
+        raw = router_config()
+        existing = find_route(raw, name) or {}
+        try:
+            route = _route_from_form(request.form, name, existing)
+            save_config(settings.router_config, upsert_route(raw, route))
+        except (ValueError, ConfigError, OSError) as exc:
+            return (
+                render_template(
+                    "route_edit.html",
+                    route=existing or {"name": name},
+                    error=str(exc),
+                ),
+                400,
+            )
+        return redirect(url_for("router_page"))
+
+    @app.post("/router/routes/<name>/delete")
+    def route_delete(name: str):
+        raw = router_config()
+        try:
+            save_config(settings.router_config, delete_route(raw, name))
+        except KeyError:
+            abort(404)
+        except (ConfigError, OSError) as exc:
+            return str(exc), 400
+        return redirect(url_for("router_page"))
+
+    @app.post("/router/restart")
+    def router_restart():
+        return submit_host("router-restart")
+
+    @app.post("/router/actions/<action>")
+    def router_action(action: str):
+        return submit_host(action)
 
     return app

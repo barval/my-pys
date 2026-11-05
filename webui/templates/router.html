@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Роутер — Web UI{% endblock %}
+{% block content %}
+<h1>LLM-роутер</h1>
+<p>Health: <strong>{{ health.status }}</strong> (HTTP {{ health_status }})</p>
+
+<div class="actions">
+  {% for action in actions.values() %}
+  <form method="post" action="/router/actions/{{ action.key }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">{{ action.label }}</button>
+  </form>
+  {% endfor %}
+</div>
+
+<h2>Маршруты</h2>
+{% if routes %}
+<table>
+  <thead>
+    <tr><th>Имя</th><th>Primary</th><th>Модель</th><th>Fallback</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for route in routes %}
+    {% set primary = route.get("primary", {}) %}
+    {% set fallback = route.get("fallback") or {} %}
+    <tr>
+      <td><a href="/router/routes/{{ route.name }}">{{ route.name }}</a></td>
+      <td>{{ primary.get("base_url", "") }}</td>
+      <td>{{ primary.get("model", "") }}</td>
+      <td>{{ fallback.get("base_url", "—") }}</td>
+      <td>
+        <form method="post" action="/router/routes/{{ route.name }}/delete" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">Удалить</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Маршруты не настроены.</p>
+{% endif %}
+{% endblock %}

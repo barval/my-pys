@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Маршрут {{ route.name }} — Web UI{% endblock %}
+{% block content %}
+{% set primary = route.get("primary", {}) %}
+{% set fallback = route.get("fallback") or {} %}
+<h1>Маршрут {{ route.name }}</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post" action="/router/routes/{{ route.name }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Файл токена
+    <input name="token_file" value="{{ request.form.get('token_file', route.get('token_file', '')) }}" required>
+  </label>
+  <label>Base URL
+    <input name="base_url" value="{{ request.form.get('base_url', primary.get('base_url', '')) }}" required>
+  </label>
+  <label>Файл ключа upstream
+    <input name="api_key_file" value="{{ request.form.get('api_key_file', primary.get('api_key_file', '')) }}">
+  </label>
+  <label>Модель
+    <input name="model" value="{{ request.form.get('model', primary.get('model', '')) }}" required>
+  </label>
+  <label>История
+    <select name="history">
+      {% set history = request.form.get('history', primary.get('history', 'server')) %}
+      <option value="server"{% if history == 'server' %} selected{% endif %}>server</option>
+      <option value="client"{% if history == 'client' %} selected{% endif %}>client</option>
+    </select>
+  </label>
+  <label>Таймаут, секунд
+    <input name="timeout_seconds" type="number" step="1" value="{{ request.form.get('timeout_seconds', primary.get('timeout_seconds', 180)) }}">
+  </label>
+
+  <h2>Fallback</h2>
+  <label>Base URL
+    <input name="fallback_base_url" value="{{ request.form.get('fallback_base_url', fallback.get('base_url', '')) }}">
+  </label>
+  <label>Файл ключа fallback
+    <input name="fallback_api_key_file" value="{{ request.form.get('fallback_api_key_file', fallback.get('api_key_file', '')) }}">
+  </label>
+  <label>Модель fallback
+    <input name="fallback_model" value="{{ request.form.get('fallback_model', fallback.get('model', '')) }}">
+  </label>
+  <label>История fallback
+    <select name="fallback_history">
+      {% set fallback_history = request.form.get('fallback_history', fallback.get('history', 'client')) %}
+      <option value="client"{% if fallback_history == 'client' %} selected{% endif %}>client</option>
+      <option value="server"{% if fallback_history == 'server' %} selected{% endif %}>server</option>
+    </select>
+  </label>
+
+  <button type="submit">Сохранить</button>
+</form>
+
+<form method="post" action="/router/routes/{{ route.name }}/delete" class="inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit">Удалить маршрут</button>
+</form>
+{% endblock %}

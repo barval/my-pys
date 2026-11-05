@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from webui.app import create_app
 from webui.settings import load_settings
 
@@ -35,7 +39,115 @@ def test_unknown_speaker_returns_404(client, login):
 
 
 class FakeRunner:
+    def __init__(self):
+        self.actions = []
+
     def submit(self, action, profile):
         from types import SimpleNamespace
 
+        self.actions.append((action, profile))
         return SimpleNamespace(id="job-1")
+
+
+def write_router_config(path, name="speaker-a"):
+    secrets = path.parent
+    secrets.mkdir(parents=True, exist_ok=True)
+    (secrets / f"router-token-{name}").write_text("sk-router-test\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            {
+                "response": {"max_sentences": 3, "max_chars": 400},
+                "routes": [
+                    {
+                        "name": name,
+                        "token_file": f"router-token-{name}",
+                        "session": {
+                            "mode": "server",
+                            "user": "voice",
+                            "idle_minutes": 30,
+                            "cleanup_keep": 3,
+                        },
+                        "primary": {
+                            "base_url": "http://127.0.0.1:5000/v1",
+                            "api_key_file": f"flai-token-{name}",
+                            "model": "flai-chat",
+                            "history": "server",
+                        },
+                        "fallback": None,
+                    }
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+@pytest.fixture
+def fake_router_http(monkeypatch):
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"status":"ok","routes":[{"name":"speaker-a","available":true}]}'
+
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda *args, **kwargs: Response(),
+    )
+
+
+def test_router_health_returns_routes(client, login, fake_router_http):
+    login()
+    payload = client.get("/router/health").get_json()
+    assert payload["routes"][0]["name"] == "speaker-a"
+
+
+def test_route_edit_rejects_invalid_model(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    before = path.read_text(encoding="utf-8")
+    response = client.post(
+        "/router/routes/speaker-a",
+        data={"model": ""},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 400
+    assert path.read_text(encoding="utf-8") == before
+
+
+def test_router_restart_submits_host_job(client, app, login, csrf):
+    login()
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    response = client.post(
+        "/router/restart",
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 303
+    assert runner.actions == [("router-restart", None)]
+
+
+def test_route_edit_saves_valid_route(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    response = client.post(
+        "/router/routes/speaker-a",
+        data={
+            "token_file": "router-token-speaker-a",
+            "base_url": "http://127.0.0.1:5000/v1",
+            "api_key_file": "flai-token-speaker-a",
+            "model": "new-model",
+            "history": "server",
+            "timeout_seconds": "180",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 302
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert saved["routes"][0]["primary"]["model"] == "new-model"
