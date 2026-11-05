@@ -362,6 +362,48 @@ def test_primary_503_falls_back_and_rebuilds_client_history(tmp_path):
         stop(fallback)
 
 
+def test_second_fallback_is_used_when_first_fails(tmp_path):
+    primary = start_upstream(lambda seen: (503, {"error": "primary"}, False))
+    first = start_upstream(lambda seen: (503, {"error": "first"}, False))
+    second = start_upstream(
+        lambda seen: (200, {"choices": [{"message": {"role": "assistant", "content": "from second"}}]}, False)
+    )
+    config_path = write_config(
+        tmp_path,
+        f"http://127.0.0.1:{primary.server_port}/v1",
+        f"http://127.0.0.1:{first.server_port}/v1",
+    )
+    raw = json.loads(config_path.read_text(encoding="utf-8"))
+    route = raw["routes"][0]
+    route["fallbacks"] = [
+        route.pop("fallback"),
+        {
+            "base_url": f"http://127.0.0.1:{second.server_port}/v1",
+            "api_key_file": "fallback-token-speaker-a",
+            "model": "second-model",
+            "history": "client",
+            "timeout_seconds": 10,
+            "fallback_on": [429, 500, 502, 503, 504],
+        },
+    ]
+    config_path.write_text(json.dumps(raw), encoding="utf-8")
+    router = start_router(config_path, tmp_path / "state.json")
+    try:
+        status, data = post(
+            router.server_port,
+            "sk-router-test",
+            {"messages": [{"role": "user", "content": "hi"}]},
+        )
+        assert status == 200
+        assert "from second" in data.decode()
+        assert second.seen[0]["body"]["model"] == "second-model"
+    finally:
+        stop(router)
+        stop(primary)
+        stop(first)
+        stop(second)
+
+
 def test_primary_400_does_not_fall_back(tmp_path):
     primary = start_upstream(lambda seen: (400, {"error": "bad request"}, False))
     fallback = start_upstream(lambda seen: (200, {"ok": True}, False))

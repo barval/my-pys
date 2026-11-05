@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Новый маршрут — Web UI{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="/router">← Все маршруты</a>
+    <h1>Новый маршрут</h1>
+  </div>
+</div>
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post" action="/router/routes/new" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Имя маршрута
+    <input name="name" value="{{ request.form.get('name', '') }}" required
+           pattern="[a-z0-9][a-z0-9-]{0,31}" placeholder="speaker-e">
+  </label>
+  <p class="muted">Промежуточный токен будет создан автоматически и показан один раз.</p>
+  <div class="form-grid">
+    <label>Base URL
+      <input name="base_url" value="{{ request.form.get('base_url', 'http://127.0.0.1:5000/v1') }}" required>
+    </label>
+    <label>Файл ключа
+      <input name="api_key_file" value="{{ request.form.get('api_key_file', '') }}" placeholder="flai-token-speaker-e">
+    </label>
+    <label>Модель
+      <input name="model" value="{{ request.form.get('model', 'flai-chat') }}" required>
+    </label>
+    <label>История
+      {% set history = request.form.get('history', 'server') %}
+      <select name="history">
+        <option value="server"{% if history == 'server' %} selected{% endif %}>server</option>
+        <option value="client"{% if history == 'client' %} selected{% endif %}>client</option>
+      </select>
+    </label>
+    <label>Таймаут, секунд
+      <input name="timeout_seconds" type="number" step="1" value="{{ request.form.get('timeout_seconds', 180) }}">
+    </label>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">Создать</button>
+  </div>
+</form>
+{% endblock %}

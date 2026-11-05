@@ -47,7 +47,7 @@ for name in ("speaker-a", "speaker-b", "speaker-c", "speaker-d"):
                 "timeout_seconds": 180,
                 "fallback_on": [429, 500, 502, 503, 504],
             },
-            "fallback": None,
+            "fallbacks": [],
         }
     )
 path.write_text(json.dumps({"routes": routes}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

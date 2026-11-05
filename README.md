@@ -215,19 +215,24 @@ SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
 
 ### Fallback
 
-У каждого маршрута может быть резервный upstream:
+У каждого маршрута может быть один или несколько резервных upstream в
+массиве `fallbacks` (в порядке попыток):
 
 ```json
-"fallback": {
-  "base_url": "https://api.example.com/v1",
-  "api_key": "sk-...",
-  "model": "qwen3-32b",
-  "history": "client"
-}
+"fallbacks": [
+  {
+    "base_url": "https://api.example.com/v1",
+    "api_key": "sk-...",
+    "model": "qwen3-32b",
+    "history": "client"
+  }
+]
 ```
 
+Старый одиночный `"fallback"` тоже читается для совместимости.
 Если основной маршрут недоступен, отдаёт `429`/`5xx` или не ответил за
-таймаут, запрос уходит в fallback. Тело пересобирается под его режим:
+таймаут, запрос уходит в первый доступный fallback, затем в следующий.
+Тело пересобирается под режим каждого upstream:
 FLAI получает только текущий вопрос, обычная LLM — всю историю Bridge.
 Изменения `secrets/router-routes.json` применяются без перезапуска.
 

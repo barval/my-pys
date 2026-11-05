@@ -411,3 +411,70 @@ def test_login_redirects_authenticated_user(client, login):
     response = client.get("/login")
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/speakers")
+
+
+def test_create_route_generates_token(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    response = client.post(
+        "/router/routes/new",
+        data={
+            "name": "speaker-b",
+            "base_url": "http://127.0.0.1:5000/v1",
+            "api_key_file": "flai-token-speaker-b",
+            "model": "flai-chat",
+            "history": "server",
+            "timeout_seconds": "180",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    names = {route["name"] for route in saved["routes"]}
+    assert names == {"speaker-a", "speaker-b"}
+    token_file = app.config["WEBUI_SETTINGS"].secrets_dir / "router-token-speaker-b"
+    assert token_file.exists()
+    assert "sk-router-" in response.get_data(as_text=True)
+
+
+def test_fallback_is_added_edited_and_deleted(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    form = {
+        "base_url": "https://api.orcarouter.ai/v1",
+        "api_key_file": "orca-token-speaker-a",
+        "model": "orcarouter/free",
+        "history": "client",
+        "timeout_seconds": "180",
+    }
+    response = client.post(
+        "/router/routes/speaker-a/fallback/new",
+        data=form,
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "запасной 1" in body
+
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    route = saved["routes"][0]
+    assert len(route["fallbacks"]) == 1
+    assert "fallback" not in route
+
+    edited = dict(form, model="orcarouter/other")
+    client.post(
+        "/router/routes/speaker-a/fallback/0",
+        data=edited,
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert saved["routes"][0]["fallbacks"][0]["model"] == "orcarouter/other"
+
+    client.post(
+        "/router/routes/speaker-a/fallback/0/delete",
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert saved["routes"][0]["fallbacks"] == []

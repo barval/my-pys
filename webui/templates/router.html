@@ -4,12 +4,23 @@
 <div class="page-head">
   <div>
     <h1>LLM-роутер</h1>
-    <div class="sub">OpenAI-совместимый шлюз для колонок</div>
+    <div class="sub">Основные и запасные маршруты</div>
   </div>
-  <span class="badge badge-{{ 'ok' if health.status == 'ok' else 'err' }}">
-    {{ health.status }} · HTTP {{ health_status }}
-  </span>
+  <div class="actions">
+    <a class="btn btn-primary" href="/router/routes/new">Добавить маршрут</a>
+    <span class="badge badge-{{ 'ok' if health.status == 'ok' else 'err' }}">
+      {{ health.status }} · HTTP {{ health_status }}
+    </span>
+  </div>
 </div>
+
+{% if new_token %}
+<div class="flash">
+  <strong>Новый токен маршрута.</strong> Показывается один раз:
+  <div class="mono" style="margin:.5rem 0; word-break:break-all">{{ new_token }}</div>
+  <button class="copy" type="button" data-copy="{{ new_token }}">Копировать</button>
+</div>
+{% endif %}
 
 <div class="grid two">
   <section class="card">
@@ -22,10 +33,7 @@
       </form>
       {% endfor %}
     </div>
-    <p class="muted">
-      Изменения <code>router-routes.json</code> подхватываются автоматически.
-      {% if actions.get("router-stop") %}Запуск и остановка — через compose.{% endif %}
-    </p>
+    <p class="muted">Изменения конфига подхватываются автоматически.</p>
   </section>
 
   <section class="card">
@@ -33,11 +41,7 @@
     <dl class="meta">
       <dt>Health</dt><dd>{{ health.status }}</dd>
       <dt>Маршрутов</dt><dd>{{ routes | length }}</dd>
-      <dt>Доступно</dt>
-      <dd>
-        {{ health.get("routes", []) | selectattr("available") | list | length }}
-        из {{ health.get("routes", []) | length }}
-      </dd>
+      <dt>Запасных</dt><dd>{{ fallback_count }}</dd>
     </dl>
   </section>
 </div>
@@ -48,22 +52,54 @@
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Имя</th><th>Primary</th><th>Модель</th><th>Fallback</th><th></th></tr>
+        <tr>
+          <th>Маршрут</th>
+          <th>Роль</th>
+          <th>Base URL</th>
+          <th>Модель</th>
+          <th>История</th>
+          <th>Ключ</th>
+          <th></th>
+        </tr>
       </thead>
       <tbody>
         {% for route in routes %}
         {% set primary = route.get("primary", {}) %}
-        {% set fallback = route.get("fallback") or {} %}
         <tr>
-          <td><a href="/router/routes/{{ route.name }}">{{ route.name }}</a></td>
+          <td><strong>{{ route.name }}</strong></td>
+          <td><span class="badge badge-ok">основной</span></td>
           <td class="mono">{{ primary.get("base_url", "") }}</td>
           <td class="mono">{{ primary.get("model", "") }}</td>
-          <td class="mono">{{ fallback.get("base_url", "—") }}</td>
-          <td>
+          <td>{{ primary.get("history", "") }}</td>
+          <td class="mono">{{ primary.get("api_key_file", "—") }}</td>
+          <td class="row-actions">
+            <a class="btn btn-ghost btn-sm" href="/router/routes/{{ route.name }}">Изменить</a>
             <form method="post" action="/router/routes/{{ route.name }}/delete" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-danger btn-sm" type="submit">Удалить</button>
             </form>
+          </td>
+        </tr>
+        {% for fallback in route.fallbacks %}
+        <tr>
+          <td>{{ route.name }}</td>
+          <td><span class="badge badge-warn">запасной {{ loop.index }}</span></td>
+          <td class="mono">{{ fallback.get("base_url", "") }}</td>
+          <td class="mono">{{ fallback.get("model", "") }}</td>
+          <td>{{ fallback.get("history", "") }}</td>
+          <td class="mono">{{ fallback.get("api_key_file", "—") }}</td>
+          <td class="row-actions">
+            <a class="btn btn-ghost btn-sm" href="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}">Изменить</a>
+            <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/delete" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-danger btn-sm" type="submit">Удалить</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="add-row">
+          <td colspan="7">
+            <a href="/router/routes/{{ route.name }}/fallback/new">+ Добавить запасной маршрут</a>
           </td>
         </tr>
         {% endfor %}
@@ -71,7 +107,7 @@
     </table>
   </div>
   {% else %}
-  <div class="empty">Маршруты не настроены.</div>
+  <div class="empty">Маршруты не настроены. Нажмите «Добавить маршрут».</div>
   {% endif %}
 </section>
 {% endblock %}

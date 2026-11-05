@@ -55,14 +55,23 @@ _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 _ROUTER_ACTIONS = {"router-start", "router-stop", "router-restart"}
 
 
-def _route_from_form(form, name: str, existing: dict) -> dict:
-    base_url = form.get("base_url", "").strip()
-    model = form.get("model", "").strip()
-    token_file = form.get("token_file", "").strip()
-    history = form.get("history", "server").strip()
-    api_key_file = form.get("api_key_file", "").strip()
+def route_fallbacks(route: dict) -> list[dict]:
+    raw = route.get("fallbacks")
+    if isinstance(raw, list):
+        return [item for item in raw if isinstance(item, dict)]
+    legacy = route.get("fallback")
+    return [legacy] if isinstance(legacy, dict) else []
+
+
+def _upstream_from_form(form, *, prefix: str = "", default_history: str = "server") -> dict:
+    base_url = form.get(f"{prefix}base_url", "").strip()
+    model = form.get(f"{prefix}model", "").strip()
+    api_key_file = form.get(f"{prefix}api_key_file", "").strip()
+    history = form.get(f"{prefix}history", default_history).strip()
     try:
-        timeout_seconds = float(form.get("timeout_seconds", "180") or "180")
+        timeout_seconds = float(
+            form.get(f"{prefix}timeout_seconds", "180") or "180"
+        )
     except ValueError as exc:
         raise ValueError("timeout_seconds должен быть числом") from exc
 
@@ -71,43 +80,33 @@ def _route_from_form(form, name: str, existing: dict) -> dict:
         errors.append("model обязателен")
     if not base_url.startswith(("http://", "https://")):
         errors.append("base_url должен начинаться с http:// или https://")
-    if not token_file or Path(token_file).name != token_file:
-        errors.append("token_file должен быть именем файла без каталогов")
     if api_key_file and Path(api_key_file).name != api_key_file:
         errors.append("api_key_file должен быть именем файла без каталогов")
     if history not in ("server", "client"):
         errors.append("history должен быть server или client")
     if errors:
         raise ValueError("; ".join(errors))
+    return {
+        "base_url": base_url,
+        "api_key_file": api_key_file,
+        "model": model,
+        "history": history,
+        "timeout_seconds": timeout_seconds,
+    }
 
-    fallback = None
-    fallback_base = form.get("fallback_base_url", "").strip()
-    if fallback_base:
-        if not fallback_base.startswith(("http://", "https://")):
-            raise ValueError("fallback_base_url должен быть http(s)-адресом")
-        fallback_key_file = form.get("fallback_api_key_file", "").strip()
-        if fallback_key_file and Path(fallback_key_file).name != fallback_key_file:
-            raise ValueError(
-                "fallback_api_key_file должен быть именем файла без каталогов"
-            )
-        fallback = {
-            "base_url": fallback_base,
-            "api_key_file": fallback_key_file,
-            "model": form.get("fallback_model", "").strip(),
-            "history": form.get("fallback_history", "client").strip(),
-            "timeout_seconds": timeout_seconds,
-        }
 
-    primary = dict(existing.get("primary") or {})
-    primary.update(
-        {
-            "base_url": base_url,
-            "api_key_file": api_key_file,
-            "model": model,
-            "history": history,
-            "timeout_seconds": timeout_seconds,
-        }
-    )
+def _route_from_form(
+    form, name: str, existing: dict, token_file: str | None = None
+) -> dict:
+    token_file = (token_file or form.get("token_file", "")).strip()
+    if not token_file or Path(token_file).name != token_file:
+        raise ValueError("token_file должен быть именем файла без каталогов")
+    primary = _upstream_from_form(form, default_history="server")
+    fallbacks = route_fallbacks(existing)
+    if form.get("fallback_base_url", "").strip():
+        fallbacks = [
+            _upstream_from_form(form, prefix="fallback_", default_history="client")
+        ]
     session = dict(existing.get("session") or {})
     session.setdefault("mode", "server")
     session.setdefault("user", "voice")
@@ -118,7 +117,7 @@ def _route_from_form(form, name: str, existing: dict) -> dict:
         "token_file": token_file,
         "session": session,
         "primary": primary,
-        "fallback": fallback,
+        "fallbacks": fallbacks,
     }
 
 
@@ -330,12 +329,25 @@ def create_app(settings: Settings | None = None) -> Flask:
         text, offset = app.extensions["jobs"].tail(job_id, 0)
         return render_template("job_log.html", job=job, text=text, offset=offset)
 
+    def normalized_routes() -> list[dict]:
+        result = []
+        for route in router_config().get("routes", []):
+            item = dict(route)
+            item["fallbacks"] = route_fallbacks(route)
+            item.pop("fallback", None)
+            result.append(item)
+        return result
+
     @app.get("/router")
     def router_page():
         payload, status = health()
         return render_template(
             "router.html",
-            routes=router_config().get("routes", []),
+            routes=normalized_routes(),
+            fallback_count=sum(
+                len(route["fallbacks"]) for route in normalized_routes()
+            ),
+            new_token=session.pop("new_route_token", None),
             health=payload,
             health_status=status,
             actions={
@@ -350,12 +362,47 @@ def create_app(settings: Settings | None = None) -> Flask:
         payload, status = health()
         return jsonify(payload), status
 
+    @app.get("/router/routes/new")
+    def route_new():
+        return render_template("route_new.html", error=None)
+
+    @app.post("/router/routes/new")
+    def route_create():
+        name = request.form.get("name", "").strip()
+        if not _NAME_RE.fullmatch(name):
+            return render_template(
+                "route_new.html", error="Имя: латиница, цифры и дефис"
+            ), 400
+        raw = router_config()
+        if find_route(raw, name) is not None:
+            return render_template(
+                "route_new.html", error="Маршрут уже существует"
+            ), 400
+        try:
+            token = rotate_router_token(settings.secrets_dir, name)
+            route = _route_from_form(
+                request.form,
+                name,
+                {"primary": {}, "fallbacks": []},
+                token_file=f"router-token-{name}",
+            )
+            save_config(settings.router_config, upsert_route(raw, route))
+        except (ValueError, ConfigError, OSError) as exc:
+            return render_template("route_new.html", error=str(exc)), 400
+        session["new_route_token"] = token
+        audit("router.create", name)
+        flash(f"Маршрут {name} создан")
+        return redirect(url_for("router_page"))
+
     @app.get("/router/routes/<name>")
     def route_edit(name: str):
         raw = router_config()
         route = find_route(raw, name)
         if route is None:
             abort(404)
+        route = dict(route)
+        route["fallbacks"] = route_fallbacks(route)
+        route.pop("fallback", None)
         return render_template("route_edit.html", route=route, error=None)
 
     @app.post("/router/routes/<name>")
@@ -377,6 +424,111 @@ def create_app(settings: Settings | None = None) -> Flask:
                 ),
                 400,
             )
+        return redirect(url_for("router_page"))
+
+    @app.get("/router/routes/<name>/fallback/new")
+    def fallback_new(name: str):
+        raw = router_config()
+        route = find_route(raw, name)
+        if route is None:
+            abort(404)
+        return render_template(
+            "route_fallback.html",
+            route=route,
+            fallback={},
+            index=None,
+            error=None,
+        )
+
+    @app.post("/router/routes/<name>/fallback/new")
+    def fallback_create(name: str):
+        raw = router_config()
+        route = find_route(raw, name)
+        if route is None:
+            abort(404)
+        try:
+            fallback = _upstream_from_form(
+                request.form, default_history="client"
+            )
+            fallbacks = route_fallbacks(route) + [fallback]
+            updated = dict(route)
+            updated["fallbacks"] = fallbacks
+            updated.pop("fallback", None)
+            save_config(settings.router_config, upsert_route(raw, updated))
+            audit("router.fallback.create", name)
+        except (ValueError, ConfigError, OSError) as exc:
+            return render_template(
+                "route_fallback.html",
+                route=route,
+                fallback=request.form,
+                index=None,
+                error=str(exc),
+            ), 400
+        return redirect(url_for("router_page"))
+
+    @app.get("/router/routes/<name>/fallback/<int:index>")
+    def fallback_edit(name: str, index: int):
+        raw = router_config()
+        route = find_route(raw, name)
+        if route is None:
+            abort(404)
+        fallbacks = route_fallbacks(route)
+        if index < 0 or index >= len(fallbacks):
+            abort(404)
+        return render_template(
+            "route_fallback.html",
+            route=route,
+            fallback=fallbacks[index],
+            index=index,
+            error=None,
+        )
+
+    @app.post("/router/routes/<name>/fallback/<int:index>")
+    def fallback_save(name: str, index: int):
+        raw = router_config()
+        route = find_route(raw, name)
+        if route is None:
+            abort(404)
+        fallbacks = route_fallbacks(route)
+        if index < 0 or index >= len(fallbacks):
+            abort(404)
+        try:
+            fallbacks[index] = _upstream_from_form(
+                request.form, default_history="client"
+            )
+            updated = dict(route)
+            updated["fallbacks"] = fallbacks
+            updated.pop("fallback", None)
+            save_config(settings.router_config, upsert_route(raw, updated))
+            audit("router.fallback.save", name)
+        except (ValueError, ConfigError, OSError) as exc:
+            return render_template(
+                "route_fallback.html",
+                route=route,
+                fallback=request.form,
+                index=index,
+                error=str(exc),
+            ), 400
+        return redirect(url_for("router_page"))
+
+    @app.post("/router/routes/<name>/fallback/<int:index>/delete")
+    def fallback_delete(name: str, index: int):
+        raw = router_config()
+        route = find_route(raw, name)
+        if route is None:
+            abort(404)
+        fallbacks = route_fallbacks(route)
+        if index < 0 or index >= len(fallbacks):
+            abort(404)
+        del fallbacks[index]
+        updated = dict(route)
+        updated["fallbacks"] = fallbacks
+        updated.pop("fallback", None)
+        try:
+            save_config(settings.router_config, upsert_route(raw, updated))
+            audit("router.fallback.delete", name)
+        except (ConfigError, OSError) as exc:
+            return str(exc), 400
         return redirect(url_for("router_page"))
 
     @app.post("/router/routes/<name>/delete")

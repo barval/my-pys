@@ -2,11 +2,10 @@
 {% block title %}Маршрут {{ route.name }} — Web UI{% endblock %}
 {% block content %}
 {% set primary = route.get("primary", {}) %}
-{% set fallback = route.get("fallback") or {} %}
 <div class="page-head">
   <div>
     <a class="back" href="/router">← Все маршруты</a>
-    <h1>Маршрут {{ route.name }}</h1>
+    <h1>{{ route.name }} · основной</h1>
   </div>
 </div>
 
@@ -14,7 +13,6 @@
 
 <form method="post" action="/router/routes/{{ route.name }}" class="card">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <h2>Основной upstream</h2>
   <div class="form-grid">
     <label>Файл токена
       <input name="token_file" value="{{ request.form.get('token_file', route.get('token_file', '')) }}" required>
@@ -39,34 +37,8 @@
       <input name="timeout_seconds" type="number" step="1" value="{{ request.form.get('timeout_seconds', primary.get('timeout_seconds', 180)) }}">
     </label>
   </div>
-
-  <h2 style="margin-top:1.2rem">Fallback</h2>
-  <div class="form-grid">
-    <label>Base URL
-      <input name="fallback_base_url" value="{{ request.form.get('fallback_base_url', fallback.get('base_url', '')) }}">
-    </label>
-    <label>Файл ключа
-      <input name="fallback_api_key_file" value="{{ request.form.get('fallback_api_key_file', fallback.get('api_key_file', '')) }}">
-    </label>
-    <label>Модель
-      <input name="fallback_model" value="{{ request.form.get('fallback_model', fallback.get('model', '')) }}">
-    </label>
-    <label>История
-      {% set fallback_history = request.form.get('fallback_history', fallback.get('history', 'client')) %}
-      <select name="fallback_history">
-        <option value="client"{% if fallback_history == 'client' %} selected{% endif %}>client</option>
-        <option value="server"{% if fallback_history == 'server' %} selected{% endif %}>server</option>
-      </select>
-    </label>
-  </div>
-
   <div class="form-actions">
     <button class="btn btn-primary" type="submit">Сохранить</button>
   </div>
-</form>
-
-<form method="post" action="/router/routes/{{ route.name }}/delete" style="margin-top:1rem">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button class="btn btn-danger" type="submit">Удалить маршрут</button>
 </form>
 {% endblock %}

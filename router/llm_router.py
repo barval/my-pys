@@ -74,7 +74,11 @@ class Route:
     token: str
     session: SessionConfig
     primary: Upstream
-    fallback: Upstream | None = None
+    fallbacks: tuple[Upstream, ...] = ()
+
+    @property
+    def fallback(self) -> Upstream | None:
+        return self.fallbacks[0] if self.fallbacks else None
 
 
 @dataclass(frozen=True)
@@ -232,15 +236,28 @@ def load_config(path: Path) -> Config:
 
         session = _parse_session(item.get("session"), "server")
         primary = _parse_upstream(item.get("primary"), base_dir, session.mode, watched)
-        fallback_raw = item.get("fallback")
-        fallback = _parse_upstream(fallback_raw, base_dir, session.mode, watched) if fallback_raw else None
+        fallbacks_raw = item.get("fallbacks")
+        if isinstance(fallbacks_raw, list):
+            fallbacks = tuple(
+                _parse_upstream(entry, base_dir, session.mode, watched)
+                for entry in fallbacks_raw
+            )
+        elif fallbacks_raw is not None:
+            raise ConfigError(f"route {name}: fallbacks must be an array")
+        else:
+            fallback_raw = item.get("fallback")
+            fallbacks = (
+                (_parse_upstream(fallback_raw, base_dir, session.mode, watched),)
+                if fallback_raw
+                else ()
+            )
 
         route = Route(
             name=name.strip(),
             token=token,
             session=session,
             primary=primary,
-            fallback=fallback,
+            fallbacks=fallbacks,
         )
         routes.append(route)
         by_token[token] = route
@@ -675,7 +692,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 {
                     "status": "ok",
                     "routes": [
-                        {"name": route.name, "available": bool(route.primary.available or (route.fallback and route.fallback.available))}
+                        {
+                            "name": route.name,
+                            "available": bool(
+                                route.primary.available
+                                or any(item.available for item in route.fallbacks)
+                            ),
+                        }
                         for route in config.routes
                     ],
                 },
@@ -766,8 +789,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
         session_user: str,
     ) -> tuple[int, Mapping[str, str], bytes | tuple[bytes, Any], str]:
         attempts: list[tuple[Upstream, str]] = [(route.primary, "primary")]
-        if route.fallback is not None:
-            attempts.append((route.fallback, "fallback"))
+        for index, upstream in enumerate(route.fallbacks):
+            label = "fallback" if index == 0 else f"fallback{index + 1}"
+            attempts.append((upstream, label))
 
         for index, (upstream, label) in enumerate(attempts):
             has_next = index + 1 < len(attempts)

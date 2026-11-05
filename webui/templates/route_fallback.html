@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Новый запасной' if index is none else 'Запасной' }} — {{ route.name }} — Web UI{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="/router">← Все маршруты</a>
+    <h1>{{ route.name }} · {{ 'новый запасной' if index is none else 'запасной ' ~ (index + 1) }}</h1>
+  </div>
+</div>
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+{% set action = '/router/routes/' ~ route.name ~ '/fallback/new' if index is none else '/router/routes/' ~ route.name ~ '/fallback/' ~ index %}
+
+<form method="post" action="{{ action }}" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-grid">
+    <label>Base URL
+      <input name="base_url" value="{{ fallback.get('base_url', '') }}" required>
+    </label>
+    <label>Файл ключа
+      <input name="api_key_file" value="{{ fallback.get('api_key_file', '') }}">
+    </label>
+    <label>Модель
+      <input name="model" value="{{ fallback.get('model', '') }}" required>
+    </label>
+    <label>История
+      {% set history = fallback.get('history', 'client') %}
+      <select name="history">
+        <option value="client"{% if history == 'client' %} selected{% endif %}>client</option>
+        <option value="server"{% if history == 'server' %} selected{% endif %}>server</option>
+      </select>
+    </label>
+    <label>Таймаут, секунд
+      <input name="timeout_seconds" type="number" step="1" value="{{ fallback.get('timeout_seconds', 180) }}">
+    </label>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">Сохранить</button>
+  </div>
+</form>
+
+{% if index is not none %}
+<form method="post" action="/router/routes/{{ route.name }}/fallback/{{ index }}/delete" style="margin-top:1rem">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn btn-danger" type="submit">Удалить запасной маршрут</button>
+</form>
+{% endif %}
+{% endblock %}
