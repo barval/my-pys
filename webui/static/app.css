@@ -157,7 +157,7 @@ code {
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: .12rem .38rem;
-  word-break: break-all;
+  white-space: nowrap;
 }
 
 .meta {
@@ -240,7 +240,8 @@ input[type="checkbox"] { width: auto; }
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: .25rem 1rem;
 }
-.form-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+.form-actions { display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-end; margin-top: 1rem; }
+.form-actions .btn { align-self: flex-end; }
 
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
 table { width: 100%; border-collapse: collapse; font-size: .92rem; }
@@ -358,7 +359,7 @@ pre {
 .user-label { color: var(--muted); font-size: .9rem; }
 
 .admin-container {
-  max-width: 1240px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 1.2rem 1.25rem 3rem;
 }
@@ -414,6 +415,7 @@ pre {
   .speakers-table td:nth-child(3) { display: none; }
 }
 @media (max-width: 640px) {
+  code { white-space: normal; overflow-wrap: anywhere; }
   .site-header { padding: .6rem .8rem; }
   .brand { font-size: .95rem; }
   .admin-container { padding: 1rem .8rem 2.5rem; }
