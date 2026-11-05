@@ -19,6 +19,7 @@ from flask import (
 from router.llm_router import ConfigError
 
 from .actions import CommandBuilder, HOST_ACTIONS, SPEAKER_ACTIONS
+from .audit import record
 from .auth import init_auth
 from .jobs import JobRunner
 from .keys import key_inventory, rotate_router_token, set_upstream_key
@@ -137,10 +138,22 @@ def create_app(settings: Settings | None = None) -> Flask:
                 return route
         return None
 
+    def audit(action: str, target: str, result: str = "ok", detail: str = "") -> None:
+        record(
+            settings.state_dir / "audit.jsonl",
+            "admin",
+            action,
+            target,
+            result,
+            detail,
+            secrets_dir=settings.secrets_dir,
+        )
+
     def submit_host(action: str):
         if action not in _ROUTER_ACTIONS:
             abort(404)
         job = app.extensions["jobs"].submit(action, None)
+        audit(action, "router", detail=f"job={job.id}")
         return redirect(url_for("job_page", job_id=job.id), code=303)
 
     @app.get("/healthz")
@@ -181,6 +194,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         if action not in SPEAKER_ACTIONS:
             abort(404)
         job = app.extensions["jobs"].submit(action, profile)
+        audit(f"speaker.{action}", profile.name, detail=f"job={job.id}")
         return redirect(url_for("job_page", job_id=job.id), code=303)
 
     @app.get("/jobs/<job_id>")
@@ -236,6 +250,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         try:
             route = _route_from_form(request.form, name, existing)
             save_config(settings.router_config, upsert_route(raw, route))
+            audit("router.save", name)
         except (ValueError, ConfigError, OSError) as exc:
             return (
                 render_template(
@@ -252,6 +267,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         raw = router_config()
         try:
             save_config(settings.router_config, delete_route(raw, name))
+            audit("router.delete", name)
         except KeyError:
             abort(404)
         except (ConfigError, OSError) as exc:
@@ -287,6 +303,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         if route not in route_names():
             abort(404)
         session["new_token"] = rotate_router_token(settings.secrets_dir, route)
+        audit("keys.rotate", route)
         return redirect(url_for("keys_page"))
 
     @app.post("/keys/upstream/<route>/<provider>")
@@ -302,6 +319,21 @@ def create_app(settings: Settings | None = None) -> Flask:
             )
         except ValueError as exc:
             return str(exc), 400
+        audit(f"keys.upstream.{provider}", route)
         return redirect(url_for("keys_page"))
+
+    @app.get("/audit")
+    def audit_page():
+        path = settings.state_dir / "audit.jsonl"
+        entries = []
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines()[-200:]:
+                try:
+                    entries.append(json.loads(line))
+                except ValueError:
+                    continue
+        except OSError:
+            entries = []
+        return render_template("audit.html", entries=list(reversed(entries)))
 
     return app

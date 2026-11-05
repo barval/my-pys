@@ -174,3 +174,10 @@ def test_upstream_key_is_not_rendered(client, app, login, csrf):
         headers={"X-CSRF-Token": csrf(client)},
     )
     assert "flai-very-secret" not in client.get("/keys").get_data(as_text=True)
+    assert "flai-very-secret" not in client.get("/audit").get_data(as_text=True)
+
+
+def test_audit_page_lists_login(client, login):
+    login()
+    body = client.get("/audit").get_data(as_text=True)
+    assert "auth.login" in body

@@ -19,6 +19,7 @@ from flask import (
     url_for,
 )
 
+from .audit import record
 from .settings import Settings
 
 _SCRYPT_N = 2**14
@@ -89,6 +90,17 @@ def init_auth(app: Flask, settings: Settings) -> None:
     app.secret_key = load_or_create_session_key(settings.session_key_file)
     attempts: dict[str, deque[float]] = defaultdict(deque)
 
+    def audit(action: str, target: str, result: str = "ok", detail: str = "") -> None:
+        record(
+            settings.state_dir / "audit.jsonl",
+            "admin",
+            action,
+            target,
+            result,
+            detail,
+            secrets_dir=settings.secrets_dir,
+        )
+
     def is_public(path: str) -> bool:
         return path == "/login" or path == "/healthz" or path.startswith("/static/")
 
@@ -141,14 +153,17 @@ def init_auth(app: Flask, settings: Settings) -> None:
             )
         if not verify_password(password, encoded):
             bucket.append(now)
+            audit("auth.login", remote, "denied", "wrong password")
             return render_template("login.html", error="Неверный пароль."), 401
         attempts.pop(remote, None)
         session.clear()
         session["user"] = "admin"
         session["csrf"] = secrets.token_urlsafe(32)
+        audit("auth.login", remote)
         return redirect(url_for("index"))
 
     @app.post("/logout")
     def logout():
+        audit("auth.logout", "session")
         session.clear()
         return redirect(url_for("login"))

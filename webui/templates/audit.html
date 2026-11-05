@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Аудит — Web UI{% endblock %}
+{% block content %}
+<h1>Аудит</h1>
+{% if entries %}
+<table>
+  <thead>
+    <tr><th>Время</th><th>Действие</th><th>Цель</th><th>Результат</th><th>Детали</th></tr>
+  </thead>
+  <tbody>
+    {% for entry in entries %}
+    <tr>
+      <td>{{ entry.get("time", "") }}</td>
+      <td>{{ entry.get("action", "") }}</td>
+      <td>{{ entry.get("target", "") }}</td>
+      <td>{{ entry.get("result", "") }}</td>
+      <td>{{ entry.get("detail", "") }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Записей нет.</p>
+{% endif %}
+{% endblock %}
