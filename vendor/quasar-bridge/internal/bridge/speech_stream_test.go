@@ -53,6 +53,24 @@ func TestCleanSpeechTextTable(t *testing.T) {
 	}
 }
 
+func TestClearFillersDropsQueuedFillers(t *testing.T) {
+	n := &Native{}
+	p := &nativeRequest{speechQueue: []speechItem{
+		{text: "filler-1", filler: true},
+		{text: "answer", filler: false},
+		{text: "filler-2", filler: true},
+	}}
+
+	n.clearFillers(p)
+
+	if len(p.speechQueue) != 1 || p.speechQueue[0].text != "answer" || p.speechQueue[0].filler {
+		t.Fatalf("queue=%#v", p.speechQueue)
+	}
+	if !p.fillersStopped {
+		t.Fatal("fillers were not stopped")
+	}
+}
+
 func TestSpeechFillerConfig(t *testing.T) {
 	t.Setenv("QUASAR_SPEECH_FILLER", "1")
 	t.Setenv("QUASAR_SPEECH_FILLER_AFTER", "7")
