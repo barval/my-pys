@@ -54,16 +54,25 @@ type StreamingRoutedResolver interface {
 }
 
 type speechStream struct {
-	n       *Native
-	p       *nativeRequest
-	started bool
-	full    strings.Builder
+	n           *Native
+	p           *nativeRequest
+	started     bool
+	stopFillers func()
+	full        strings.Builder
+}
+
+func (s *speechStream) stopFillersOnce() {
+	if s.stopFillers != nil {
+		s.stopFillers()
+		s.stopFillers = nil
+	}
 }
 
 func (s *speechStream) chunk(text string) error {
 	if strings.TrimSpace(text) == "" {
 		return nil
 	}
+	s.stopFillersOnce()
 	s.full.WriteString(text)
 	s.full.WriteByte(' ')
 	return s.n.enqueueSpeech(s.p, text)
@@ -92,7 +101,46 @@ func (n *Native) startSpeechKeepalive(p *nativeRequest) func() {
 	return func() { close(stop) }
 }
 
+// startSpeechFillers speaks short phrases while the first real answer chunk is
+// delayed by a slow search or reasoning model. It stops on the first content
+// chunk, cancellation, or finish.
+func (n *Native) startSpeechFillers(p *nativeRequest) func() {
+	if !speechFillerEnabled() {
+		return nil
+	}
+	phrases := speechFillerPhrases()
+	if len(phrases) == 0 {
+		return nil
+	}
+	stop := make(chan struct{})
+	go func() {
+		timer := time.NewTimer(speechFillerAfter())
+		defer timer.Stop()
+		select {
+		case <-stop:
+			return
+		case <-p.ctx.Done():
+			return
+		case <-timer.C:
+		}
+		for index := 0; ; index++ {
+			if err := n.enqueueSpeech(p, phrases[index%len(phrases)]); err != nil {
+				return
+			}
+			select {
+			case <-stop:
+				return
+			case <-p.ctx.Done():
+				return
+			case <-time.After(speechFillerEvery()):
+			}
+		}
+	}()
+	return func() { close(stop) }
+}
+
 func (s *speechStream) finish(full string) error {
+	s.stopFillersOnce()
 	if !s.started {
 		return s.n.reply(s.p, full)
 	}
@@ -633,6 +681,7 @@ func (n *Native) maybeResolve(p *nativeRequest) {
 						} else {
 							speech.started = true
 							stopKeepalive = n.startSpeechKeepalive(p)
+							speech.stopFillers = n.startSpeechFillers(p)
 						}
 					} else {
 						streaming = false
