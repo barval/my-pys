@@ -19,6 +19,8 @@ services:
       WEBUI_ROUTER_CONTROL: sidecar
       WEBUI_SIDECAR_URL: http://router-control:8081
       WEBUI_ROUTER_HEALTH_URL: http://host.docker.internal:5002/health
+      WEBUI_STAND_CONTROL: sidecar
+      WEBUI_STAND_URL: http://stand-control:8082
       HOME: /tmp
       ANDROID_USER_HOME: /tmp/.android
     extra_hosts:
@@ -45,6 +47,7 @@ services:
       - control
     depends_on:
       - router-control
+      - stand-control
 
   router-control:
     build:
@@ -62,6 +65,36 @@ services:
       CONTROL_PORT: "8081"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - control
+
+  stand-control:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.stand-control
+    image: my-pys-stand-control:local
+    container_name: my-pys-stand-control
+    restart: unless-stopped
+    init: true
+    user: "${WEBUI_UID:-1000}:${WEBUI_GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:-988}"
+    environment:
+      STAND_REPO: /repo
+      HOST_REPO_PATH: "${HOST_REPO_PATH:-}"
+      CONTROL_PORT: "8082"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ..:/repo:ro
+      - ../vendor/lite-kit/run:/repo/vendor/lite-kit/run:rw
+      - ../vendor/lite-kit/log:/repo/vendor/lite-kit/log:rw
     read_only: true
     tmpfs:
       - /tmp:mode=1777,size=16m

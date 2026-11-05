@@ -33,6 +33,10 @@
 - Вкладка «Прошивка»: скачивание образа, список файлов прошивки,
   чек-лист сброса/привязки и действия по колонкам (поиск, SSH/OTA,
   Bridge, routing, ключи, проверка).
+- `stand-control`: запуск, остановка и статус `lite-kit` из панели через
+  узкий sidecar с Docker socket.
+- README: отдельные разделы про быстрый старт, вход, пароль и
+  возможности веб-панели.
 - Узкий sidecar `router-control` с доступом к Docker только для
   перезапуска `llm-router`; панель не получает Docker API.
 - `docker/Dockerfile.webui`, `docker/Dockerfile.webui-control`,

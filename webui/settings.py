@@ -24,6 +24,8 @@ class Settings:
     router_control: str
     sidecar_url: str
     router_health_url: str
+    stand_control: str
+    stand_url: str
 
 
 def load_settings(
@@ -42,6 +44,9 @@ def load_settings(
     router_control = values.get("WEBUI_ROUTER_CONTROL", "host")
     if router_control not in ("host", "sidecar"):
         raise ValueError("WEBUI_ROUTER_CONTROL must be host or sidecar")
+    stand_control = values.get("WEBUI_STAND_CONTROL", "host")
+    if stand_control not in ("host", "sidecar"):
+        raise ValueError("WEBUI_STAND_CONTROL must be host or sidecar")
     router_health_url = values.get("WEBUI_ROUTER_HEALTH_URL") or (
         "http://llm-router:5002/health"
         if router_control == "sidecar"
@@ -66,4 +71,6 @@ def load_settings(
             "WEBUI_SIDECAR_URL", "http://127.0.0.1:8081"
         ),
         router_health_url=router_health_url,
+        stand_control=stand_control,
+        stand_url=values.get("WEBUI_STAND_URL", "http://127.0.0.1:8082"),
     )

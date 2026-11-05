@@ -108,6 +108,34 @@ HOST_ACTIONS: dict[str, ActionSpec] = {
         ),
         needs_profile=False,
     ),
+    "stand-start": ActionSpec(
+        key="stand-start",
+        label="Запустить стенд",
+        scope="host",
+        argv=("bash", "scripts/start-lite-kit.sh"),
+        needs_profile=False,
+    ),
+    "stand-stop": ActionSpec(
+        key="stand-stop",
+        label="Остановить стенд",
+        scope="host",
+        argv=("bash", "scripts/stop-lite-kit.sh"),
+        needs_profile=False,
+    ),
+    "stand-status": ActionSpec(
+        key="stand-status",
+        label="Статус стенда",
+        scope="host",
+        argv=(
+            "docker",
+            "ps",
+            "--filter",
+            "name=ysl-lite-kit",
+            "--format",
+            "{{.Status}}",
+        ),
+        needs_profile=False,
+    ),
 }
 
 
@@ -117,14 +145,33 @@ class CommandBuilder:
         root: Path,
         router_control: str = "host",
         sidecar_url: str = "http://127.0.0.1:8081",
+        stand_control: str = "host",
+        stand_url: str = "http://127.0.0.1:8082",
     ):
         self.root = Path(root)
         self.router_control = router_control
         self.sidecar_url = sidecar_url
+        self.stand_control = stand_control
+        self.stand_url = stand_url
 
     def build(
         self, action: str, profile: Profile | None
     ) -> tuple[list[str], dict[str, str]]:
+        if self.stand_control == "sidecar" and action in (
+            "stand-start",
+            "stand-stop",
+            "stand-status",
+        ):
+            return (
+                [
+                    sys.executable,
+                    "-m",
+                    "webui.stand_client",
+                    action.removeprefix("stand-"),
+                ],
+                {"WEBUI_STAND_URL": self.stand_url},
+            )
+
         if self.router_control == "sidecar":
             if action == "router-restart":
                 return (

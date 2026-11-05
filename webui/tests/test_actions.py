@@ -49,3 +49,20 @@ def test_resolve_action_uses_profile(tmp_path, make_profile):
     argv, env = CommandBuilder(tmp_path).build("resolve", profile)
     assert argv == ["bash", "scripts/resolve-speaker.sh"]
     assert env["SPEAKER_ENV"] == str(profile.path)
+
+
+def test_stand_action_uses_sidecar_module(tmp_path):
+    builder = CommandBuilder(
+        tmp_path,
+        stand_control="sidecar",
+        stand_url="http://stand-control:8082",
+    )
+    argv, env = builder.build("stand-start", None)
+    assert argv[1:] == ["-m", "webui.stand_client", "start"]
+    assert env["WEBUI_STAND_URL"] == "http://stand-control:8082"
+
+
+def test_stand_status_host_uses_docker_ps(tmp_path):
+    argv, env = CommandBuilder(tmp_path).build("stand-status", None)
+    assert argv[:2] == ["docker", "ps"]
+    assert env == {}

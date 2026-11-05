@@ -3,7 +3,8 @@
 WEBUI_UID ?= $(shell id -u)
 WEBUI_GID ?= $(shell id -g)
 DOCKER_GID ?= $(shell stat -c '%g' /var/run/docker.sock 2>/dev/null || echo 988)
-export WEBUI_UID WEBUI_GID DOCKER_GID
+HOST_REPO_PATH ?= $(CURDIR)
+export WEBUI_UID WEBUI_GID DOCKER_GID HOST_REPO_PATH
 
 help:
 	@echo "make check     — проверить внешнюю LLM"
@@ -94,7 +95,7 @@ router-test:
 	pytest router/tests/test_router.py -q
 
 webui:
-	@mkdir -p secrets local/speakers webui-state backups .cache vendor/lite-kit/firmware
+	@mkdir -p secrets local/speakers webui-state backups .cache vendor/lite-kit/firmware vendor/lite-kit/run vendor/lite-kit/log
 	docker compose -f docker/docker-compose.webui.yml up -d --build --force-recreate
 
 webui-dev:

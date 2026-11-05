@@ -36,22 +36,49 @@
     <div class="empty">Прошивка ещё не скачана.</div>
     {% endif %}
 
-    <p class="muted" style="margin-top:1rem">Стенд запускается на хосте отдельно:</p>
-    <pre>./scripts/start-lite-kit.sh
-./scripts/stop-lite-kit.sh
-dig +short @192.168.1.2 quasar.yandex.net</pre>
-    <p class="muted small">Последняя команда должна вернуть <code>192.168.1.2</code>. Стенд работает с <code>network_mode: host</code> и требует Docker.</p>
+    <h3 style="margin-top:1.2rem">Стенд lite-kit</h3>
+    <div class="actions">
+      {% for action in host_actions.values() %}
+      {% if action.key == "stand-start" %}
+      <form method="post" action="/firmware/actions/{{ action.key }}"
+            onsubmit="return confirm('Запустить стенд lite-kit? Он займёт DNS 53, HTTP 80 и HTTPS 443 на хосте.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-primary" type="submit">{{ action.label }}</button>
+      </form>
+      {% elif action.key == "stand-stop" %}
+      <form method="post" action="/firmware/actions/{{ action.key }}"
+            onsubmit="return confirm('Остановить стенд lite-kit? Не забудьте вернуть DNS роутера.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">{{ action.label }}</button>
+      </form>
+      {% elif action.key == "stand-status" %}
+      <form method="post" action="/firmware/actions/{{ action.key }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">{{ action.label }}</button>
+      </form>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <p class="muted small">Стенд работает с <code>network_mode: host</code>. Запуск и остановка выполняются узким sidecar <code>stand-control</code>; панель не получает полный Docker API.</p>
+    <pre>dig +short @192.168.1.2 quasar.yandex.net</pre>
+    <p class="muted small">Команда должна вернуть <code>192.168.1.2</code>.</p>
   </section>
 
   <section class="card">
     <h2>2. Сброс и привязка</h2>
-    <ol class="steps">
-      <li>Выключите остальные колонки и закрепите MAC → IP в DHCP.</li>
-      <li>На роутере поставьте DNS <code>192.168.1.2</code>.</li>
-      <li>Отключите питание колонки, включите и сразу зажмите кнопку паузы на 6–10 секунд до жёлто-зелёной подсветки.</li>
-      <li>В «Дом с Алисой» выключите Wi-Fi на телефоне, оставьте Bluetooth и мобильный интернет. Полностью перезапустите приложение.</li>
-      <li>Привяжите колонку и дождитесь скачивания прошивки со стенда.</li>
-    </ol>
+    <label class="confirm-row">
+      <input type="checkbox" data-reveal="#reset-steps">
+      <span>Я понимаю, что сброс необратим и очистит <code>/data</code> на колонке</span>
+    </label>
+    <div id="reset-steps" hidden>
+      <ol class="steps">
+        <li>Выключите остальные колонки и закрепите MAC → IP в DHCP.</li>
+        <li>На роутере поставьте DNS <code>192.168.1.2</code>.</li>
+        <li>Отключите питание колонки, включите и сразу зажмите кнопку паузы на 6–10 секунд до жёлто-зелёной подсветки.</li>
+        <li>В «Дом с Алисой» выключите Wi-Fi на телефоне, оставьте Bluetooth и мобильный интернет. Полностью перезапустите приложение.</li>
+        <li>Привяжите колонку и дождитесь скачивания прошивки со стенда.</li>
+      </ol>
+    </div>
     <p class="muted small">Сброс и привязка не автоматизируются: это ручные шаги. Подробно — в <code>docs/03-runbook.md</code>.</p>
   </section>
 </div>

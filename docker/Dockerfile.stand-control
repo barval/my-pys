@@ -1,0 +1,9 @@
+FROM python:3.11-alpine
+
+RUN apk add --no-cache bash docker-cli docker-cli-compose
+
+WORKDIR /app
+COPY webui/stand_control.py /app/stand_control.py
+
+EXPOSE 8082
+CMD ["python", "-u", "/app/stand_control.py"]

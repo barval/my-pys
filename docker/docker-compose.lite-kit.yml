@@ -1,12 +1,12 @@
 services:
   lite-kit:
     build:
-      context: ..
+      context: ${HOST_REPO_PATH:-..}
       dockerfile: docker/lite-kit.Dockerfile
     container_name: ysl-lite-kit
     network_mode: host
     restart: unless-stopped
     volumes:
-      - ../vendor/lite-kit/firmware:/app/firmware:ro
-      - ../vendor/lite-kit/run:/app/run
-      - ../vendor/lite-kit/log:/app/log
+      - ${HOST_REPO_PATH:-..}/vendor/lite-kit/firmware:/app/firmware:ro
+      - ${HOST_REPO_PATH:-..}/vendor/lite-kit/run:/app/run
+      - ${HOST_REPO_PATH:-..}/vendor/lite-kit/log:/app/log

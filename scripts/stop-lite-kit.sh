@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export HOST_REPO_PATH="${HOST_REPO_PATH:-$ROOT}"
 
 if docker compose version >/dev/null 2>&1; then
   compose=(docker compose)

@@ -54,6 +54,7 @@ from .settings import Settings, load_settings
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 _ROUTER_ACTIONS = {"router-start", "router-stop", "router-restart"}
+_FIRMWARE_ACTIONS = {"firmware", "stand-start", "stand-stop", "stand-status"}
 
 
 def route_fallbacks(route: dict) -> list[dict]:
@@ -148,6 +149,8 @@ def create_app(settings: Settings | None = None) -> Flask:
             settings.root,
             router_control=settings.router_control,
             sidecar_url=settings.sidecar_url,
+            stand_control=settings.stand_control,
+            stand_url=settings.stand_url,
         ),
         max_workers=settings.max_workers,
         timeout=settings.job_timeout,
@@ -372,14 +375,19 @@ def create_app(settings: Settings | None = None) -> Flask:
             cards=speaker_cards(),
             firmware_files=firmware_files(),
             speaker_actions=SPEAKER_ACTIONS.values(),
+            host_actions={
+                key: value
+                for key, value in HOST_ACTIONS.items()
+                if key in _FIRMWARE_ACTIONS
+            },
         )
 
     @app.post("/firmware/actions/<action>")
     def firmware_action(action: str):
-        if action != "firmware":
+        if action not in _FIRMWARE_ACTIONS:
             abort(404)
         job = app.extensions["jobs"].submit(action, None)
-        audit("firmware.download", "host", detail=f"job={job.id}")
+        audit(f"firmware.{action}", "host", detail=f"job={job.id}")
         return redirect(url_for("job_page", job_id=job.id), code=303)
 
     @app.get("/router")

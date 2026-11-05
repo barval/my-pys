@@ -13,3 +13,11 @@ document.addEventListener("click", async (event) => {
     window.prompt("Скопируйте значение:", value);
   }
 });
+
+document.querySelectorAll("[data-reveal]").forEach((checkbox) => {
+  const target = document.querySelector(checkbox.getAttribute("data-reveal"));
+  if (!target) return;
+  const sync = () => { target.hidden = !checkbox.checked; };
+  checkbox.addEventListener("change", sync);
+  sync();
+});
