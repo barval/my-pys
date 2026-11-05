@@ -41,8 +41,8 @@ for name in ("speaker-a", "speaker-b", "speaker-c", "speaker-d"):
             },
             "primary": {
                 "base_url": "http://192.168.1.2:5000/v1",
-                "api_key_file": f"flai-token-{name}",
-                "model": "flai-chat",
+                "api_key_file": f"upstream-token-{name}",
+                "model": "your-model",
                 "history": "server",
                 "timeout_seconds": 180,
                 "fallback_on": [429, 500, 502, 503, 504],
@@ -58,6 +58,6 @@ chmod 600 "$config"
 
 for name in speaker-a speaker-b speaker-c speaker-d; do
   if [[ ! -s "$SECRETS/flai-token-$name" ]]; then
-    echo "Внимание: нет upstream-ключа secrets/flai-token-$name — маршрут $name будет отвечать 503." >&2
+    echo "Внимание: нет upstream-ключа secrets/upstream-token-$name — маршрут $name будет отвечать 503." >&2
   fi
 done

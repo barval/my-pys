@@ -41,7 +41,7 @@
 ```bash
 bash -n scripts/*.sh
 shellcheck scripts/*.sh          # если установлен
-./scripts/check-flai.sh          # FLAI доступен
+./scripts/check-llm.sh           # внешняя LLM доступна
 docker compose -f docker/docker-compose.lite-kit.yml config >/dev/null
 ```
 

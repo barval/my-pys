@@ -21,20 +21,32 @@
       },
       "primary": {
         "base_url": "http://192.168.1.2:5000/v1",
-        "api_key_file": "flai-token-speaker-a",
-        "model": "flai-chat",
+        "api_key_file": "upstream-token-speaker-a",
+        "model": "your-model",
         "history": "server",
         "timeout_seconds": 180,
-        "fallback_on": [429, 500, 502, 503, 504]
+        "fallback_on": [
+          429,
+          500,
+          502,
+          503,
+          504
+        ]
       },
       "fallbacks": [
         {
-          "base_url": "https://api.orcarouter.ai/v1",
-          "api_key": "sk-orca-replace-me",
-          "model": "orcarouter/free",
+          "base_url": "https://api.example.com/v1",
+          "api_key_file": "fallback-token-speaker-a",
+          "model": "fallback-model",
           "history": "client",
           "timeout_seconds": 180,
-          "fallback_on": [429, 500, 502, 503, 504]
+          "fallback_on": [
+            429,
+            500,
+            502,
+            503,
+            504
+          ]
         }
       ]
     }

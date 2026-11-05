@@ -33,7 +33,7 @@ SPEAKER_ACTIONS: dict[str, ActionSpec] = {
         key="check",
         label="Проверить LLM",
         scope="speaker",
-        argv=("bash", "scripts/check-flai.sh"),
+        argv=("bash", "scripts/check-llm.sh"),
         needs_profile=True,
     ),
     "key": ActionSpec(

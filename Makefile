@@ -34,7 +34,7 @@ help:
 	@echo "make lint      — bash -n для скриптов"
 
 check:
-	./scripts/check-flai.sh
+	./scripts/check-llm.sh
 
 firmware:
 	./scripts/fetch-firmware.sh
