@@ -29,7 +29,7 @@
       {% for action in actions.values() %}
       <form method="post" action="/router/actions/{{ action.key }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn" type="submit">{{ action.label }}</button>
+        <button class="btn {{ 'btn-primary' if action.key == 'router-restart' else '' }}" type="submit">{{ action.label }}</button>
       </form>
       {% endfor %}
     </div>
