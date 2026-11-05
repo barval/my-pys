@@ -4,7 +4,7 @@
 {% macro upstream_status(info) %}
   {% set state = info.get("state", "unknown") %}
   {% if state == "ok" %}
-  <span class="health-ok">живой · HTTP {{ info.get("http", "") }}</span>
+  <span class="health-ok">ok · HTTP {{ info.get("http", "") }}</span>
   {% elif state == "no_key" %}
   <span class="muted small">нет ключа</span>
   {% elif state == "unreachable" %}
@@ -79,7 +79,7 @@
           <th>Модель</th>
           <th>История</th>
           <th>Ключ</th>
-          <th>Статус</th>
+          <th title="GET /models у конкретного upstream">GET /models</th>
           <th></th>
         </tr>
       </thead>
@@ -176,6 +176,6 @@
   {% else %}
   <div class="empty">Маршруты не настроены. Нажмите «Добавить маршрут».</div>
   {% endif %}
-  <p class="muted small">«Проверить доступность» делает GET /models к каждому upstream с его ключом. Таймаут — 3 секунды; это может занять несколько секунд.</p>
+  <p class="muted small">«Проверить доступность» делает GET /models к каждому upstream с его ключом. Таймаут — 3 секунды; это может занять несколько секунд. Колонка GET /models — проверка конкретного upstream, а GET /health в «Состоянии» — проверка самого llm-router.</p>
 </section>
 {% endblock %}

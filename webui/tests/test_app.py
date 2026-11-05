@@ -659,7 +659,7 @@ def test_router_probe_shows_colored_upstream_status(client, app, login, monkeypa
     )
     body = client.get("/router?probe=1").get_data(as_text=True)
     assert "health-ok" in body
-    assert "живой" in body
+    assert "ok · HTTP 200" in body
 
     error_payload = {
         "status": "ok",
