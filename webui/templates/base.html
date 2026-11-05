@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#3498db">
   <title>{% block title %}{{ config.WEBUI_TITLE }}{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css', v=config.WEBUI_ASSET_VERSION) }}">
+  {% block head %}{% endblock %}
 </head>
 <body>
 <header class="site-header">

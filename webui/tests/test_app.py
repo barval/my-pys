@@ -524,3 +524,37 @@ def test_firmware_download_submits_host_job(client, app, login, csrf):
     assert response.status_code == 303
     assert "/jobs/" in response.headers["Location"]
     assert runner.actions == [("firmware", None)]
+
+
+def test_running_job_page_auto_refreshes(client, app, login):
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    login()
+    job = SimpleNamespace(
+        id="job-1",
+        action="stand-status",
+        target="host",
+        status="running",
+        exit_code=None,
+        started_at="2026-01-01T00:00:00+00:00",
+        finished_at=None,
+        created_at="2026-01-01T00:00:00+00:00",
+        log_path=Path("/tmp/job.log"),
+    )
+
+    class Runner:
+        def get(self, job_id):
+            return job
+
+        def tail(self, job_id, offset=0):
+            return "working", 7
+
+    app.extensions["jobs"] = Runner()
+    body = client.get("/jobs/job-1").get_data(as_text=True)
+    assert 'http-equiv="refresh"' in body
+    assert "working" in body
+
+    job.status = "succeeded"
+    body = client.get("/jobs/job-1").get_data(as_text=True)
+    assert 'http-equiv="refresh"' not in body
