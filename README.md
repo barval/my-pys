@@ -132,7 +132,7 @@ secrets/
 | `speaker-a.env` | `192.168.1.101` | `EXAMPLE-1...` | готово, chunked + stream |
 | `speaker-b.env` | `192.168.1.100` | `EXAMPLE-2...` | готово, chunked + stream |
 | `speaker-c.env` | `192.168.1.102` | `EXAMPLE-3...` | готово, chunked + stream |
-| `speaker-d.env` | `192.168.1.103` | `EXAMPLE-4...` | готово, chunked |
+| `speaker-d.env` | `192.168.1.103` | `EXAMPLE-4...` | готово, chunked + stream |
 
 Для любой команды по конкретной колонке:
 
