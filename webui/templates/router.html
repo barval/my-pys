@@ -44,7 +44,7 @@
         </span>
       </dd>
       <dt>Маршрутов</dt><dd>{{ routes | length }}</dd>
-      <dt>Запасных</dt><dd>{{ fallback_count }}</dd>
+      <dt>Запасных</dt><dd>{{ fallback_count }} / {{ max_fallbacks }}</dd>
     </dl>
   </section>
 </div>
@@ -92,6 +92,18 @@
           <td>{{ fallback.get("history", "") }}</td>
           <td class="mono">{{ fallback.get("api_key_file", "—") }}</td>
           <td class="row-actions">
+            <div class="move-actions">
+              <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/move">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="direction" value="up">
+                <button class="btn btn-sm" type="submit" title="Выше"{% if loop.first %} disabled{% endif %}>↑</button>
+              </form>
+              <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/move">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="direction" value="down">
+                <button class="btn btn-sm" type="submit" title="Ниже"{% if loop.last %} disabled{% endif %}>↓</button>
+              </form>
+            </div>
             <a class="btn btn-warning btn-sm" href="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}">Изменить</a>
             <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/delete" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -102,7 +114,11 @@
         {% endfor %}
         <tr class="add-row">
           <td colspan="7">
+            {% if route.fallbacks | length >= max_fallbacks %}
+            <span class="muted">Достигнут лимит: {{ max_fallbacks }} запасных маршрутов.</span>
+            {% else %}
             <a href="/router/routes/{{ route.name }}/fallback/new">+ Добавить запасной маршрут</a>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

@@ -345,8 +345,9 @@ SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
 
 ### Fallback
 
-У каждого маршрута может быть один или несколько резервных upstream в
-массиве `fallbacks` (в порядке попыток):
+У каждого маршрута может быть до **9** резервных upstream в массиве
+`fallbacks` (в порядке попыток). Порядок меняется стрелками ↑/↓ в
+веб-панели:
 
 ```json
 "fallbacks": [

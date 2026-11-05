@@ -55,6 +55,7 @@ from .settings import Settings, load_settings
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 _ROUTER_ACTIONS = {"router-start", "router-stop", "router-restart"}
 _FIRMWARE_ACTIONS = {"firmware", "stand-start", "stand-stop", "stand-status"}
+MAX_FALLBACKS = 9
 
 
 def route_fallbacks(route: dict) -> list[dict]:
@@ -399,6 +400,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         return render_template(
             "router.html",
             routes=normalized_routes(),
+            max_fallbacks=MAX_FALLBACKS,
             fallback_count=sum(
                 len(route["fallbacks"]) for route in normalized_routes()
             ),
@@ -487,6 +489,9 @@ def create_app(settings: Settings | None = None) -> Flask:
         route = find_route(raw, name)
         if route is None:
             abort(404)
+        if len(route_fallbacks(route)) >= MAX_FALLBACKS:
+            flash(f"Достигнут лимит {MAX_FALLBACKS} запасных маршрутов")
+            return redirect(url_for("router_page"))
         return render_template(
             "route_fallback.html",
             route=route,
@@ -501,6 +506,9 @@ def create_app(settings: Settings | None = None) -> Flask:
         route = find_route(raw, name)
         if route is None:
             abort(404)
+        if len(route_fallbacks(route)) >= MAX_FALLBACKS:
+            flash(f"Достигнут лимит {MAX_FALLBACKS} запасных маршрутов")
+            return redirect(url_for("router_page"))
         try:
             fallback = _upstream_from_form(
                 request.form, default_history="client"
@@ -564,6 +572,30 @@ def create_app(settings: Settings | None = None) -> Flask:
                 index=index,
                 error=str(exc),
             ), 400
+        return redirect(url_for("router_page"))
+
+    @app.post("/router/routes/<name>/fallback/<int:index>/move")
+    def fallback_move(name: str, index: int):
+        raw = router_config()
+        route = find_route(raw, name)
+        if route is None:
+            abort(404)
+        fallbacks = route_fallbacks(route)
+        direction = request.form.get("direction", "")
+        if direction not in ("up", "down"):
+            abort(400)
+        target = index - 1 if direction == "up" else index + 1
+        if index < 0 or index >= len(fallbacks) or target < 0 or target >= len(fallbacks):
+            return redirect(url_for("router_page"))
+        fallbacks[index], fallbacks[target] = fallbacks[target], fallbacks[index]
+        updated = dict(route)
+        updated["fallbacks"] = fallbacks
+        updated.pop("fallback", None)
+        try:
+            save_config(settings.router_config, upsert_route(raw, updated))
+        except (ConfigError, OSError) as exc:
+            return str(exc), 400
+        audit("router.fallback.move", name, detail=f"{index}->{target}")
         return redirect(url_for("router_page"))
 
     @app.post("/router/routes/<name>/fallback/<int:index>/delete")

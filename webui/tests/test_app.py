@@ -560,3 +560,66 @@ def test_running_job_page_auto_refreshes(client, app, login):
     job.status = "succeeded"
     body = client.get("/jobs/job-1").get_data(as_text=True)
     assert 'http-equiv="refresh"' not in body
+
+
+def test_fallback_limit_is_nine(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["routes"][0]["fallbacks"] = [
+        {
+            "base_url": f"https://api{i}.example/v1",
+            "api_key_file": "fallback-token-speaker-a",
+            "model": f"m{i}",
+            "history": "client",
+        }
+        for i in range(9)
+    ]
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    response = client.post(
+        "/router/routes/speaker-a/fallback/new",
+        data={
+            "base_url": "https://api-extra.example/v1",
+            "api_key_file": "fallback-token-speaker-a",
+            "model": "extra",
+            "history": "client",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert "лимит 9" in response.get_data(as_text=True)
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert len(saved["routes"][0]["fallbacks"]) == 9
+
+
+def test_fallback_order_can_be_changed(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["routes"][0]["fallbacks"] = [
+        {
+            "base_url": f"https://api{i}.example/v1",
+            "api_key_file": "fallback-token-speaker-a",
+            "model": f"m{i}",
+            "history": "client",
+        }
+        for i in range(2)
+    ]
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    client.post(
+        "/router/routes/speaker-a/fallback/0/move",
+        data={"direction": "down"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert [item["model"] for item in saved["routes"][0]["fallbacks"]] == ["m1", "m0"]
+
+    client.post(
+        "/router/routes/speaker-a/fallback/1/move",
+        data={"direction": "up"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert [item["model"] for item in saved["routes"][0]["fallbacks"]] == ["m0", "m1"]

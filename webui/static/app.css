@@ -505,3 +505,6 @@ pre {
 
 .health-ok { color: var(--ok); font-weight: 700; }
 .health-err { color: var(--danger); font-weight: 700; }
+
+.move-actions { display: flex; gap: .35rem; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
