@@ -213,14 +213,14 @@ func (c *Client) CompleteStream(ctx context.Context, messages []Message, onConte
 		return "", fmt.Errorf("LLM returned HTTP %d", resp.StatusCode)
 	}
 
-	idle := time.AfterFunc(30*time.Second, cancel)
+	idle := time.AfterFunc(90*time.Second, cancel)
 	defer idle.Stop()
 	reader := bufio.NewReader(resp.Body)
 	var full strings.Builder
 	for {
 		line, readErr := reader.ReadString('\n')
 		if line != "" {
-			idle.Reset(30 * time.Second)
+			idle.Reset(90 * time.Second)
 			line = strings.TrimSpace(line)
 			if strings.HasPrefix(line, "data:") {
 				data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))

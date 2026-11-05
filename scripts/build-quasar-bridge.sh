@@ -20,7 +20,12 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-rm -rf "$BUILD"
+if ! rm -rf "$BUILD" 2>/dev/null; then
+  # Предыдущие ручные сборки могли оставить root-owned файлы в кэше модулей.
+  docker run --rm -v "$BUILD":/clean alpine \
+    sh -c 'rm -rf /clean/* /clean/.[!.]* /clean/..?* 2>/dev/null || true'
+  rmdir "$BUILD" 2>/dev/null || true
+fi
 mkdir -p "$BUILD/src" "$BUILD/gomod" "$BUILD/gocache" "$BUILD/release" "$DEST"
 cp -a "$ROOT/vendor/quasar-bridge/." "$BUILD/src/"
 

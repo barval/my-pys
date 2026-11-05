@@ -119,7 +119,7 @@ secrets/
 7. Проверить:
 
    - «Алиса, какая завтра погода?» — отвечает Яндекс.
-   - «Алиса, спроси нейросеть: почему небо голубое?» — отвечает FLAI.
+   - «Алиса, почему небо голубое?» — отвечает FLAI.
 
 Подробности — в `docs/03-runbook.md`.
 
@@ -129,8 +129,8 @@ secrets/
 
 | Профиль | IP | Device ID | Статус |
 |---|---|---|---|
-| `speaker-a.env` | `192.168.1.101` | `EXAMPLE-1...` | готово, chunked |
-| `speaker-b.env` | `192.168.1.100` | `EXAMPLE-2...` | готово, chunked |
+| `speaker-a.env` | `192.168.1.101` | `EXAMPLE-1...` | готово, chunked + stream |
+| `speaker-b.env` | `192.168.1.100` | `EXAMPLE-2...` | готово, chunked + stream |
 | `speaker-c.env` | `192.168.1.102` | `EXAMPLE-3...` | готово, chunked |
 | `speaker-d.env` | `192.168.1.103` | `EXAMPLE-4...` | готово, chunked |
 
@@ -286,6 +286,19 @@ keys:     secrets/orca-token-speaker-a, -lp, -ln, -l00fq
 QUASAR_SPEECH_MAX_CHARS=500
 QUASAR_SPEECH_MAX_CHUNKS=6
 ```
+
+### Streaming-озвучка (пилот)
+
+На `192.168.1.101` и `192.168.1.100` включён:
+
+```env
+QUASAR_STREAM_LLM=1
+```
+
+Bridge открывает streaming-сессию сразу, держит колонку пустыми
+deferred-сообщениями каждые 3 секунды и начинает TTS с первого готового
+предложения. Idle-таймаут SSE — 90 секунд, чтобы пережить поиск FLAI.
+Остальные колонки пока работают в обычном chunked-режиме.
 
 ### Upstream-ключи FLAI
 

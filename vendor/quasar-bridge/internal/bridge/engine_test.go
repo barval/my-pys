@@ -3,6 +3,8 @@ package bridge
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -18,6 +20,32 @@ func (f completionFunc) Complete(ctx context.Context, m []llm.Message, b bool) (
 type homeFunc func(context.Context, string) (string, error)
 
 func (f homeFunc) Handle(ctx context.Context, s string) (string, error) { return f(ctx, s) }
+
+func TestEngineStreamsFallbackChunks(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"Первое. \"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"Второе.\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer s.Close()
+
+	engine := &Engine{LLM: &llm.Client{BaseURL: s.URL, Model: "fixture-model"}}
+	var chunks []string
+	result, err := engine.FallbackStream(t.Context(), "вопрос", func(chunk string) error {
+		chunks = append(chunks, chunk)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Streamed || result.Answer != "Первое. Второе." {
+		t.Fatalf("result=%+v", result)
+	}
+	if len(chunks) != 2 || chunks[0] != "Первое." || chunks[1] != "Второе." {
+		t.Fatalf("chunks=%#v", chunks)
+	}
+}
 
 func TestEngineRoutesHomeComplexAndYandexWithoutDuplicateBackend(t *testing.T) {
 	for _, tc := range []struct{ text, route string }{{"Включи свет в комнате A", "home"}, {"Напиши код сортировки на Go", "llm"}, {"Какая завтра погода", "yandex"}} {
