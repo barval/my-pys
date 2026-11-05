@@ -48,7 +48,7 @@ from .backup import (
 )
 from .jobs import JobRunner
 from .keys import key_inventory, rotate_router_token, set_upstream_key
-from .profiles import load_profiles
+from .profiles import load_profiles, parse_env
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
 
@@ -686,7 +686,24 @@ def create_app(settings: Settings | None = None) -> Flask:
             "keys.html",
             items=key_inventory(settings.secrets_dir, normalized_routes()),
             new_token=session.pop("new_token", None),
+            new_token_note=session.pop("new_token_note", None),
+            new_token_job=session.pop("new_token_job", None),
         )
+
+    def speaker_for_token_file(token_file: str):
+        """Колонка, у которой LLM_TOKEN_FILE указывает на этот файл."""
+        refresh_profiles()
+        target = (settings.secrets_dir / Path(token_file).name).resolve()
+        for profile in profiles.values():
+            value = parse_env(profile.path).get("LLM_TOKEN_FILE", "").strip()
+            if not value:
+                continue
+            candidate = Path(value)
+            if not candidate.is_absolute():
+                candidate = settings.root / candidate
+            if candidate.resolve() == target:
+                return profile
+        return None
 
     @app.post("/keys/router/<route>/rotate")
     def keys_rotate(route: str):
@@ -700,7 +717,19 @@ def create_app(settings: Settings | None = None) -> Flask:
         session["new_token"] = rotate_router_token(
             settings.secrets_dir, token_file
         )
-        audit("keys.rotate", route)
+        profile = speaker_for_token_file(token_file)
+        if profile is None:
+            session["new_token_note"] = (
+                "Колонка с этим token_file не найдена — запишите токен вручную."
+            )
+            audit("keys.rotate", route)
+        else:
+            job = app.extensions["jobs"].submit("key", profile)
+            session["new_token_note"] = (
+                f"Запись в колонку {profile.name} запущена."
+            )
+            session["new_token_job"] = job.id
+            audit("keys.rotate", route, detail=f"job={job.id}")
         return redirect(url_for("keys_page"))
 
     @app.post("/keys/upstream/<route>")

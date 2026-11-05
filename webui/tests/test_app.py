@@ -167,6 +167,32 @@ def test_rotated_token_is_shown_once(client, app, login, csrf):
     assert "sk-router-" not in client.get("/keys").get_data(as_text=True)
 
 
+def test_rotation_writes_new_token_to_speaker(
+    client, app, login, csrf, tmp_path
+):
+    login()
+    write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    profile_path = tmp_path / "local" / "speakers" / "speaker-a.env"
+    profile_path.write_text(
+        profile_path.read_text(encoding="utf-8")
+        + "LLM_TOKEN_FILE=secrets/router-token-speaker-a\n",
+        encoding="utf-8",
+    )
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    response = client.post(
+        "/keys/router/speaker-a/rotate",
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert [action for action, _ in runner.actions] == ["key"]
+    assert runner.actions[0][1].name == "speaker-a"
+    body = response.get_data(as_text=True)
+    assert "Запись в колонку speaker-a запущена" in body
+    assert "/jobs/job-1" in body
+
+
 def test_upstream_key_is_not_rendered(client, app, login, csrf):
     login()
     write_router_config(app.config["WEBUI_SETTINGS"].router_config)

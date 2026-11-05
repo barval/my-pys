@@ -5,6 +5,9 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.webui
+      args:
+        WEBUI_UID: "${WEBUI_UID:-1000}"
+        WEBUI_GID: "${WEBUI_GID:-1000}"
     image: my-pys-webui:local
     container_name: my-pys-webui
     restart: unless-stopped

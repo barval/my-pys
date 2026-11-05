@@ -15,8 +15,18 @@
     <div class="mono" style="margin:.5rem 0; word-break:break-all">{{ new_token }}</div>
     <button class="copy" type="button" data-copy="{{ new_token }}">Копировать</button>
   </div>
-  <p class="muted">Запишите его в колонку: <code>make key</code> или
+  {% if new_token_note %}
+  <p class="muted">
+    {{ new_token_note }}
+    {% if new_token_job %}
+    <a href="/jobs/{{ new_token_job }}">Открыть лог записи</a>.
+    {% endif %}
+  </p>
+  {% endif %}
+  {% if not new_token_job %}
+  <p class="muted">Запишите токен в колонку: <code>make key</code> или
     <code>./scripts/set-speaker-key.sh</code>.</p>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -24,9 +34,8 @@
 <h2>Промежуточные токены</h2>
 <p class="muted small">Один токен на маршрут. Колонка ходит с ним в LLM-роутер,
 а роутер по нему выбирает маршрут. «Сменить токен» сразу заменяет значение
-в файле: старый токен перестанет работать, поэтому после смены запишите
-новый токен в колонку через «Колонки → Записать ключ» или
-<code>./scripts/set-speaker-key.sh</code>.</p>
+в файле и запускает запись нового токена в колонку, у которой
+<code>LLM_TOKEN_FILE</code> указывает на этот файл.</p>
 <div class="table-wrap">
   <table>
     <thead>

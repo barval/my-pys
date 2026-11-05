@@ -18,6 +18,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         unzip \
     && rm -rf /var/lib/apt/lists/*
 
+ARG WEBUI_UID=1000
+ARG WEBUI_GID=1000
+
+# ssh(1) calls getpwuid(); без записи в /etc/passwd он падает с
+# "No user exists for uid ...", поэтому добавляем пользователя для
+# runtime-uid контейнера.
+RUN set -eux; \
+    if ! getent group "${WEBUI_GID}" >/dev/null; then \
+        printf 'app:x:%s:\n' "${WEBUI_GID}" >> /etc/group; \
+    fi; \
+    if ! getent passwd "${WEBUI_UID}" >/dev/null; then \
+        printf 'app:x:%s:%s:app:/tmp:/bin/sh\n' "${WEBUI_UID}" "${WEBUI_GID}" >> /etc/passwd; \
+    fi
+
 WORKDIR /app
 COPY requirements-webui.txt /app/requirements-webui.txt
 RUN pip install --no-cache-dir -r /app/requirements-webui.txt

@@ -187,7 +187,11 @@ class CommandBuilder:
         if spec is not None:
             if profile is None:
                 raise ValueError(f"action {action} requires a speaker profile")
-            return list(spec.argv), {"SPEAKER_ENV": str(profile.path)}
+            return list(spec.argv), {
+                "SPEAKER_ENV": str(profile.path),
+                # В контейнере ARP не видит LAN, MAC-проверка невозможна.
+                "SPEAKER_TRUST_IP": "1",
+            }
 
         spec = HOST_ACTIONS.get(action)
         if spec is not None:

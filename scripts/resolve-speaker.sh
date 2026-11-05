@@ -35,9 +35,18 @@ verify_mac() {
 }
 
 # 1. Явная подсказка SPEAKER_IP — только если MAC совпал.
-if [[ -n "$HINT" ]] && is_ipv4 "$HINT" && verify_mac "$HINT"; then
-  echo "$HINT"
-  exit 0
+if [[ -n "$HINT" ]] && is_ipv4 "$HINT"; then
+  if verify_mac "$HINT"; then
+    echo "$HINT"
+    exit 0
+  fi
+  # В контейнере ARP не видит LAN (трафик идёт через шлюз). Если записи
+  # о соседе нет вовсе, доверяем явной подсказке: доступ к колонке всё
+  # равно защищён SSH-ключом, чужая машина его не примет.
+  if [[ "${SPEAKER_TRUST_IP:-0}" == "1" && -z "$(mac_of "$HINT")" ]]; then
+    echo "$HINT"
+    exit 0
+  fi
 fi
 
 # 2. mDNS: в имени уже есть device ID.
