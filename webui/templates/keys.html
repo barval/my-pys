@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Ключи — Web UI{% endblock %}
+{% block content %}
+<h1>Ключи</h1>
+{% if new_token %}
+<p class="flash">Новый промежуточный токен (показывается один раз):
+  <code>{{ new_token }}</code>
+</p>
+<p>Запишите его в колонку: <code>make key</code> или
+  <code>./scripts/set-speaker-key.sh</code>.</p>
+{% endif %}
+
+{% if items %}
+<table>
+  <thead>
+    <tr><th>Маршрут</th><th>Промежуточный</th><th>FLAI</th><th>Orca</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td>{{ item.route }}</td>
+      <td>{{ "есть" if item.router_token else "нет" }} ({{ item.router_token_length }} б)</td>
+      <td>{{ "есть" if item.flai_token else "нет" }}</td>
+      <td>{{ "есть" if item.orca_token else "нет" }}</td>
+      <td>
+        <form method="post" action="/keys/router/{{ item.route }}/rotate" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">Ротировать токен</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Записать upstream-ключ</h2>
+{% for item in items %}
+<div class="key-form">
+  <h3>{{ item.route }}</h3>
+  {% for provider, label in [("flai", "FLAI"), ("orca", "Orca")] %}
+  <form method="post" action="/keys/upstream/{{ item.route }}/{{ provider }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>{{ label }}
+      <input type="password" name="value" required autocomplete="off">
+    </label>
+    <button type="submit">Сохранить</button>
+  </form>
+  {% endfor %}
+</div>
+{% endfor %}
+{% else %}
+<p>Сначала добавьте маршруты в конфиг роутера.</p>
+{% endif %}
+{% endblock %}

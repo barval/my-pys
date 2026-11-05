@@ -12,6 +12,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    session,
     url_for,
 )
 
@@ -20,6 +21,7 @@ from router.llm_router import ConfigError
 from .actions import CommandBuilder, HOST_ACTIONS, SPEAKER_ACTIONS
 from .auth import init_auth
 from .jobs import JobRunner
+from .keys import key_inventory, rotate_router_token, set_upstream_key
 from .profiles import load_profiles, mask_secret
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
@@ -263,5 +265,43 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.post("/router/actions/<action>")
     def router_action(action: str):
         return submit_host(action)
+
+    def route_names() -> list[str]:
+        return [
+            route["name"]
+            for route in router_config().get("routes", [])
+            if route.get("name")
+        ]
+
+    @app.get("/keys")
+    def keys_page():
+        names = route_names()
+        return render_template(
+            "keys.html",
+            items=key_inventory(settings.secrets_dir, names),
+            new_token=session.pop("new_token", None),
+        )
+
+    @app.post("/keys/router/<route>/rotate")
+    def keys_rotate(route: str):
+        if route not in route_names():
+            abort(404)
+        session["new_token"] = rotate_router_token(settings.secrets_dir, route)
+        return redirect(url_for("keys_page"))
+
+    @app.post("/keys/upstream/<route>/<provider>")
+    def keys_upstream(route: str, provider: str):
+        if route not in route_names() or provider not in ("flai", "orca"):
+            abort(404)
+        try:
+            set_upstream_key(
+                settings.secrets_dir,
+                route,
+                provider,
+                request.form.get("value", ""),
+            )
+        except ValueError as exc:
+            return str(exc), 400
+        return redirect(url_for("keys_page"))
 
     return app

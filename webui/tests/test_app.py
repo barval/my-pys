@@ -151,3 +151,26 @@ def test_route_edit_saves_valid_route(client, app, login, csrf):
     assert response.status_code == 302
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert saved["routes"][0]["primary"]["model"] == "new-model"
+
+
+def test_rotated_token_is_shown_once(client, app, login, csrf):
+    login()
+    write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    response = client.post(
+        "/keys/router/speaker-a/rotate",
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert "sk-router-" in response.get_data(as_text=True)
+    assert "sk-router-" not in client.get("/keys").get_data(as_text=True)
+
+
+def test_upstream_key_is_not_rendered(client, app, login, csrf):
+    login()
+    write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    client.post(
+        "/keys/upstream/speaker-a/flai",
+        data={"value": "flai-very-secret"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert "flai-very-secret" not in client.get("/keys").get_data(as_text=True)
