@@ -23,22 +23,67 @@ COLOR_CHOICES = (
 )
 COLOR_MAP = {key: value for key, _, value in COLOR_CHOICES}
 COLOR_LABELS = {key: label for key, label, _ in COLOR_CHOICES}
+COLOR_ALIASES = {
+    "cappuccino": "beige",
+    "капучино": "beige",
+    "mint": "green",
+    "мята": "green",
+    "бирюзовый": "green",
+    "бирюзовая": "green",
+    "flamingo": "pink",
+    "фламинго": "pink",
+    "ultraviolet": "purple",
+    "ультравиолет": "purple",
+    "chili": "red",
+    "чили": "red",
+    "lemon": "yellow",
+    "лимон": "yellow",
+}
+COLOR_MARKETING = {
+    "cappuccino": "Капучино",
+    "капучино": "Капучино",
+    "mint": "Мята",
+    "мята": "Мята",
+    "бирюзовый": "Мята",
+    "бирюзовая": "Мята",
+    "flamingo": "Фламинго",
+    "фламинго": "Фламинго",
+    "ultraviolet": "Ультравиолет",
+    "ультравиолет": "Ультравиолет",
+    "chili": "Чили",
+    "чили": "Чили",
+    "lemon": "Лимон",
+    "лимон": "Лимон",
+}
 _FALLBACK = [value for key, _, value in COLOR_CHOICES if key not in ("black", "white")]
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
-def color_hex(value: str, device_id: str) -> str:
-    value = (value or "").strip()
+def canonical_color(value: str) -> str:
+    value = (value or "").strip().lower()
+    if value in COLOR_ALIASES:
+        return COLOR_ALIASES[value]
     if value in COLOR_MAP:
-        return COLOR_MAP[value]
+        return value
     if _HEX_RE.fullmatch(value):
         return value.lower()
+    return ""
+
+
+def color_hex(value: str, device_id: str) -> str:
+    key = canonical_color(value)
+    if key in COLOR_MAP:
+        return COLOR_MAP[key]
+    if _HEX_RE.fullmatch(key):
+        return key
     digest = hashlib.sha256((device_id or "speaker").encode("utf-8")).digest()
     return _FALLBACK[digest[0] % len(_FALLBACK)]
 
 
 def color_label(value: str) -> str:
-    value = (value or "").strip()
+    value = (value or "").strip().lower()
+    if value in COLOR_MARKETING:
+        return COLOR_MARKETING[value]
     if value in COLOR_LABELS:
         return COLOR_LABELS[value]
     if value:

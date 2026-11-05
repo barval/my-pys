@@ -44,7 +44,7 @@
         <select name="color">
           <option value=""{% if not card.override.get("color") and not profile.color %} selected{% endif %}>Авто (по ID)</option>
           {% for key, label, value in color_choices %}
-          <option value="{{ key }}"{% if (card.override.get("color") or profile.color) == key %} selected{% endif %}>{{ label }}</option>
+          <option value="{{ key }}"{% if card.color_key == key %} selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </label>

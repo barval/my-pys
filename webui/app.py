@@ -28,6 +28,7 @@ from .actions import CommandBuilder, HOST_ACTIONS, SPEAKER_ACTIONS
 from .appearance import (
     COLOR_CHOICES,
     COLOR_MAP,
+    canonical_color,
     load_overrides,
     resolve_color,
     resolve_color_name,
@@ -192,6 +193,10 @@ def create_app(settings: Settings | None = None) -> Flask:
                 ),
                 "color_name": resolve_color_name(
                     profile, overrides.get(profile.device_id, {})
+                ),
+                "color_key": canonical_color(
+                    overrides.get(profile.device_id, {}).get("color")
+                    or profile.color
                 ),
             }
             for profile in sorted(profiles.values(), key=lambda item: item.name)

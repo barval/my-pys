@@ -28,3 +28,12 @@ def test_override_wins_for_color_and_model(tmp_path, make_profile):
     item = overrides[profile.device_id]
     assert resolve_color(profile, item) == "#8e6bbf"
     assert resolve_model(profile, item) == "Yandex Station Micro v1.2"
+
+
+def test_marketing_color_aliases():
+    from webui.appearance import canonical_color, color_label
+
+    assert color_hex("cappuccino", "EXAMPLE") == "#d9c3a5"
+    assert color_label("cappuccino") == "Капучино"
+    assert canonical_color("ультравиолет") == "purple"
+    assert canonical_color("mint") == "green"
