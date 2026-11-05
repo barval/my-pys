@@ -96,7 +96,7 @@
 
 <section class="card" style="margin-top:1rem">
   <h2>Проверить архив перед восстановлением</h2>
-  <form method="post" action="/backup/inspect" class="form-grid">
+  <form method="post" action="/backup/inspect" class="inspect-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label>Архив
       <select name="backup" required>
@@ -108,9 +108,7 @@
     <label>Пароль
       <input type="password" name="passphrase" required autocomplete="off">
     </label>
-    <div class="form-actions">
-      <button class="btn btn-warning" type="submit">Проверить</button>
-    </div>
+    <button class="btn btn-warning" type="submit">Проверить</button>
   </form>
 </section>
 {% endblock %}
