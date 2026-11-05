@@ -23,7 +23,7 @@
       <select name="api_key_file">
         <option value="">— без ключа —</option>
         {% for key in upstream_keys %}
-        <option value="{{ key.file }}"{% if key.file == current_key %} selected{% endif %}>{{ key.label }} ({{ key.file }})</option>
+        <option value="{{ key.file }}"{% if key.file == current_key %} selected{% endif %}>{{ key.file }}</option>
         {% endfor %}
       </select>
     </label>

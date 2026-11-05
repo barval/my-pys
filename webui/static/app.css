@@ -525,3 +525,6 @@ pre {
 
 .key-form { display: flex; gap: .5rem; align-items: center; }
 .key-form input[name="value"] { flex: 1 1 180px; width: auto; margin-top: 0; }
+
+.keys-table th, .keys-table td { vertical-align: middle; }
+.keys-table form { margin: 0; }

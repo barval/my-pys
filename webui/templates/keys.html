@@ -73,14 +73,13 @@
 
 {% if upstream_keys %}
 <div class="table-wrap">
-  <table>
+  <table class="keys-table">
     <thead>
-      <tr><th>Название</th><th>Файл</th><th>Статус</th><th>Используется</th><th>Ключ</th><th></th></tr>
+      <tr><th>Файл</th><th>Статус</th><th>Используется</th><th>Ключ</th><th></th></tr>
     </thead>
     <tbody>
       {% for key in upstream_keys %}
       <tr>
-        <td>{{ key.label }}</td>
         <td class="mono">{{ key.file }}</td>
         <td>
           <span class="badge badge-{{ 'ok' if key.exists else 'muted' }}">
@@ -120,9 +119,6 @@
 <form method="post" action="/keys/upstream" class="card">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="form-grid">
-    <label>Название
-      <input name="label" placeholder="Orca free">
-    </label>
     <label>Файл
       <input name="file" required pattern="[a-z0-9][a-z0-9-]{0,63}"
              placeholder="orca-token-2">

@@ -210,7 +210,6 @@ def test_upstream_key_can_be_added_from_keys_page(client, app, login, csrf):
     response = client.post(
         "/keys/upstream",
         data={
-            "label": "Orca free",
             "file": "orca-token-free",
             "value": "orca-secret",
         },
@@ -219,7 +218,6 @@ def test_upstream_key_can_be_added_from_keys_page(client, app, login, csrf):
     )
     assert response.status_code == 200
     body = response.get_data(as_text=True)
-    assert "Orca free" in body
     assert "orca-token-free" in body
     assert "orca-secret" not in body
     path = app.config["WEBUI_SETTINGS"].secrets_dir / "orca-token-free"
@@ -231,12 +229,12 @@ def test_route_form_lists_existing_upstream_keys(client, app, login, csrf):
     login()
     client.post(
         "/keys/upstream",
-        data={"label": "Orca free", "file": "orca-token-free", "value": "x"},
+        data={"file": "orca-token-free", "value": "x"},
         headers={"X-CSRF-Token": csrf(client)},
     )
     body = client.get("/router/routes/new").get_data(as_text=True)
     assert 'name="api_key_file"' in body
-    assert "Orca free (orca-token-free)" in body
+    assert '<option value="orca-token-free"' in body
 
 
 def test_used_upstream_key_cannot_be_deleted(client, app, login, csrf):
