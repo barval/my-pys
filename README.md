@@ -366,16 +366,18 @@ SPEAKER_ENV=local/speakers/speaker-b.env make status
 ## Web UI
 
 В v2.0 добавлена локальная панель на Flask: статус колонок, установка
-Bridge, routing, управление маршрутами и ключами роутера. По умолчанию
-она слушает `127.0.0.1:8080`.
+Bridge, routing, управление маршрутами и ключами роутера. Панель
+работает в Docker — на хосте не нужно ставить Python, Flask, ssh или adb.
 
 ```bash
-python3 -m pip install -r requirements-webui.txt
-python3 -m webui.admin set-password
-make webui
+make webui-passwd   # пароль панели
+make webui          # собрать и запустить
 ```
 
-Подробности, LAN-доступ, systemd и отзыв доступа — в
+Перезапуск `llm-router` идёт через узкий sidecar `router-control`,
+который умеет только эту операцию. Панель не получает Docker API.
+
+Подробности, LAN-доступ, тома и отзыв доступа — в
 [`docs/07-webui.md`](docs/07-webui.md).
 
 > Панель предназначена только для локальной сети. Не публикуйте её порт

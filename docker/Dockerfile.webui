@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HOME=/tmp \
+    ANDROID_USER_HOME=/tmp/.android
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        adb \
+        avahi-utils \
+        bash \
+        ca-certificates \
+        curl \
+        findutils \
+        iproute2 \
+        iputils-ping \
+        openssh-client \
+        unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements-webui.txt /app/requirements-webui.txt
+RUN pip install --no-cache-dir -r /app/requirements-webui.txt
+COPY webui /app/webui
+
+EXPOSE 8080
+CMD ["python", "-m", "webui", "--host", "0.0.0.0"]

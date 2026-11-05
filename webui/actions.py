@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -104,12 +105,30 @@ HOST_ACTIONS: dict[str, ActionSpec] = {
 
 
 class CommandBuilder:
-    def __init__(self, root: Path):
+    def __init__(
+        self,
+        root: Path,
+        router_control: str = "host",
+        sidecar_url: str = "http://127.0.0.1:8081",
+    ):
         self.root = Path(root)
+        self.router_control = router_control
+        self.sidecar_url = sidecar_url
 
     def build(
         self, action: str, profile: Profile | None
     ) -> tuple[list[str], dict[str, str]]:
+        if self.router_control == "sidecar":
+            if action == "router-restart":
+                return (
+                    [sys.executable, "-m", "webui.router_control"],
+                    {"WEBUI_SIDECAR_URL": self.sidecar_url},
+                )
+            if action in ("router-start", "router-stop"):
+                raise UnknownAction(
+                    f"{action} is not available in sidecar mode"
+                )
+
         spec = SPEAKER_ACTIONS.get(action)
         if spec is not None:
             if profile is None:

@@ -1,0 +1,8 @@
+FROM python:3.11-alpine
+
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY webui/control.py /app/control.py
+
+EXPOSE 8081
+CMD ["python", "-u", "/app/control.py"]

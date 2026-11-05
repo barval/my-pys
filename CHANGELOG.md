@@ -8,7 +8,8 @@
 ### Added
 
 - Локальная веб-панель `webui` на Flask: список колонок, статус Bridge,
-  установка/обновление, routing, запись ключа.
+  установка/обновление, routing, запись ключа. Панель запускается в
+  Docker; на хосте не требуется Python/Flask/ssh/adb.
 - Очередь заданий с последовательным выполнением на одну колонку,
   журналом и потоковым логом.
 - Управление `secrets/router-routes.json`: просмотр, редактирование,
@@ -18,6 +19,10 @@
   записываются без отображения существующих значений.
 - Вход по паролю (scrypt), сессии, CSRF и ограничение попыток.
 - Аудит действий в `webui-state/audit.jsonl` с редактированием секретов.
+- Узкий sidecar `router-control` с доступом к Docker только для
+  перезапуска `llm-router`; панель не получает Docker API.
+- `docker/Dockerfile.webui`, `docker/Dockerfile.webui-control`,
+  `docker/docker-compose.webui.yml`, `make webui*`.
 - `docs/07-webui.md`, `deploy/webui.service`, `make webui` и
   `make webui-test`.
 

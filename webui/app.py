@@ -111,7 +111,11 @@ def create_app(settings: Settings | None = None) -> Flask:
     profiles = {profile.name: profile for profile in load_profiles(settings.speakers_dir)}
     runner = JobRunner(
         settings.state_dir,
-        CommandBuilder(settings.root),
+        CommandBuilder(
+            settings.root,
+            router_control=settings.router_control,
+            sidecar_url=settings.sidecar_url,
+        ),
         max_workers=settings.max_workers,
         timeout=settings.job_timeout,
     )
@@ -133,7 +137,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     def health() -> tuple[dict, int]:
         try:
             with urllib.request.urlopen(
-                "http://127.0.0.1:5002/health", timeout=2
+                settings.router_health_url, timeout=2
             ) as response:
                 return json.loads(response.read().decode("utf-8")), 200
         except Exception:
@@ -156,8 +160,13 @@ def create_app(settings: Settings | None = None) -> Flask:
             secrets_dir=settings.secrets_dir,
         )
 
+    def allowed_router_actions() -> set[str]:
+        if settings.router_control == "sidecar":
+            return {"router-restart"}
+        return _ROUTER_ACTIONS
+
     def submit_host(action: str):
-        if action not in _ROUTER_ACTIONS:
+        if action not in allowed_router_actions():
             abort(404)
         job = app.extensions["jobs"].submit(action, None)
         audit(action, "router", detail=f"job={job.id}")
@@ -232,7 +241,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             actions={
                 key: value
                 for key, value in HOST_ACTIONS.items()
-                if key in _ROUTER_ACTIONS
+                if key in allowed_router_actions()
             },
         )
 

@@ -21,6 +21,9 @@ class Settings:
     port: int
     job_timeout: int
     max_workers: int
+    router_control: str
+    sidecar_url: str
+    router_health_url: str
 
 
 def load_settings(
@@ -36,6 +39,14 @@ def load_settings(
 
     package_dir = Path(__file__).resolve().parent
     secrets_dir = root_path / "secrets"
+    router_control = values.get("WEBUI_ROUTER_CONTROL", "host")
+    if router_control not in ("host", "sidecar"):
+        raise ValueError("WEBUI_ROUTER_CONTROL must be host or sidecar")
+    router_health_url = values.get("WEBUI_ROUTER_HEALTH_URL") or (
+        "http://llm-router:5002/health"
+        if router_control == "sidecar"
+        else "http://127.0.0.1:5002/health"
+    )
     return Settings(
         root=root_path,
         speakers_dir=root_path / "local" / "speakers",
@@ -50,4 +61,9 @@ def load_settings(
         port=int(values.get("WEBUI_PORT", "8080")),
         job_timeout=int(values.get("WEBUI_JOB_TIMEOUT", "600")),
         max_workers=int(values.get("WEBUI_MAX_WORKERS", "2")),
+        router_control=router_control,
+        sidecar_url=values.get(
+            "WEBUI_SIDECAR_URL", "http://127.0.0.1:8081"
+        ),
+        router_health_url=router_health_url,
     )

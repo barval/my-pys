@@ -1,0 +1,12 @@
+.git
+.cache
+backups
+local
+secrets
+webui-state
+router-state
+vendor/lite-kit/firmware
+__pycache__
+*.pyc
+.pytest_cache
+.superpowers

@@ -1,7 +1,8 @@
 # Web UI
 
 Локальная панель для обслуживания колонок, LLM-роутера и ключей.
-Работает на том же хосте, что и скрипты проекта.
+Работает в Docker: на хосте нужен только Docker, Python/Flask/ssh/adb
+внутри контейнера не устанавливаются.
 
 ## Что умеет
 
@@ -22,45 +23,91 @@
 - не показывает существующие значения ключей (только «есть/нет»);
 - не принимает произвольные shell-команды: только белый список.
 
-## Установка
+## Установка и запуск
 
 ```bash
-python3 -m pip install -r requirements-webui.txt
-python3 -m webui.admin set-password
+make webui-passwd   # задать пароль (выполняется внутри контейнера)
+make webui          # собрать и запустить панель
+```
+
+Панель слушает `http://127.0.0.1:8080`.
+
+Полезные команды:
+
+```bash
+make webui-logs     # логи
+make webui-stop     # остановить
+make webui-passwd   # сменить пароль
 ```
 
 Пароль хранится как scrypt-хеш в `secrets/webui-admin.hash` с режимом
 `0600`. Сессионный ключ создаётся автоматически в
 `secrets/webui-session.key`.
 
-## Запуск
+## Как устроен контейнер
+
+В compose два сервиса:
+
+| Сервис | Роль |
+|---|---|
+| `webui` | Flask-панель, SSH/ADB/curl, работа с профилями и ключами |
+| `router-control` | узкий sidecar: умеет только перезапускать `llm-router` |
+
+`router-control` — единственный контейнер с доступом к
+`/var/run/docker.sock`. Он не публикует порт и находится во внутренней
+сети `control`, доступной только панели. Панель не получает Docker API.
+
+Монтирования:
+
+- репозиторий `/app` — только чтение;
+- `secrets/`, `webui-state/`, `backups/`, `.cache/` и каталог прошивок —
+  чтение-запись;
+- `local/` — только чтение (профили колонок).
+
+Контейнер запускается от UID/GID хоста, с `read_only`, `cap_drop: ALL`
+(добавлен только `NET_RAW` для `ping`/ARP), `no-new-privileges` и
+отдельным `tmpfs` для `/tmp`.
+
+Если Docker-сокет принадлежит другой группе, задайте её явно:
 
 ```bash
-make webui
+DOCKER_GID=$(stat -c '%g' /var/run/docker.sock) make webui
 ```
 
-По умолчанию панель слушает `http://127.0.0.1:8080`.
-
-Доступ с других устройств локальной сети:
+Если ваш UID/GID не 1000:
 
 ```bash
-WEBUI_HOST=0.0.0.0 WEBUI_PORT=8080 python3 -m webui
+WEBUI_UID=$(id -u) WEBUI_GID=$(id -g) make webui
+```
+
+## Доступ по локальной сети
+
+По умолчанию порт опубликован только на `127.0.0.1`. Чтобы открыть его
+для локальной сети:
+
+```bash
+WEBUI_BIND=0.0.0.0 make webui
 ```
 
 Не публикуйте порт в интернет и не пробрасывайте его на роутере. Если
 нужен HTTPS, ставьте панель за локальный nginx и не открывайте порт
 наружу.
 
-## systemd
+## Разработка на хосте
+
+Контейнер — основной способ запуска. Для отладки кода можно запустить
+панель на хосте:
 
 ```bash
-sudo cp deploy/webui.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now webui
+python3 -m pip install -r requirements-webui.txt
+python3 -m webui.admin set-password
+make webui-dev
 ```
 
-Перед копированием замените `User`, `WorkingDirectory` и путь в
-`ExecStart` на свои.
+В этом режиме `WEBUI_ROUTER_CONTROL=host`, и кнопки start/stop/restart
+вызывают `docker compose` напрямую. Для systemd используйте
+`deploy/webui.service`, заменив `User`, `WorkingDirectory` и путь в
+`ExecStart`.
 
 ## Действия
 
@@ -80,9 +127,11 @@ sudo systemctl enable --now webui
 | Действие | Что делает |
 |---|---|
 | `firmware` | скачивает прошивку |
-| `router-start` | запускает контейнер роутера |
-| `router-stop` | останавливает контейнер |
-| `router-restart` | перезапускает контейнер |
+| `router-restart` | перезапускает `llm-router` через sidecar |
+
+В контейнерном режиме кнопок start/stop нет: sidecar намеренно умеет
+только перезапуск. Запуск и остановка стека — `make router` /
+`make router-stop` на хосте.
 
 Задания на одну колонку выполняются строго по очереди. Логи:
 `webui-state/jobs/<id>.log`.

@@ -1,0 +1,77 @@
+name: my-pys-webui
+
+services:
+  webui:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.webui
+    image: my-pys-webui:local
+    container_name: my-pys-webui
+    restart: unless-stopped
+    init: true
+    user: "${WEBUI_UID:-1000}:${WEBUI_GID:-1000}"
+    ports:
+      - "${WEBUI_BIND:-127.0.0.1}:${WEBUI_PORT:-8080}:8080"
+    environment:
+      WEBUI_HOST: "0.0.0.0"
+      WEBUI_PORT: "8080"
+      WEBUI_ROOT: /app
+      WEBUI_ROUTER_CONTROL: sidecar
+      WEBUI_SIDECAR_URL: http://router-control:8081
+      WEBUI_ROUTER_HEALTH_URL: http://host.docker.internal:5002/health
+      HOME: /tmp
+      ANDROID_USER_HOME: /tmp/.android
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ..:/app:ro
+      - ../secrets:/app/secrets:rw
+      - ../local:/app/local:ro
+      - ../webui-state:/app/webui-state:rw
+      - ../backups:/app/backups:rw
+      - ../.cache:/app/.cache:rw
+      - ../vendor/lite-kit/firmware:/app/vendor/lite-kit/firmware:rw
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_RAW
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - default
+      - control
+    depends_on:
+      - router-control
+
+  router-control:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.webui-control
+    image: my-pys-router-control:local
+    container_name: my-pys-router-control
+    restart: unless-stopped
+    init: true
+    user: "${WEBUI_UID:-1000}:${WEBUI_GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:-988}"
+    environment:
+      CONTROL_CONTAINER: llm-router
+      CONTROL_PORT: "8081"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - control
+
+networks:
+  control:
+    internal: true
