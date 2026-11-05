@@ -458,6 +458,10 @@ func (n *Native) Server(ctx context.Context, k websocket.MessageType, data []byt
 				p.speechActive = false
 				hasNext := len(p.speechQueue) > 0
 				done := p.speechDone
+				if !hasNext && !done && !p.audioWaiting {
+					p.audioWaiting = true
+					n.waitAudio(p)
+				}
 				n.mu.Unlock()
 				if hasNext {
 					return n.sendNextSpeech(p)
@@ -971,6 +975,7 @@ func (n *Native) maybeFinishSpeech(p *nativeRequest) error {
 	p.speechIDs = nil
 	p.speechQueue = nil
 	p.speechDone = false
+	p.audioWaiting = false
 	end := p.audio.finish()
 	streamID := p.audioStream
 	n.mu.Unlock()
