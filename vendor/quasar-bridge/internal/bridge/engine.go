@@ -225,7 +225,14 @@ func (e *Engine) fallback(ctx context.Context, text string, onChunk func(string)
 			streamAttempted = true
 			buf := newStreamBuffer(speechChunkChars())
 			sent := 0
+			contentStarted := false
 			answer, err = streamer.CompleteStream(ctx, messages, func(delta string) error {
+				if !contentStarted && strings.TrimSpace(delta) != "" {
+					contentStarted = true
+					if err := onChunk(""); err != nil {
+						return err
+					}
+				}
 				for _, chunk := range buf.Add(delta) {
 					if chunk == "" {
 						continue
