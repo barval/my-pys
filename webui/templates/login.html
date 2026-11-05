@@ -1,13 +1,22 @@
 {% extends "base.html" %}
+{% block body_class %}login-page{% endblock %}
 {% block title %}Вход — Web UI{% endblock %}
 {% block content %}
-<h1>Вход</h1>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
-<form method="post" action="{{ url_for('login_post') }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <label>Пароль
-    <input type="password" name="password" required autofocus>
-  </label>
-  <button type="submit">Войти</button>
-</form>
+<div class="login-card">
+  <div class="login-logo">◉</div>
+  <h1>Станции</h1>
+  <p class="muted">Локальное управление колонками, роутером и ключами</p>
+
+  {% if notice %}<p class="flash">{{ notice }}</p>{% endif %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  <form method="post" action="{{ url_for('login_post') }}" class="stack">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Пароль
+      <input type="password" name="password" required autofocus
+             autocomplete="current-password" placeholder="••••••••">
+    </label>
+    <button class="btn btn-primary btn-block" type="submit">Войти</button>
+  </form>
+</div>
 {% endblock %}

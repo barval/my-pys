@@ -25,7 +25,7 @@ from router.llm_router import ConfigError
 
 from .actions import CommandBuilder, HOST_ACTIONS, SPEAKER_ACTIONS
 from .audit import record, redact
-from .auth import init_auth
+from .auth import init_auth, save_password_hash, verify_password
 from .backup import (
     BackupError,
     create_backup,
@@ -36,7 +36,7 @@ from .backup import (
 )
 from .jobs import JobRunner
 from .keys import key_inventory, rotate_router_token, set_upstream_key
-from .profiles import load_profiles, mask_secret
+from .profiles import load_profiles
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
 
@@ -205,7 +205,6 @@ def create_app(settings: Settings | None = None) -> Flask:
         return render_template(
             "speakers.html",
             profiles=sorted(profiles.values(), key=lambda item: item.name),
-            mask=mask_secret,
         )
 
     @app.get("/speakers/<name>")
@@ -221,7 +220,6 @@ def create_app(settings: Settings | None = None) -> Flask:
             profile=profile,
             actions=SPEAKER_ACTIONS.values(),
             jobs=jobs,
-            mask=mask_secret,
         )
 
     @app.post("/speakers/<name>/actions/<action>")
@@ -458,6 +456,39 @@ def create_app(settings: Settings | None = None) -> Flask:
             if temp_path is not None:
                 temp_path.unlink(missing_ok=True)
         return redirect(url_for("backup_page"))
+
+    @app.get("/password")
+    def password_page():
+        return render_template("password.html", error=None)
+
+    @app.post("/password")
+    def password_change():
+        current = request.form.get("current", "")
+        new = request.form.get("new", "")
+        confirm = request.form.get("confirm", "")
+        if new != confirm:
+            return render_template(
+                "password.html", error="Новые пароли не совпадают"
+            ), 400
+        if len(new) < 8:
+            return render_template(
+                "password.html", error="Пароль должен быть не короче 8 символов"
+            ), 400
+        try:
+            encoded = settings.admin_hash_file.read_text(encoding="utf-8").strip()
+        except OSError:
+            return render_template(
+                "password.html", error="Пароль администратора не настроен"
+            ), 503
+        if not verify_password(current, encoded):
+            return render_template(
+                "password.html", error="Текущий пароль неверен"
+            ), 400
+        save_password_hash(settings.admin_hash_file, new)
+        audit("auth.password", "admin")
+        session.clear()
+        session["notice"] = "Пароль изменён. Войдите заново."
+        return redirect(url_for("login"))
 
     @app.get("/audit")
     def audit_page():

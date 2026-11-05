@@ -1,24 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Колонки — Web UI{% endblock %}
 {% block content %}
-<h1>Колонки</h1>
+<div class="page-head">
+  <div>
+    <h1>Колонки</h1>
+    <div class="sub">Профили из <code>local/speakers/</code> · {{ profiles | length }}</div>
+  </div>
+</div>
+
 {% if profiles %}
-<table>
-  <thead>
-    <tr><th>Профиль</th><th>IP</th><th>MAC</th><th>Device ID</th></tr>
-  </thead>
-  <tbody>
-    {% for profile in profiles %}
-    <tr>
-      <td><a href="/speakers/{{ profile.name }}">{{ profile.name }}</a></td>
-      <td>{{ profile.ip }}</td>
-      <td>{{ mask(profile.mac) }}</td>
-      <td>{{ mask(profile.device_id) }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="grid cards">
+  {% for profile in profiles %}
+  <article class="card">
+    <div class="card-head">
+      <h2><a href="/speakers/{{ profile.name }}">{{ profile.name }}</a></h2>
+      <a class="btn btn-ghost btn-sm" href="/speakers/{{ profile.name }}">Открыть</a>
+    </div>
+    <dl class="meta">
+      <dt>IP</dt>
+      <dd class="mono">{{ profile.ip or "—" }}</dd>
+
+      <dt>MAC</dt>
+      <dd class="mono copy-row">
+        <span>{{ profile.mac }}</span>
+        <button class="copy" type="button" data-copy="{{ profile.mac }}">Копировать</button>
+      </dd>
+
+      <dt>Device ID</dt>
+      <dd class="mono copy-row">
+        <span>{{ profile.device_id }}</span>
+        <button class="copy" type="button" data-copy="{{ profile.device_id }}">Копировать</button>
+      </dd>
+    </dl>
+  </article>
+  {% endfor %}
+</div>
 {% else %}
-<p>Профили не найдены. Добавьте файлы в <code>local/speakers/</code>.</p>
+<div class="empty">Профили не найдены. Добавьте файлы в <code>local/speakers/</code>.</div>
 {% endif %}
 {% endblock %}

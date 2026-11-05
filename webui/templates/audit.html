@@ -1,25 +1,35 @@
 {% extends "base.html" %}
 {% block title %}Аудит — Web UI{% endblock %}
 {% block content %}
-<h1>Аудит</h1>
+<div class="page-head">
+  <div>
+    <h1>Аудит</h1>
+    <div class="sub">Последние 200 действий администратора</div>
+  </div>
+</div>
+
 {% if entries %}
-<table>
-  <thead>
-    <tr><th>Время</th><th>Действие</th><th>Цель</th><th>Результат</th><th>Детали</th></tr>
-  </thead>
-  <tbody>
-    {% for entry in entries %}
-    <tr>
-      <td>{{ entry.get("time", "") }}</td>
-      <td>{{ entry.get("action", "") }}</td>
-      <td>{{ entry.get("target", "") }}</td>
-      <td>{{ entry.get("result", "") }}</td>
-      <td>{{ entry.get("detail", "") }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Время</th><th>Действие</th><th>Цель</th><th>Результат</th><th>Детали</th></tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+      <tr>
+        <td class="mono">{{ entry.get("time", "") }}</td>
+        <td>{{ entry.get("action", "") }}</td>
+        <td>{{ entry.get("target", "") }}</td>
+        <td>
+          <span class="badge badge-{{ 'ok' if entry.get('result') == 'ok' else 'err' }}">{{ entry.get("result", "") }}</span>
+        </td>
+        <td class="muted">{{ entry.get("detail", "") }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
-<p>Записей нет.</p>
+<div class="empty">Записей нет.</div>
 {% endif %}
 {% endblock %}

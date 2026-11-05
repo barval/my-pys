@@ -1,12 +1,29 @@
 {% extends "base.html" %}
 {% block title %}Задание {{ job.id }} — Web UI{% endblock %}
 {% block content %}
-<h1>Задание {{ job.id }}</h1>
-<dl>
-  <dt>Действие</dt><dd>{{ job.action }}</dd>
-  <dt>Цель</dt><dd>{{ job.target }}</dd>
-  <dt>Статус</dt><dd>{{ job.status }}</dd>
-  <dt>Код выхода</dt><dd>{{ job.exit_code if job.exit_code is not none else "—" }}</dd>
-</dl>
-{% include "job_log.html" %}
+<div class="page-head">
+  <div>
+    <a class="back" href="/speakers">← Колонки</a>
+    <h1>Задание</h1>
+    <div class="mono">{{ job.id }}</div>
+  </div>
+  <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job.status }}</span>
+</div>
+
+<div class="grid two">
+  <section class="card">
+    <h2>Параметры</h2>
+    <dl class="meta">
+      <dt>Действие</dt><dd>{{ job.action }}</dd>
+      <dt>Цель</dt><dd>{{ job.target }}</dd>
+      <dt>Код выхода</dt><dd>{{ job.exit_code if job.exit_code is not none else "—" }}</dd>
+      <dt>Начато</dt><dd class="mono">{{ job.started_at or "—" }}</dd>
+      <dt>Завершено</dt><dd class="mono">{{ job.finished_at or "—" }}</dd>
+    </dl>
+  </section>
+  <section class="card">
+    <h2>Вывод</h2>
+    {% include "job_log.html" %}
+  </section>
+</div>
 {% endblock %}

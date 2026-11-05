@@ -1,40 +1,73 @@
 {% extends "base.html" %}
 {% block title %}{{ profile.name }} — Web UI{% endblock %}
 {% block content %}
-<h1>{{ profile.name }}</h1>
-<dl>
-  <dt>IP</dt><dd>{{ profile.ip }}</dd>
-  <dt>MAC</dt><dd>{{ mask(profile.mac) }}</dd>
-  <dt>Device ID</dt><dd>{{ mask(profile.device_id) }}</dd>
-  <dt>Платформа</dt><dd>{{ profile.platform }}</dd>
-  <dt>SSH / ADB</dt><dd>{{ profile.ssh_port }} / {{ profile.adb_port }}</dd>
-</dl>
-
-<h2>Действия</h2>
-<div class="actions">
-  {% for action in actions %}
-  <form method="post" action="/speakers/{{ profile.name }}/actions/{{ action.key }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit">{{ action.label }}</button>
-  </form>
-  {% endfor %}
+<div class="page-head">
+  <div>
+    <a class="back" href="/speakers">← Все колонки</a>
+    <h1>{{ profile.name }}</h1>
+    <div class="sub">Платформа {{ profile.platform }}</div>
+  </div>
 </div>
 
-<h2>Последние задания</h2>
-{% if jobs %}
-<table>
-  <thead><tr><th>Когда</th><th>Действие</th><th>Статус</th></tr></thead>
-  <tbody>
-    {% for job in jobs %}
-    <tr>
-      <td><a href="/jobs/{{ job.id }}">{{ job.created_at }}</a></td>
-      <td>{{ job.action }}</td>
-      <td>{{ job.status }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p>Заданий пока нет.</p>
-{% endif %}
+<div class="grid two">
+  <section class="card">
+    <h2>Идентификаторы</h2>
+    <dl class="meta">
+      <dt>IP</dt>
+      <dd class="mono">{{ profile.ip or "—" }}</dd>
+
+      <dt>MAC</dt>
+      <dd class="mono copy-row">
+        <span>{{ profile.mac }}</span>
+        <button class="copy" type="button" data-copy="{{ profile.mac }}">Копировать</button>
+      </dd>
+
+      <dt>Device ID</dt>
+      <dd class="mono copy-row">
+        <span>{{ profile.device_id }}</span>
+        <button class="copy" type="button" data-copy="{{ profile.device_id }}">Копировать</button>
+      </dd>
+
+      <dt>SSH / ADB</dt>
+      <dd class="mono">{{ profile.ssh_port }} / {{ profile.adb_port }}</dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Действия</h2>
+    <div class="actions">
+      {% for action in actions %}
+      <form method="post" action="/speakers/{{ profile.name }}/actions/{{ action.key }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">{{ action.label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+    <p class="muted">Действия выполняются по очереди; лог откроется на отдельной странице.</p>
+  </section>
+</div>
+
+<section class="card" style="margin-top:1rem">
+  <h2>Последние задания</h2>
+  {% if jobs %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Когда</th><th>Действие</th><th>Статус</th></tr></thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr>
+          <td><a href="/jobs/{{ job.id }}">{{ job.created_at }}</a></td>
+          <td>{{ job.action }}</td>
+          <td>
+            <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job.status }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Заданий пока нет.</div>
+  {% endif %}
+</section>
 {% endblock %}

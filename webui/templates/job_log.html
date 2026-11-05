@@ -1,5 +1,5 @@
 {% set finished = job.status in ("succeeded", "failed", "cancelled", "interrupted") %}
-<div id="job-log"{% if not finished %} hx-get="/jobs/{{ job.id }}/log?offset={{ offset }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+<div id="job-log" class="terminal"{% if not finished %} hx-get="/jobs/{{ job.id }}/log?offset={{ offset }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
   <pre>{{ text }}</pre>
-  {% if not finished %}<p>Выполняется…</p>{% endif %}
+  {% if not finished %}<p class="muted" style="padding:0 1rem 1rem">Выполняется…</p>{% endif %}
 </div>

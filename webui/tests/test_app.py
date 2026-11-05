@@ -14,12 +14,12 @@ def test_healthz_is_public(tmp_path):
     assert client.get("/healthz").get_json() == {"status": "ok"}
 
 
-def test_speaker_page_masks_device_id(client, login):
+def test_speaker_page_shows_full_identifiers(client, login):
     login()
     response = client.get("/speakers/speaker-a")
     body = response.get_data(as_text=True)
-    assert "EXAM...0001" in body
-    assert "EXAMPLE000000000000000000000001" not in body
+    assert "EXAMPLE000000000000000000000001" in body
+    assert "02:00:00:00:00:01" in body
 
 
 def test_speaker_action_creates_job(client, app, login, csrf):
@@ -323,3 +323,52 @@ def test_backup_restore_all_from_stored_archive(client, app, login, csrf):
     )
     assert response.status_code == 200
     assert profile.read_text(encoding="utf-8") == original
+
+
+def test_change_password_rejects_wrong_current(client, login, csrf):
+    login()
+    response = client.post(
+        "/password",
+        data={
+            "current": "wrong",
+            "new": "new correct horse",
+            "confirm": "new correct horse",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 400
+
+
+def test_change_password_updates_login(client, login, csrf):
+    login()
+    response = client.post(
+        "/password",
+        data={
+            "current": "correct horse",
+            "new": "new correct horse",
+            "confirm": "new correct horse",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+    client.get("/login")
+    old = client.post(
+        "/login",
+        data={
+            "password": "correct horse",
+            "csrf_token": csrf(client),
+        },
+    )
+    assert old.status_code == 401
+
+    client.get("/login")
+    new = client.post(
+        "/login",
+        data={
+            "password": "new correct horse",
+            "csrf_token": csrf(client),
+        },
+    )
+    assert new.status_code == 302

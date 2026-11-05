@@ -73,6 +73,18 @@ def verify_password(password: str, encoded: str) -> bool:
     return hmac.compare_digest(actual, expected)
 
 
+def save_password_hash(path: Path, password: str) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(f".{path.name}.tmp")
+    with open(temp, "w", encoding="utf-8") as stream:
+        stream.write(hash_password(password) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.chmod(temp, 0o600)
+    os.replace(temp, path)
+
+
 def load_or_create_session_key(path: Path) -> bytes:
     path = Path(path)
     if path.exists():
@@ -127,7 +139,7 @@ def init_auth(app: Flask, settings: Settings) -> None:
     def login():
         if not session.get("csrf"):
             session["csrf"] = secrets.token_urlsafe(32)
-        return render_template("login.html")
+        return render_template("login.html", notice=session.pop("notice", None))
 
     @app.post("/login")
     def login_post():

@@ -3,33 +3,44 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#2f6df6">
   <title>{% block title %}Web UI{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
-<body>
-  <header>
-    <strong>Станции</strong>
-    {% if session.get('user') %}
-      <nav>
-        <a href="/speakers">Колонки</a>
-        <a href="/router">Роутер</a>
-        <a href="/keys">Ключи</a>
-        <a href="/backup">Бэкапы</a>
-        <a href="/audit">Аудит</a>
-      </nav>
-      <form method="post" action="/logout" class="inline">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit">Выйти</button>
-      </form>
+<body class="{% block body_class %}{% endblock %}">
+{% if session.get('user') %}
+<header class="topbar">
+  <a class="brand" href="/speakers">
+    <span class="brand-mark">◉</span>
+    <span>Станции <small>Web UI</small></span>
+  </a>
+  <nav class="nav">
+    <a href="/speakers" class="{% if request.path.startswith('/speakers') %}active{% endif %}">Колонки</a>
+    <a href="/router" class="{% if request.path.startswith('/router') %}active{% endif %}">Роутер</a>
+    <a href="/keys" class="{% if request.path.startswith('/keys') %}active{% endif %}">Ключи</a>
+    <a href="/backup" class="{% if request.path.startswith('/backup') %}active{% endif %}">Бэкапы</a>
+    <a href="/audit" class="{% if request.path.startswith('/audit') %}active{% endif %}">Аудит</a>
+    <a href="/password" class="{% if request.path.startswith('/password') %}active{% endif %}">Пароль</a>
+  </nav>
+  <form method="post" action="/logout" class="logout">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-ghost btn-sm" type="submit">Выйти</button>
+  </form>
+</header>
+{% endif %}
+
+<main class="page">
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="flashes">
+      {% for message in messages %}<p class="flash">{{ message }}</p>{% endfor %}
+    </div>
     {% endif %}
-  </header>
-  <main>
-    {% with messages = get_flashed_messages() %}
-      {% for message in messages %}
-        <p class="flash">{{ message }}</p>
-      {% endfor %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-  </main>
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
