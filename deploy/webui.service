@@ -1,0 +1,17 @@
+[Unit]
+Description=Local web UI for the Yandex Station project
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/path/to/my-pys
+Environment=WEBUI_HOST=127.0.0.1
+Environment=WEBUI_PORT=8080
+ExecStart=/usr/bin/python3 -m webui
+Restart=on-failure
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

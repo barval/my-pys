@@ -38,7 +38,7 @@ Ollama, vLLM, LM Studio или облачный сервис). Использу�
 
 ```
 README.md                     этот файл
-VERSION                       v1.0
+VERSION                       версия проекта
 docs/
   README.md                   индекс документации
   00-architecture.md          схема тракта, компоненты, порты
@@ -52,11 +52,20 @@ config/
   router-routes.example.json  пример таблицы маршрутов роутера
   quasar-bridge-policy.json   политика: Яндекс-сервисы vs внешняя LLM
   quasar-bridge-notes.md      настройки Bridge и внешней LLM
-  speakers/                   профили четырёх колонок (MAC/device ID/IP)
+  speakers/example.env        публичный пример профиля колонки
 router/
   llm_router.py               локальный OpenAI-совместимый роутер
   Dockerfile                  контейнер без pip-зависимостей
   tests/                      тесты роутера
+webui/
+  app.py                      Flask-приложение панели
+  auth.py                     вход, сессия, CSRF
+  jobs.py                     очередь заданий и логи
+  router_config.py            проверка и атомарная запись конфига роутера
+  keys.py                     инвентарь и ротация ключей
+  tests/                      тесты панели
+deploy/
+  webui.service               unit-файл systemd
 scripts/
   lib-env.sh                  общий загрузчик .env и профиля колонки
   router-init.sh              ключи колонок и secrets/router-routes.json
@@ -353,6 +362,24 @@ SPEAKER_ENV=local/speakers/speaker-b.env make status
 
 `make status` проверяет только процесс Bridge. `make check-backends`
 дополнительно дергает LLM тестовым запросом «Ответь одним словом: связь».
+
+## Web UI
+
+В v2.0 добавлена локальная панель на Flask: статус колонок, установка
+Bridge, routing, управление маршрутами и ключами роутера. По умолчанию
+она слушает `127.0.0.1:8080`.
+
+```bash
+python3 -m pip install -r requirements-webui.txt
+python3 -m webui.admin set-password
+make webui
+```
+
+Подробности, LAN-доступ, systemd и отзыв доступа — в
+[`docs/07-webui.md`](docs/07-webui.md).
+
+> Панель предназначена только для локальной сети. Не публикуйте её порт
+> в интернет.
 
 ## Безопасность
 
