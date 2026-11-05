@@ -447,7 +447,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "route_new.html", error="Маршрут уже существует"
             ), 400
         try:
-            token = rotate_router_token(settings.secrets_dir, name)
+            token = rotate_router_token(settings.secrets_dir, f"router-token-{name}")
             route = _route_from_form(
                 request.form,
                 name,
@@ -680,44 +680,52 @@ def create_app(settings: Settings | None = None) -> Flask:
     def router_action(action: str):
         return submit_host(action)
 
-    def route_names() -> list[str]:
-        return [
-            route["name"]
-            for route in router_config().get("routes", [])
-            if route.get("name")
-        ]
-
     @app.get("/keys")
     def keys_page():
-        names = route_names()
         return render_template(
             "keys.html",
-            items=key_inventory(settings.secrets_dir, names),
+            items=key_inventory(settings.secrets_dir, normalized_routes()),
             new_token=session.pop("new_token", None),
         )
 
     @app.post("/keys/router/<route>/rotate")
     def keys_rotate(route: str):
-        if route not in route_names():
+        raw = router_config()
+        item = find_route(raw, route)
+        if item is None:
             abort(404)
-        session["new_token"] = rotate_router_token(settings.secrets_dir, route)
+        token_file = item.get("token_file", "")
+        if not token_file:
+            abort(404)
+        session["new_token"] = rotate_router_token(
+            settings.secrets_dir, token_file
+        )
         audit("keys.rotate", route)
         return redirect(url_for("keys_page"))
 
-    @app.post("/keys/upstream/<route>/<provider>")
-    def keys_upstream(route: str, provider: str):
-        if route not in route_names() or provider not in ("flai", "orca"):
+    @app.post("/keys/upstream/<route>")
+    def keys_upstream(route: str):
+        raw = router_config()
+        item = find_route(raw, route)
+        if item is None:
             abort(404)
+        key_file = request.form.get("key_file", "")
+        allowed = {
+            value.get("api_key_file", "")
+            for value in [item.get("primary"), *item.get("fallbacks", [])]
+            if isinstance(value, dict) and value.get("api_key_file")
+        }
+        if key_file not in allowed:
+            return "неизвестный файл ключа", 400
         try:
             set_upstream_key(
                 settings.secrets_dir,
-                route,
-                provider,
+                key_file,
                 request.form.get("value", ""),
             )
         except ValueError as exc:
             return str(exc), 400
-        audit(f"keys.upstream.{provider}", route)
+        audit("keys.upstream", route, detail=key_file)
         return redirect(url_for("keys_page"))
 
     @app.get("/backup")

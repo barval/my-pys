@@ -171,8 +171,8 @@ def test_upstream_key_is_not_rendered(client, app, login, csrf):
     login()
     write_router_config(app.config["WEBUI_SETTINGS"].router_config)
     client.post(
-        "/keys/upstream/speaker-a/flai",
-        data={"value": "flai-very-secret"},
+        "/keys/upstream/speaker-a",
+        data={"key_file": "flai-token-speaker-a", "value": "flai-very-secret"},
         headers={"X-CSRF-Token": csrf(client)},
     )
     assert "flai-very-secret" not in client.get("/keys").get_data(as_text=True)

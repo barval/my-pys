@@ -4,7 +4,7 @@
 <div class="page-head">
   <div>
     <h1>Ключи</h1>
-    <div class="sub">Промежуточные токены и upstream-ключи</div>
+    <div class="sub">Промежуточные токены колонок и upstream-ключи</div>
   </div>
 </div>
 
@@ -15,37 +15,34 @@
     <div class="mono" style="margin:.5rem 0; word-break:break-all">{{ new_token }}</div>
     <button class="copy" type="button" data-copy="{{ new_token }}">Копировать</button>
   </div>
-  <p class="muted">Ключ показывается при фокусе на поле. Запишите его в колонку: <code>make key</code> или
+  <p class="muted">Запишите его в колонку: <code>make key</code> или
     <code>./scripts/set-speaker-key.sh</code>.</p>
 </div>
 {% endif %}
 
 {% if items %}
+<h2>Промежуточные токены</h2>
+<p class="muted small">Один токен на маршрут. Колонка ходит с ним в LLM-роутер,
+а роутер по нему выбирает маршрут.</p>
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Маршрут</th><th>Промежуточный</th><th>FLAI</th><th>Orca</th><th></th></tr>
+      <tr><th>Маршрут</th><th>Файл токена</th><th>Статус</th><th></th></tr>
     </thead>
     <tbody>
       {% for item in items %}
       <tr>
         <td><strong>{{ item.route }}</strong></td>
+        <td class="mono">{{ item.router_token_file or "—" }}</td>
         <td>
           <span class="badge badge-{{ 'ok' if item.router_token else 'muted' }}">
-            {{ "есть" if item.router_token else "нет" }}
+            {{ "настроен" if item.router_token else "нет" }}
           </span>
-          {% if item.router_token %}<span class="muted mono">{{ item.router_token_length }} б</span>{% endif %}
-        </td>
-        <td>
-          <span class="badge badge-{{ 'ok' if item.flai_token else 'muted' }}">{{ "есть" if item.flai_token else "нет" }}</span>
-        </td>
-        <td>
-          <span class="badge badge-{{ 'ok' if item.orca_token else 'muted' }}">{{ "есть" if item.orca_token else "нет" }}</span>
         </td>
         <td>
           <form method="post" action="/keys/router/{{ item.route }}/rotate" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-sm" type="submit">Ротировать</button>
+            <button class="btn btn-warning btn-sm" type="submit">Ротировать</button>
           </form>
         </td>
       </tr>
@@ -54,23 +51,44 @@
   </table>
 </div>
 
-<h2 style="margin-top:1.4rem">Записать upstream-ключ</h2>
-<div class="grid forms">
-  {% for item in items %}
-  <section class="card">
-    <h3>{{ item.route }}</h3>
-    {% for provider, label in [("flai", "FLAI"), ("orca", "Orca")] %}
-    <form method="post" action="/keys/upstream/{{ item.route }}/{{ provider }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label>{{ label }}
-        <input type="password" name="value" required autocomplete="off" placeholder="Новый ключ"
-               onfocus="this.type='text'" onblur="this.type='password'">
-      </label>
-      <button class="btn btn-success btn-sm" type="submit">Сохранить</button>
-    </form>
-    {% endfor %}
-  </section>
-  {% endfor %}
+<h2 style="margin-top:1.4rem">Upstream-ключи</h2>
+<p class="muted small">Ключи, которые роутер использует для основного и запасных
+upstream. Файлы берутся из <code>api_key_file</code> маршрута.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Маршрут</th><th>Роль</th><th>Файл ключа</th><th>Статус</th><th>Новый ключ</th></tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      {% for upstream in item.upstream %}
+      <tr>
+        <td>{{ item.route }}</td>
+        <td>{{ upstream.label }}</td>
+        <td class="mono">{{ upstream.key_file or "—" }}</td>
+        <td>
+          <span class="badge badge-{{ 'ok' if upstream.exists else 'muted' }}">
+            {{ "настроен" if upstream.exists else "нет" }}
+          </span>
+        </td>
+        <td>
+          {% if upstream.key_file %}
+          <form method="post" action="/keys/upstream/{{ item.route }}" class="key-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="key_file" value="{{ upstream.key_file }}">
+            <input type="password" name="value" required autocomplete="off" placeholder="Новый ключ"
+                   onfocus="this.type='text'" onblur="this.type='password'">
+            <button class="btn btn-success btn-sm" type="submit">Сохранить</button>
+          </form>
+          {% else %}
+          <span class="muted small">не задан в api_key_file</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% else %}
 <div class="empty">Сначала добавьте маршруты в конфиг роутера.</div>

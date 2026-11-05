@@ -522,3 +522,6 @@ pre {
   border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
   background: color-mix(in srgb, var(--primary) 10%, var(--surface-2));
 }
+
+.key-form { display: flex; gap: .5rem; align-items: center; }
+.key-form input[name="value"] { flex: 1 1 180px; width: auto; margin-top: 0; }
