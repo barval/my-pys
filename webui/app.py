@@ -7,6 +7,7 @@ import urllib.request
 from pathlib import Path
 
 import tempfile
+from datetime import datetime, timezone
 
 from flask import (
     Flask,
@@ -209,6 +210,31 @@ def create_app(settings: Settings | None = None) -> Flask:
             abort(404)
         return profile
 
+    def firmware_files() -> list[dict]:
+        directory = (
+            settings.root / "vendor" / "lite-kit" / "firmware" / "yandexmicro"
+        )
+        result = []
+        try:
+            paths = sorted(directory.glob("*.zip"))
+        except OSError:
+            return result
+        for path in paths:
+            try:
+                stat = path.stat()
+            except OSError:
+                continue
+            result.append(
+                {
+                    "name": path.name,
+                    "size": stat.st_size,
+                    "modified": datetime.fromtimestamp(
+                        stat.st_mtime, tz=timezone.utc
+                    ).isoformat(timespec="seconds"),
+                }
+            )
+        return result
+
     def router_config() -> dict:
         try:
             return read_config(settings.router_config)
@@ -338,6 +364,23 @@ def create_app(settings: Settings | None = None) -> Flask:
             item.pop("fallback", None)
             result.append(item)
         return result
+
+    @app.get("/firmware")
+    def firmware_page():
+        return render_template(
+            "firmware.html",
+            cards=speaker_cards(),
+            firmware_files=firmware_files(),
+            speaker_actions=SPEAKER_ACTIONS.values(),
+        )
+
+    @app.post("/firmware/actions/<action>")
+    def firmware_action(action: str):
+        if action != "firmware":
+            abort(404)
+        job = app.extensions["jobs"].submit(action, None)
+        audit("firmware.download", "host", detail=f"job={job.id}")
+        return redirect(url_for("job_page", job_id=job.id), code=303)
 
     @app.get("/router")
     def router_page():

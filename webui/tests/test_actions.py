@@ -42,3 +42,10 @@ def test_sidecar_mode_rejects_start_and_stop(tmp_path):
         except UnknownAction:
             continue
         raise AssertionError(f"{action} should not be available in sidecar mode")
+
+
+def test_resolve_action_uses_profile(tmp_path, make_profile):
+    profile = make_profile("speaker-a")
+    argv, env = CommandBuilder(tmp_path).build("resolve", profile)
+    assert argv == ["bash", "scripts/resolve-speaker.sh"]
+    assert env["SPEAKER_ENV"] == str(profile.path)

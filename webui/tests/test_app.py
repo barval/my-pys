@@ -487,3 +487,40 @@ def test_project_title_in_login_and_admin(client, login):
     admin_page = client.get("/speakers").get_data(as_text=True)
     assert "Колонки — Моя Яндекс Станция" in admin_page
     assert "Моя Яндекс Станция" in admin_page
+
+
+def test_firmware_page_requires_login(client):
+    assert client.get("/firmware").status_code == 302
+
+
+def test_firmware_page_lists_files_and_actions(client, app, login):
+    login()
+    fw_dir = (
+        app.config["WEBUI_SETTINGS"].root
+        / "vendor"
+        / "lite-kit"
+        / "firmware"
+        / "yandexmicro"
+    )
+    fw_dir.mkdir(parents=True)
+    (fw_dir / "test-firmware.zip").write_bytes(b"x")
+    body = client.get("/firmware").get_data(as_text=True)
+    assert "Прошивка" in body
+    assert "Скачать прошивку" in body
+    assert "test-firmware.zip" in body
+    assert "Найти колонку" in body
+    assert "Настроить SSH/OTA" in body
+    assert "Установить Bridge" in body
+
+
+def test_firmware_download_submits_host_job(client, app, login, csrf):
+    login()
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    response = client.post(
+        "/firmware/actions/firmware",
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 303
+    assert "/jobs/" in response.headers["Location"]
+    assert runner.actions == [("firmware", None)]

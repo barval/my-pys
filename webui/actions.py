@@ -29,6 +29,13 @@ SPEAKER_ACTIONS: dict[str, ActionSpec] = {
         argv=("bash", "scripts/speaker-status.sh"),
         needs_profile=True,
     ),
+    "resolve": ActionSpec(
+        key="resolve",
+        label="Найти колонку",
+        scope="speaker",
+        argv=("bash", "scripts/resolve-speaker.sh"),
+        needs_profile=True,
+    ),
     "check": ActionSpec(
         key="check",
         label="Проверить LLM",
@@ -59,7 +66,7 @@ SPEAKER_ACTIONS: dict[str, ActionSpec] = {
     ),
     "root": ActionSpec(
         key="root",
-        label="Подготовить root/SSH",
+        label="Настроить SSH/OTA",
         scope="speaker",
         argv=("bash", "scripts/post-root-ssh.sh"),
         needs_profile=True,
