@@ -585,6 +585,30 @@ def create_app(settings: Settings | None = None) -> Flask:
             ), 400
         return redirect(url_for("router_page"))
 
+    @app.post("/router/routes/<name>/primary/move")
+    def primary_move(name: str):
+        raw = router_config()
+        route = find_route(raw, name)
+        if route is None:
+            abort(404)
+        if request.form.get("direction") != "down":
+            abort(400)
+        fallbacks = route_fallbacks(route)
+        if not fallbacks:
+            return redirect(url_for("router_page"))
+        primary = route.get("primary")
+        fallbacks[0], primary = primary, fallbacks[0]
+        updated = dict(route)
+        updated["primary"] = primary
+        updated["fallbacks"] = fallbacks
+        updated.pop("fallback", None)
+        try:
+            save_config(settings.router_config, upsert_route(raw, updated))
+        except (ConfigError, OSError) as exc:
+            return str(exc), 400
+        audit("router.primary.move", name, detail="primary<->fallback1")
+        return redirect(url_for("router_page"))
+
     @app.post("/router/routes/<name>/fallback/<int:index>/move")
     def fallback_move(name: str, index: int):
         raw = router_config()
@@ -595,18 +619,25 @@ def create_app(settings: Settings | None = None) -> Flask:
         direction = request.form.get("direction", "")
         if direction not in ("up", "down"):
             abort(400)
-        target = index - 1 if direction == "up" else index + 1
-        if index < 0 or index >= len(fallbacks) or target < 0 or target >= len(fallbacks):
-            return redirect(url_for("router_page"))
-        fallbacks[index], fallbacks[target] = fallbacks[target], fallbacks[index]
+        if index < 0 or index >= len(fallbacks):
+            abort(404)
         updated = dict(route)
+        if direction == "up" and index == 0:
+            primary = route.get("primary")
+            fallbacks[0], primary = primary, fallbacks[0]
+            updated["primary"] = primary
+        else:
+            target = index - 1 if direction == "up" else index + 1
+            if target < 0 or target >= len(fallbacks):
+                return redirect(url_for("router_page"))
+            fallbacks[index], fallbacks[target] = fallbacks[target], fallbacks[index]
         updated["fallbacks"] = fallbacks
         updated.pop("fallback", None)
         try:
             save_config(settings.router_config, upsert_route(raw, updated))
         except (ConfigError, OSError) as exc:
             return str(exc), 400
-        audit("router.fallback.move", name, detail=f"{index}->{target}")
+        audit("router.fallback.move", name, detail=f"{index} {direction}")
         return redirect(url_for("router_page"))
 
     @app.post("/router/routes/<name>/fallback/<int:index>/delete")

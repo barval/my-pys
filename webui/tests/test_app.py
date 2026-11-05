@@ -678,3 +678,39 @@ def test_router_probe_shows_colored_upstream_status(client, app, login, monkeypa
     body = client.get("/router?probe=1").get_data(as_text=True)
     assert "health-err" in body
     assert "недоступен" in body
+
+
+def test_primary_and_first_fallback_can_swap(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["routes"][0]["primary"]["model"] = "primary-model"
+    data["routes"][0]["fallbacks"] = [
+        {
+            "base_url": "https://api0.example/v1",
+            "api_key_file": "fallback-token-speaker-a",
+            "model": "fallback-model",
+            "history": "client",
+        }
+    ]
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    client.post(
+        "/router/routes/speaker-a/primary/move",
+        data={"direction": "down"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    route = saved["routes"][0]
+    assert route["primary"]["model"] == "fallback-model"
+    assert route["fallbacks"][0]["model"] == "primary-model"
+
+    client.post(
+        "/router/routes/speaker-a/fallback/0/move",
+        data={"direction": "up"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    route = saved["routes"][0]
+    assert route["primary"]["model"] == "primary-model"
+    assert route["fallbacks"][0]["model"] == "fallback-model"

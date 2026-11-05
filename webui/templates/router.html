@@ -87,7 +87,21 @@
         {% for route in routes %}
         {% set primary = route.get("primary", {}) %}
         <tr>
-          <td><strong>{{ route.name }}</strong></td>
+          <td class="route-cell">
+            <strong>{{ route.name }}</strong>
+            <div class="move-actions">
+              <form method="post" action="/router/routes/{{ route.name }}/primary/move">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="direction" value="up">
+                <button class="btn btn-sm move-btn" type="submit" title="Выше некуда" disabled>▲</button>
+              </form>
+              <form method="post" action="/router/routes/{{ route.name }}/primary/move">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="direction" value="down">
+                <button class="btn btn-sm move-btn" type="submit" title="Сделать запасным 1"{% if not route.fallbacks %} disabled{% endif %}>▼</button>
+              </form>
+            </div>
+          </td>
           <td><span class="badge badge-ok">основной</span></td>
           <td class="mono">{{ primary.get("base_url", "") }}</td>
           <td class="mono">{{ primary.get("model", "") }}</td>
@@ -116,7 +130,7 @@
               <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/move">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="direction" value="up">
-                <button class="btn btn-sm move-btn" type="submit" title="Выше"{% if loop.first %} disabled{% endif %}>▲</button>
+                <button class="btn btn-sm move-btn" type="submit" title="Выше">▲</button>
               </form>
               <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/move">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
