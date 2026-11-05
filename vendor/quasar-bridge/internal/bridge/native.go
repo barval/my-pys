@@ -53,6 +53,11 @@ type StreamingRoutedResolver interface {
 	ResolveDecisionStream(context.Context, string, RouteDecision, func(string) error) (Resolution, error)
 }
 
+type speechItem struct {
+	text   string
+	filler bool
+}
+
 type speechStream struct {
 	n           *Native
 	p           *nativeRequest
@@ -73,6 +78,7 @@ func (s *speechStream) chunk(text string) error {
 		return nil
 	}
 	s.stopFillersOnce()
+	s.n.clearFillers(s.p)
 	s.full.WriteString(text)
 	s.full.WriteByte(' ')
 	return s.n.enqueueSpeech(s.p, text)
@@ -124,7 +130,7 @@ func (n *Native) startSpeechFillers(p *nativeRequest) func() {
 		case <-timer.C:
 		}
 		for index := 0; ; index++ {
-			if err := n.enqueueSpeech(p, phrases[index%len(phrases)]); err != nil {
+			if err := n.enqueueFiller(p, phrases[index%len(phrases)]); err != nil {
 				return
 			}
 			select {
@@ -141,6 +147,7 @@ func (n *Native) startSpeechFillers(p *nativeRequest) func() {
 
 func (s *speechStream) finish(full string) error {
 	s.stopFillersOnce()
+	s.n.clearFillers(s.p)
 	if !s.started {
 		return s.n.reply(s.p, full)
 	}
@@ -174,8 +181,10 @@ type nativeRequest struct {
 	continuation                    []byte
 	ttsID                           string
 	progressTTS                     string
-	speechQueue                     []string
+	speechQueue                     []speechItem
 	speechActive                    bool
+	speechActiveFiller              bool
+	fillersStopped                  bool
 	speechDone                      bool
 	speechIDs                       []string
 	audio                           oggSpeech
@@ -913,9 +922,17 @@ func (n *Native) startSpeechChunks(p *nativeRequest, text string) error {
 }
 
 func (n *Native) enqueueSpeech(p *nativeRequest, chunks ...string) error {
+	return n.enqueueSpeechItems(p, false, chunks...)
+}
+
+func (n *Native) enqueueFiller(p *nativeRequest, phrase string) error {
+	return n.enqueueSpeechItems(p, true, phrase)
+}
+
+func (n *Native) enqueueSpeechItems(p *nativeRequest, filler bool, chunks ...string) error {
 	queued := false
 	n.mu.Lock()
-	if p.canceled {
+	if p.canceled || (filler && p.fillersStopped) {
 		n.mu.Unlock()
 		return nil
 	}
@@ -924,7 +941,7 @@ func (n *Native) enqueueSpeech(p *nativeRequest, chunks ...string) error {
 		if chunk == "" {
 			continue
 		}
-		p.speechQueue = append(p.speechQueue, chunk)
+		p.speechQueue = append(p.speechQueue, speechItem{text: chunk, filler: filler})
 		queued = true
 	}
 	n.mu.Unlock()
@@ -934,20 +951,38 @@ func (n *Native) enqueueSpeech(p *nativeRequest, chunks ...string) error {
 	return n.sendNextSpeech(p)
 }
 
+// clearFillers drops queued filler phrases when the first real answer arrives.
+// A filler that is already playing is allowed to finish; the answer follows it.
+func (n *Native) clearFillers(p *nativeRequest) {
+	n.mu.Lock()
+	p.fillersStopped = true
+	if len(p.speechQueue) > 0 {
+		kept := p.speechQueue[:0]
+		for _, item := range p.speechQueue {
+			if !item.filler {
+				kept = append(kept, item)
+			}
+		}
+		p.speechQueue = kept
+	}
+	n.mu.Unlock()
+}
+
 func (n *Native) sendNextSpeech(p *nativeRequest) error {
 	n.mu.Lock()
 	if p.canceled || p.speechActive || len(p.speechQueue) == 0 {
 		n.mu.Unlock()
 		return nil
 	}
-	chunk := p.speechQueue[0]
+	item := p.speechQueue[0]
 	p.speechQueue = p.speechQueue[1:]
 	p.speechActive = true
+	p.speechActiveFiller = item.filler
 	p.ttsID = newID()
 	p.speechIDs = append(p.speechIDs, p.ttsID)
 	n.tts[p.ttsID] = p
 	n.mu.Unlock()
-	if err := n.synthesize(p, chunk); err != nil {
+	if err := n.synthesize(p, item.text); err != nil {
 		n.mu.Lock()
 		p.speechActive = false
 		n.mu.Unlock()
