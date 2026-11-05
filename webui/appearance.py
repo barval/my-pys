@@ -10,12 +10,12 @@ from pathlib import Path
 from .profiles import Profile
 
 COLOR_CHOICES = (
-    ("beige", "Бежевый", "#d9c3a5"),
-    ("green", "Зелёный", "#7fb069"),
-    ("pink", "Розовый", "#ef8fb3"),
-    ("red", "Красный", "#d9534f"),
-    ("purple", "Фиолетовый", "#8e6bbf"),
-    ("yellow", "Жёлтый", "#e6c229"),
+    ("beige", "Капучино", "#d9c3a5"),
+    ("green", "Мята", "#7fb069"),
+    ("pink", "Фламинго", "#ef8fb3"),
+    ("red", "Чили", "#d9534f"),
+    ("purple", "Ультрафиолет", "#8e6bbf"),
+    ("yellow", "Лимон", "#e6c229"),
     ("blue", "Голубой", "#4a90e2"),
     ("gray", "Серый", "#9aa0a6"),
     ("black", "Чёрный", "#2f2f2f"),
@@ -24,36 +24,45 @@ COLOR_CHOICES = (
 COLOR_MAP = {key: value for key, _, value in COLOR_CHOICES}
 COLOR_LABELS = {key: label for key, label, _ in COLOR_CHOICES}
 COLOR_ALIASES = {
+    "beige": "beige",
     "cappuccino": "beige",
     "капучино": "beige",
+    "бежевый": "beige",
+    "green": "green",
     "mint": "green",
     "мята": "green",
     "бирюзовый": "green",
     "бирюзовая": "green",
+    "зелёный": "green",
+    "зеленый": "green",
+    "pink": "pink",
     "flamingo": "pink",
     "фламинго": "pink",
-    "ultraviolet": "purple",
-    "ультравиолет": "purple",
+    "розовый": "pink",
+    "red": "red",
     "chili": "red",
     "чили": "red",
+    "красный": "red",
+    "purple": "purple",
+    "ultraviolet": "purple",
+    "ультрафиолет": "purple",
+    "ультравиолет": "purple",
+    "фиолетовый": "purple",
+    "yellow": "yellow",
     "lemon": "yellow",
     "лимон": "yellow",
-}
-COLOR_MARKETING = {
-    "cappuccino": "Капучино",
-    "капучино": "Капучино",
-    "mint": "Мята",
-    "мята": "Мята",
-    "бирюзовый": "Мята",
-    "бирюзовая": "Мята",
-    "flamingo": "Фламинго",
-    "фламинго": "Фламинго",
-    "ultraviolet": "Ультравиолет",
-    "ультравиолет": "Ультравиолет",
-    "chili": "Чили",
-    "чили": "Чили",
-    "lemon": "Лимон",
-    "лимон": "Лимон",
+    "жёлтый": "yellow",
+    "желтый": "yellow",
+    "blue": "blue",
+    "голубой": "blue",
+    "gray": "gray",
+    "grey": "gray",
+    "серый": "gray",
+    "black": "black",
+    "чёрный": "black",
+    "черный": "black",
+    "white": "white",
+    "белый": "white",
 }
 _FALLBACK = [value for key, _, value in COLOR_CHOICES if key not in ("black", "white")]
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -81,12 +90,10 @@ def color_hex(value: str, device_id: str) -> str:
 
 
 def color_label(value: str) -> str:
-    value = (value or "").strip().lower()
-    if value in COLOR_MARKETING:
-        return COLOR_MARKETING[value]
-    if value in COLOR_LABELS:
-        return COLOR_LABELS[value]
-    if value:
+    key = canonical_color(value)
+    if key in COLOR_LABELS:
+        return COLOR_LABELS[key]
+    if key:
         return "свой цвет"
     return "авто"
 

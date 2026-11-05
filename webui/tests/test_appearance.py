@@ -37,3 +37,30 @@ def test_marketing_color_aliases():
     assert color_label("cappuccino") == "Капучино"
     assert canonical_color("ультравиолет") == "purple"
     assert canonical_color("mint") == "green"
+
+
+import pytest
+
+from webui.appearance import canonical_color, color_label
+
+LITE_COLORS = [
+    ("cappuccino", "beige", "Капучино"),
+    ("капучино", "beige", "Капучино"),
+    ("mint", "green", "Мята"),
+    ("мята", "green", "Мята"),
+    ("flamingo", "pink", "Фламинго"),
+    ("фламинго", "pink", "Фламинго"),
+    ("chili", "red", "Чили"),
+    ("чили", "red", "Чили"),
+    ("ultraviolet", "purple", "Ультрафиолет"),
+    ("ультрафиолет", "purple", "Ультрафиолет"),
+    ("ультравиолет", "purple", "Ультрафиолет"),
+    ("lemon", "yellow", "Лимон"),
+    ("лимон", "yellow", "Лимон"),
+]
+
+
+@pytest.mark.parametrize("value,key,label", LITE_COLORS)
+def test_lite_marketing_names(value, key, label):
+    assert canonical_color(value) == key
+    assert color_label(value) == label
