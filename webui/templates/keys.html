@@ -15,7 +15,7 @@
     <div class="mono" style="margin:.5rem 0; word-break:break-all">{{ new_token }}</div>
     <button class="copy" type="button" data-copy="{{ new_token }}">Копировать</button>
   </div>
-  <p class="muted">Запишите его в колонку: <code>make key</code> или
+  <p class="muted">Ключ показывается при фокусе на поле. Запишите его в колонку: <code>make key</code> или
     <code>./scripts/set-speaker-key.sh</code>.</p>
 </div>
 {% endif %}
@@ -63,9 +63,10 @@
     <form method="post" action="/keys/upstream/{{ item.route }}/{{ provider }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label>{{ label }}
-        <input type="password" name="value" required autocomplete="off" placeholder="Новый ключ">
+        <input type="password" name="value" required autocomplete="off" placeholder="Новый ключ"
+               onfocus="this.type='text'" onblur="this.type='password'">
       </label>
-      <button class="btn btn-sm" type="submit">Сохранить</button>
+      <button class="btn btn-success btn-sm" type="submit">Сохранить</button>
     </form>
     {% endfor %}
   </section>

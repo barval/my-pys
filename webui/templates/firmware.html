@@ -43,18 +43,18 @@
       <form method="post" action="/firmware/actions/{{ action.key }}"
             onsubmit="return confirm('Запустить стенд lite-kit? Он займёт DNS 53, HTTP 80 и HTTPS 443 на хосте.')">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-primary" type="submit">{{ action.label }}</button>
+        <button class="btn btn-success" type="submit">{{ action.label }}</button>
       </form>
       {% elif action.key == "stand-stop" %}
       <form method="post" action="/firmware/actions/{{ action.key }}"
             onsubmit="return confirm('Остановить стенд lite-kit? Не забудьте вернуть DNS роутера.')">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn" type="submit">{{ action.label }}</button>
+        <button class="btn btn-danger" type="submit">{{ action.label }}</button>
       </form>
       {% elif action.key == "stand-status" %}
       <form method="post" action="/firmware/actions/{{ action.key }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn" type="submit">{{ action.label }}</button>
+        <button class="btn btn-primary" type="submit">{{ action.label }}</button>
       </form>
       {% endif %}
       {% endfor %}

@@ -187,7 +187,7 @@ code {
   justify-content: center;
   gap: .4rem;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text);
   border-radius: 10px;
   padding: .55rem .9rem;
@@ -197,13 +197,13 @@ code {
   cursor: pointer;
   transition: background .15s, border-color .15s, transform .05s;
 }
-.btn:hover { background: var(--surface-2); }
+.btn:hover { background: color-mix(in srgb, var(--surface-2) 82%, var(--border)); }
 .btn:active { transform: translateY(1px); }
 .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
 .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
 .btn-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--border)); }
 .btn-danger:hover { background: var(--danger-bg); }
-.btn-ghost { background: transparent; }
+.btn-ghost { background: var(--surface-2); }
 .btn-sm { padding: .35rem .6rem; font-size: .82rem; }
 .btn-block { width: 100%; }
 
@@ -458,3 +458,22 @@ pre {
   color: var(--text);
 }
 .confirm-row input { margin-top: .2rem; }
+
+.btn-warning {
+  background: #f2c94c;
+  border-color: #e0b400;
+  color: #3a2c00;
+}
+.btn-warning:hover { background: #e6b800; border-color: #d1a600; }
+.btn-success {
+  background: #1f7a4d;
+  border-color: #1f7a4d;
+  color: #fff;
+}
+.btn-success:hover { background: #16603c; border-color: #16603c; }
+.btn-danger {
+  background: #d92d20;
+  border-color: #d92d20;
+  color: #fff;
+}
+.btn-danger:hover { background: #b42318; border-color: #b42318; }

@@ -73,7 +73,7 @@
           <td>{{ primary.get("history", "") }}</td>
           <td class="mono">{{ primary.get("api_key_file", "—") }}</td>
           <td class="row-actions">
-            <a class="btn btn-ghost btn-sm" href="/router/routes/{{ route.name }}">Изменить</a>
+            <a class="btn btn-warning btn-sm" href="/router/routes/{{ route.name }}">Изменить</a>
             <form method="post" action="/router/routes/{{ route.name }}/delete" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-danger btn-sm" type="submit">Удалить</button>
@@ -89,7 +89,7 @@
           <td>{{ fallback.get("history", "") }}</td>
           <td class="mono">{{ fallback.get("api_key_file", "—") }}</td>
           <td class="row-actions">
-            <a class="btn btn-ghost btn-sm" href="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}">Изменить</a>
+            <a class="btn btn-warning btn-sm" href="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}">Изменить</a>
             <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/delete" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-danger btn-sm" type="submit">Удалить</button>
