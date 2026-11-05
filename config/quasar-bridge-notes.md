@@ -64,6 +64,7 @@ pkg=/data/opt/quasar-bridge/app
 | «новости» / «переведи…» | `yandex` / `yandex_services` |
 | «запусти пылесос» | `yandex` / `home_devices` |
 | «включи сценарий…» | `yandex` / `yandex_scenarios` |
+| «подсветка кровати 10%» | `yandex` / `home_state` |
 | «список покупок» | `yandex` / `yandex_services` |
 | «почему небо голубое» | `llm` / `default` |
 | «как дела в комнате A» | `llm` / `default` |
