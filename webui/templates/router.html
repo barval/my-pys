@@ -8,10 +8,6 @@
   </div>
   <div class="actions">
     <a class="btn btn-primary" href="/router/routes/new">Добавить маршрут</a>
-    <span class="badge badge-{{ 'ok' if health.status == 'ok' else 'err' }}"
-          title="Ответ GET /health от llm-router">
-      GET /health: {{ health.status }} · HTTP {{ health_status }}
-    </span>
   </div>
 </div>
 
@@ -41,7 +37,12 @@
     <h2>Состояние</h2>
     <dl class="meta">
       <dt>Адрес</dt><dd class="mono">{{ config.WEBUI_ROUTER_DISPLAY_URL }}</dd>
-      <dt>GET /health</dt><dd>{{ health.status }}</dd>
+      <dt>GET /health</dt>
+      <dd>
+        <span class="health-{{ 'ok' if health.status == 'ok' else 'err' }}">
+          {{ health.status }} · HTTP {{ health_status }}
+        </span>
+      </dd>
       <dt>Маршрутов</dt><dd>{{ routes | length }}</dd>
       <dt>Запасных</dt><dd>{{ fallback_count }}</dd>
     </dl>

@@ -502,3 +502,6 @@ pre {
   gap: 0.5rem;
 }
 .row-actions form { margin: 0; }
+
+.health-ok { color: var(--ok); font-weight: 700; }
+.health-err { color: var(--danger); font-weight: 700; }
