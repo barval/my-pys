@@ -375,3 +375,7 @@ sh /data/opt/quasar-bridge/app/uninstall.sh
 
 Вернуть обновления Яндекса: `sh /data/opt/yandex-noupdate.sh restore`.
 Остановить стенд: `./scripts/stop-lite-kit.sh`, вернуть DNS роутера.
+
+## Лицензия
+
+MIT — см. `LICENSE`. Русская версия — `LICENSE-ru`.
