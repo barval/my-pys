@@ -255,7 +255,13 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/healthz")
     def healthz():
-        return jsonify({"status": "ok"})
+        return jsonify({"status": "ok", "version": __version__})
+
+    @app.after_request
+    def no_html_cache(response):
+        if response.mimetype == "text/html":
+            response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.get("/")
     def index():

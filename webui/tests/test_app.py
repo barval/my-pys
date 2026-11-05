@@ -11,7 +11,9 @@ from webui.settings import load_settings
 def test_healthz_is_public(tmp_path):
     app = create_app(load_settings(root=tmp_path, env={}))
     client = app.test_client()
-    assert client.get("/healthz").get_json() == {"status": "ok"}
+    payload = client.get("/healthz").get_json()
+    assert payload["status"] == "ok"
+    assert payload["version"] == "2.0.0"
 
 
 def test_speaker_page_shows_full_identifiers(client, login):
@@ -394,3 +396,18 @@ def test_speaker_appearance_updates_color_and_model(client, app, login, csrf):
     body = response.get_data(as_text=True)
     assert "#7fb069" in body
     assert "Yandex Station Micro v1.2" in body
+
+
+def test_speakers_page_has_logout_and_tabs(client, login):
+    login()
+    body = client.get("/speakers").get_data(as_text=True)
+    assert "Выйти" in body
+    assert "admin-tabs" in body
+    assert "Администратор" in body
+
+
+def test_login_redirects_authenticated_user(client, login):
+    login()
+    response = client.get("/login")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/speakers")

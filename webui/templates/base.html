@@ -15,10 +15,11 @@
     <span>Станции <small>Web UI</small></span>
   </a>
   <div class="header-actions">
+    <span class="user-label">Администратор</span>
     <span class="muted version">v{{ config.WEBUI_VERSION }}</span>
     <form method="post" action="/logout">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-ghost btn-sm" type="submit">Выйти</button>
+      <button class="btn btn-sm" type="submit">Выйти</button>
     </form>
   </div>
 </header>

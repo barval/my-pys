@@ -355,6 +355,7 @@ pre {
 .header-actions { display: flex; align-items: center; gap: .8rem; }
 .header-actions form { margin: 0; }
 .version { font-size: .8rem; }
+.user-label { color: var(--muted); font-size: .9rem; }
 
 .admin-container {
   max-width: 1240px;

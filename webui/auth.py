@@ -137,6 +137,8 @@ def init_auth(app: Flask, settings: Settings) -> None:
 
     @app.get("/login")
     def login():
+        if session.get("user") == "admin":
+            return redirect(url_for("speakers_page"))
         if not session.get("csrf"):
             session["csrf"] = secrets.token_urlsafe(32)
         return render_template("login.html", notice=session.pop("notice", None))
@@ -176,7 +178,7 @@ def init_auth(app: Flask, settings: Settings) -> None:
         session["user"] = "admin"
         session["csrf"] = secrets.token_urlsafe(32)
         audit("auth.login", remote)
-        return redirect(url_for("index"))
+        return redirect(url_for("speakers_page"))
 
     @app.post("/logout")
     def logout():
