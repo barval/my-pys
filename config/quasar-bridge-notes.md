@@ -60,6 +60,11 @@ pkg=/data/opt/quasar-bridge/app
 | «скажи всем…» | `yandex` / `yandex_intercom` |
 | «включи трансляцию» | `yandex` / `yandex_intercom` |
 | «позвони…» | `yandex` / `yandex_intercom` |
+| «громче» / «следующий трек» | `yandex` / `speaker_controls` |
+| «новости» / «переведи…» | `yandex` / `yandex_services` |
+| «запусти пылесос» | `yandex` / `home_devices` |
+| «включи сценарий…» | `yandex` / `yandex_scenarios` |
+| «список покупок» | `yandex` / `yandex_services` |
 | «почему небо голубое» | `llm` / `default` |
 | «как дела в комнате A» | `llm` / `default` |
 
