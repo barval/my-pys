@@ -27,3 +27,29 @@ def test_load_profiles_skips_example(tmp_path):
 
 def test_mask_secret_keeps_edges():
     assert mask_secret("EXAMPLE000000000000000000000001") == "EXAM...0001"
+
+
+def test_profile_model_and_color_defaults(tmp_path):
+    (tmp_path / "speaker-a.env").write_text(
+        "SPEAKER_NAME=speaker-a\n"
+        "SPEAKER_DEVICE_ID=EXAMPLE0001\n"
+        "SPEAKER_MAC=02:00:00:00:00:01\n",
+        encoding="utf-8",
+    )
+    profile = load_profiles(tmp_path)[0]
+    assert profile.model == "Яндекс Станция Лайт"
+    assert profile.color == ""
+
+
+def test_profile_reads_model_and_color(tmp_path):
+    (tmp_path / "speaker-a.env").write_text(
+        "SPEAKER_NAME=speaker-a\n"
+        "SPEAKER_DEVICE_ID=EXAMPLE0001\n"
+        "SPEAKER_MAC=02:00:00:00:00:01\n"
+        "SPEAKER_MODEL=Yandex Station Micro v1.2\n"
+        "SPEAKER_COLOR=green\n",
+        encoding="utf-8",
+    )
+    profile = load_profiles(tmp_path)[0]
+    assert profile.model == "Yandex Station Micro v1.2"
+    assert profile.color == "green"

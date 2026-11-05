@@ -18,6 +18,8 @@ class Profile:
     ssh_port: int
     adb_port: int
     platform: str
+    model: str
+    color: str
 
 
 def parse_env(path: Path) -> dict[str, str]:
@@ -52,6 +54,14 @@ def load_profiles(directory: Path) -> list[Profile]:
             raise ValueError(
                 f"profile {path.name}: SPEAKER_DEVICE_ID and SPEAKER_MAC are required"
             )
+        platform = values.get("SPEAKER_PLATFORM", "yandexmicro").strip()
+        model = values.get("SPEAKER_MODEL", "").strip()
+        if not model:
+            model = (
+                "Яндекс Станция Лайт"
+                if platform == "yandexmicro"
+                else platform
+            )
         profiles.append(
             Profile(
                 name=name,
@@ -62,7 +72,9 @@ def load_profiles(directory: Path) -> list[Profile]:
                 device_id=device_id,
                 ssh_port=int(values.get("SPEAKER_SSH_PORT", "2222")),
                 adb_port=int(values.get("SPEAKER_ADB_PORT", "5555")),
-                platform=values.get("SPEAKER_PLATFORM", "yandexmicro").strip(),
+                platform=platform,
+                model=model,
+                color=values.get("SPEAKER_COLOR", "").strip().lower(),
             )
         )
     return profiles

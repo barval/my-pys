@@ -1,22 +1,30 @@
-{% extends "base.html" %}
-{% block body_class %}login-page{% endblock %}
-{% block title %}Вход — Web UI{% endblock %}
-{% block content %}
-<div class="login-card">
-  <div class="login-logo">◉</div>
-  <h1>Станции</h1>
-  <p class="muted">Локальное управление колонками, роутером и ключами</p>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#3498db">
+  <title>Вход — Web UI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css', v=config.WEBUI_ASSET_VERSION) }}">
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="login-logo">◉</div>
+    <h1>Станции</h1>
+    <p class="muted">Локальное управление колонками, роутером и ключами</p>
 
-  {% if notice %}<p class="flash">{{ notice }}</p>{% endif %}
-  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    {% if notice %}<p class="flash">{{ notice }}</p>{% endif %}
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
-  <form method="post" action="{{ url_for('login_post') }}" class="stack">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label>Пароль
-      <input type="password" name="password" required autofocus
-             autocomplete="current-password" placeholder="••••••••">
-    </label>
-    <button class="btn btn-primary btn-block" type="submit">Войти</button>
-  </form>
-</div>
-{% endblock %}
+    <form method="post" action="{{ url_for('login_post') }}" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Пароль
+        <input type="password" name="password" required autofocus
+               autocomplete="current-password" placeholder="••••••••">
+      </label>
+      <button class="btn btn-primary btn-block" type="submit">Войти</button>
+    </form>
+  </div>
+</body>
+</html>

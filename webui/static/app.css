@@ -338,3 +338,99 @@ pre {
   .meta { grid-template-columns: 1fr; gap: .1rem; }
   .meta dd { margin-bottom: .5rem; }
 }
+
+/* Admin layout (FLAI-like) */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .7rem 1.25rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.header-actions { display: flex; align-items: center; gap: .8rem; }
+.header-actions form { margin: 0; }
+.version { font-size: .8rem; }
+
+.admin-container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 1.2rem 1.25rem 3rem;
+}
+.admin-panel-title {
+  text-align: center;
+  font-size: 1.5rem;
+  margin: .2rem 0 1.1rem;
+  letter-spacing: -.02em;
+}
+.admin-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 1.2rem;
+  padding-bottom: 0;
+  scrollbar-width: thin;
+}
+.admin-tab {
+  flex: 0 0 auto;
+  padding: .55rem 1rem;
+  border-radius: 8px 8px 0 0;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: .92rem;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+.admin-tab:hover { background: color-mix(in srgb, var(--primary) 8%, var(--surface-2)); color: var(--text); text-decoration: none; }
+.admin-tab.active {
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+}
+.admin-panel { min-height: 40vh; }
+
+.speakers-table .icon-cell { width: 64px; }
+.speaker-icon {
+  width: 46px;
+  height: 68px;
+  display: block;
+  flex: 0 0 auto;
+}
+.speaker-head { margin-bottom: .4rem; }
+.speaker-title { display: flex; align-items: center; gap: 1rem; }
+.speaker-title h1 { margin: 0; }
+.speaker-title .speaker-icon { width: 54px; height: 80px; }
+.small { font-size: .82rem; }
+
+@media (max-width: 820px) {
+  .speakers-table th:nth-child(3),
+  .speakers-table td:nth-child(3) { display: none; }
+}
+@media (max-width: 640px) {
+  .site-header { padding: .6rem .8rem; }
+  .admin-container { padding: 1rem .8rem 2.5rem; }
+  .admin-panel-title { font-size: 1.25rem; }
+  .speaker-title { align-items: flex-start; }
+}
+
+/* Clean centered login card */
+.login-page {
+  background: var(--bg);
+  padding: 1.5rem;
+}
+.login-card {
+  max-width: 400px;
+  width: 100%;
+  margin: 0 auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(20, 32, 60, .12);
+  padding: 2rem 1.8rem;
+}
+.login-card h1 { font-size: 1.45rem; }
+.login-logo { border-radius: 12px; }

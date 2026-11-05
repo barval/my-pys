@@ -372,3 +372,24 @@ def test_change_password_updates_login(client, login, csrf):
         },
     )
     assert new.status_code == 302
+
+
+def test_speaker_page_shows_model_and_color(client, login):
+    login()
+    body = client.get("/speakers/speaker-a").get_data(as_text=True)
+    assert "Яндекс Станция Лайт" in body
+    assert "speaker-icon" in body
+
+
+def test_speaker_appearance_updates_color_and_model(client, app, login, csrf):
+    login()
+    response = client.post(
+        "/speakers/speaker-a/appearance",
+        data={"color": "green", "model": "Yandex Station Micro v1.2"},
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "#7fb069" in body
+    assert "Yandex Station Micro v1.2" in body

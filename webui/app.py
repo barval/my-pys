@@ -23,7 +23,17 @@ from flask import (
 
 from router.llm_router import ConfigError
 
+from . import __version__
 from .actions import CommandBuilder, HOST_ACTIONS, SPEAKER_ACTIONS
+from .appearance import (
+    COLOR_CHOICES,
+    COLOR_MAP,
+    load_overrides,
+    resolve_color,
+    resolve_color_name,
+    resolve_model,
+    save_override,
+)
 from .audit import record, redact
 from .auth import init_auth, save_password_hash, verify_password
 from .backup import (
@@ -120,6 +130,13 @@ def create_app(settings: Settings | None = None) -> Flask:
     )
     app.config["WEBUI_SETTINGS"] = settings
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+    app.config["WEBUI_VERSION"] = __version__
+    asset = settings.static_dir / "app.css"
+    app.config["WEBUI_ASSET_VERSION"] = (
+        str(int(asset.stat().st_mtime)) if asset.exists() else "1"
+    )
     init_auth(app, settings)
 
     profiles = {profile.name: profile for profile in load_profiles(settings.speakers_dir)}
@@ -135,12 +152,32 @@ def create_app(settings: Settings | None = None) -> Flask:
     )
     app.extensions["profiles"] = profiles
     app.extensions["jobs"] = runner
+    appearance_path = settings.state_dir / "speaker-appearance.json"
 
     def reload_profiles() -> None:
         profiles.clear()
         profiles.update(
             {profile.name: profile for profile in load_profiles(settings.speakers_dir)}
         )
+
+    def speaker_cards() -> list[dict]:
+        overrides = load_overrides(appearance_path)
+        return [
+            {
+                "profile": profile,
+                "override": overrides.get(profile.device_id, {}),
+                "model": resolve_model(
+                    profile, overrides.get(profile.device_id, {})
+                ),
+                "color": resolve_color(
+                    profile, overrides.get(profile.device_id, {})
+                ),
+                "color_name": resolve_color_name(
+                    profile, overrides.get(profile.device_id, {})
+                ),
+            }
+            for profile in sorted(profiles.values(), key=lambda item: item.name)
+        ]
 
     def get_profile(name: str):
         profile = profiles.get(name)
@@ -202,14 +239,14 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/speakers")
     def speakers_page():
-        return render_template(
-            "speakers.html",
-            profiles=sorted(profiles.values(), key=lambda item: item.name),
-        )
+        return render_template("speakers.html", cards=speaker_cards())
 
     @app.get("/speakers/<name>")
     def speaker_page(name: str):
         profile = get_profile(name)
+        card = next(
+            item for item in speaker_cards() if item["profile"].name == name
+        )
         jobs = [
             job
             for job in app.extensions["jobs"].list(limit=100)
@@ -218,9 +255,24 @@ def create_app(settings: Settings | None = None) -> Flask:
         return render_template(
             "speaker.html",
             profile=profile,
+            card=card,
+            color_choices=COLOR_CHOICES,
             actions=SPEAKER_ACTIONS.values(),
             jobs=jobs,
         )
+
+    @app.post("/speakers/<name>/appearance")
+    def speaker_appearance(name: str):
+        profile = get_profile(name)
+        color = request.form.get("color", "").strip()
+        model = request.form.get("model", "").strip()
+        if color and color not in COLOR_MAP and not re.fullmatch(
+            r"#[0-9a-fA-F]{6}", color
+        ):
+            return "недопустимый цвет", 400
+        save_override(appearance_path, profile.device_id, color, model)
+        audit("speaker.appearance", name)
+        return redirect(url_for("speaker_page", name=name))
 
     @app.post("/speakers/<name>/actions/<action>")
     def speaker_action(name: str, action: str):

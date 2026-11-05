@@ -95,7 +95,7 @@ router-test:
 
 webui:
 	@mkdir -p secrets local/speakers webui-state backups .cache vendor/lite-kit/firmware
-	docker compose -f docker/docker-compose.webui.yml up -d --build
+	docker compose -f docker/docker-compose.webui.yml up -d --build --force-recreate
 
 webui-dev:
 	python3 -m webui

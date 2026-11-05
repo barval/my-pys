@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 {% block title %}{{ profile.name }} — Web UI{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div>
-    <a class="back" href="/speakers">← Все колонки</a>
-    <h1>{{ profile.name }}</h1>
-    <div class="sub">Платформа {{ profile.platform }}</div>
+<div class="page-head speaker-head">
+  <div class="speaker-title">
+    {% with color=card.color, color_name=card.color_name %}{% include "_speaker_icon.html" %}{% endwith %}
+    <div>
+      <a class="back" href="/speakers">← Все колонки</a>
+      <h1>{{ profile.name }}</h1>
+      <div class="sub">{{ card.model }} · {{ card.color_name }}</div>
+    </div>
   </div>
 </div>
 
@@ -34,18 +37,38 @@
   </section>
 
   <section class="card">
-    <h2>Действия</h2>
-    <div class="actions">
-      {% for action in actions %}
-      <form method="post" action="/speakers/{{ profile.name }}/actions/{{ action.key }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn" type="submit">{{ action.label }}</button>
-      </form>
-      {% endfor %}
-    </div>
-    <p class="muted">Действия выполняются по очереди; лог откроется на отдельной странице.</p>
+    <h2>Вид и название</h2>
+    <form method="post" action="/speakers/{{ profile.name }}/appearance" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Цвет корпуса
+        <select name="color">
+          <option value=""{% if not card.override.get("color") and not profile.color %} selected{% endif %}>Авто (по ID)</option>
+          {% for key, label, value in color_choices %}
+          <option value="{{ key }}"{% if (card.override.get("color") or profile.color) == key %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Название модели
+        <input name="model" value="{{ card.model }}" placeholder="Яндекс Станция Лайт">
+      </label>
+      <button class="btn btn-primary" type="submit">Сохранить</button>
+    </form>
+    <p class="muted small">Цвет нельзя достоверно определить по MAC/device ID — задайте его вручную. «Авто» даёт стабильный цвет по ID.</p>
   </section>
 </div>
+
+<section class="card" style="margin-top:1rem">
+  <h2>Действия</h2>
+  <div class="actions">
+    {% for action in actions %}
+    <form method="post" action="/speakers/{{ profile.name }}/actions/{{ action.key }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" type="submit">{{ action.label }}</button>
+    </form>
+    {% endfor %}
+  </div>
+  <p class="muted">Действия выполняются по очереди; лог откроется на отдельной странице.</p>
+</section>
 
 <section class="card" style="margin-top:1rem">
   <h2>Последние задания</h2>
