@@ -60,8 +60,8 @@
       {% endfor %}
     </div>
     <p class="muted small">Стенд работает с <code>network_mode: host</code>. Запуск и остановка выполняются узким sidecar <code>stand-control</code>; панель не получает полный Docker API.</p>
-    <pre>dig +short @192.168.1.2 quasar.yandex.net</pre>
-    <p class="muted small">Команда должна вернуть <code>192.168.1.2</code>.</p>
+    <pre>dig +short @{{ config.WEBUI_STAND_IP }} quasar.yandex.net</pre>
+    <p class="muted small">Команда должна вернуть <code>{{ config.WEBUI_STAND_IP }}</code>.</p>
   </section>
 
   <section class="card">
@@ -73,7 +73,7 @@
     <div id="reset-steps" hidden>
       <ol class="steps">
         <li>Выключите остальные колонки и закрепите MAC → IP в DHCP.</li>
-        <li>На роутере поставьте DNS <code>192.168.1.2</code>.</li>
+        <li>На роутере поставьте DNS <code>{{ config.WEBUI_STAND_IP }}</code>.</li>
         <li>Отключите питание колонки, включите и сразу зажмите кнопку паузы на 6–10 секунд до жёлто-зелёной подсветки.</li>
         <li>В «Дом с Алисой» выключите Wi-Fi на телефоне, оставьте Bluetooth и мобильный интернет. Полностью перезапустите приложение.</li>
         <li>Привяжите колонку и дождитесь скачивания прошивки со стенда.</li>
@@ -129,7 +129,7 @@
   <h2>4. Проверка после установки</h2>
   <pre>make status
 make check-backends
-curl -s http://192.168.1.2:5002/health</pre>
+curl -s {{ config.WEBUI_ROUTER_HEALTH_DISPLAY_URL }}</pre>
   <p class="muted small">Логи задания открываются после нажатия кнопки. Если колонка не отвечает — см. раздел «Если что-то пошло не так» в README.</p>
 </section>
 {% endblock %}

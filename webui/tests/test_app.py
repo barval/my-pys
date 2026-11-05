@@ -511,6 +511,8 @@ def test_firmware_page_lists_files_and_actions(client, app, login):
     assert "Найти колонку" in body
     assert "Настроить SSH/OTA" in body
     assert "Установить Bridge" in body
+    assert "10.0.0.2" in body
+    assert "http://10.0.0.2:5002/health" in body
 
 
 def test_firmware_download_submits_host_job(client, app, login, csrf):

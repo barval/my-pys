@@ -136,6 +136,9 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
     app.config["WEBUI_TITLE"] = APP_TITLE
     app.config["WEBUI_VERSION"] = __version__
+    app.config["WEBUI_STAND_IP"] = settings.stand_ip
+    app.config["WEBUI_ROUTER_DISPLAY_URL"] = settings.router_display_url
+    app.config["WEBUI_ROUTER_HEALTH_DISPLAY_URL"] = settings.router_health_display_url
     asset = settings.static_dir / "app.css"
     app.config["WEBUI_ASSET_VERSION"] = (
         str(int(asset.stat().st_mtime)) if asset.exists() else "1"

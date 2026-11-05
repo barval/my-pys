@@ -10,6 +10,11 @@ from webui.settings import load_settings
 
 @pytest.fixture
 def settings(tmp_path):
+    (tmp_path / "local").mkdir(exist_ok=True)
+    (tmp_path / "local" / ".env").write_text(
+        "ROOT_STAND_IP=10.0.0.2\nLLM_BASE_URL=http://10.0.0.2:5002/v1\n",
+        encoding="utf-8",
+    )
     settings = load_settings(root=tmp_path, env={})
     settings.secrets_dir.mkdir(parents=True, exist_ok=True)
     settings.admin_hash_file.write_text(hash_password("correct horse"), encoding="utf-8")

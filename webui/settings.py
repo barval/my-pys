@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
+from urllib.parse import urlsplit, urlunsplit
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,28 @@ class Settings:
     router_health_url: str
     stand_control: str
     stand_url: str
+    stand_ip: str
+    router_display_url: str
+    router_health_display_url: str
+
+
+def _read_env_file(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    try:
+        lines = Path(path).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return values
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if key.strip():
+            values[key.strip()] = value
+    return values
 
 
 def load_settings(
@@ -47,6 +70,24 @@ def load_settings(
     stand_control = values.get("WEBUI_STAND_CONTROL", "host")
     if stand_control not in ("host", "sidecar"):
         raise ValueError("WEBUI_STAND_CONTROL must be host or sidecar")
+    project_env: dict[str, str] = {}
+    for candidate in (root_path / "local" / ".env", root_path / ".env"):
+        if candidate.is_file():
+            project_env = _read_env_file(candidate)
+            break
+    stand_ip = values.get("ROOT_STAND_IP") or project_env.get("ROOT_STAND_IP", "")
+    llm_base_url = values.get("LLM_BASE_URL") or project_env.get(
+        "LLM_BASE_URL", ""
+    )
+    if not stand_ip and llm_base_url:
+        stand_ip = urlsplit(llm_base_url).hostname or ""
+    if not stand_ip:
+        stand_ip = "192.168.1.2"
+    router_display_url = llm_base_url or f"http://{stand_ip}:5002/v1"
+    parsed = urlsplit(router_display_url)
+    router_health_display_url = urlunsplit(
+        (parsed.scheme or "http", parsed.netloc, "/health", "", "")
+    )
     router_health_url = values.get("WEBUI_ROUTER_HEALTH_URL") or (
         "http://llm-router:5002/health"
         if router_control == "sidecar"
@@ -73,4 +114,7 @@ def load_settings(
         router_health_url=router_health_url,
         stand_control=stand_control,
         stand_url=values.get("WEBUI_STAND_URL", "http://127.0.0.1:8082"),
+        stand_ip=stand_ip,
+        router_display_url=router_display_url,
+        router_health_display_url=router_health_display_url,
     )

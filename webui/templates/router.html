@@ -39,6 +39,7 @@
   <section class="card">
     <h2>Состояние</h2>
     <dl class="meta">
+      <dt>Адрес</dt><dd class="mono">{{ config.WEBUI_ROUTER_DISPLAY_URL }}</dd>
       <dt>Health</dt><dd>{{ health.status }}</dd>
       <dt>Маршрутов</dt><dd>{{ routes | length }}</dd>
       <dt>Запасных</dt><dd>{{ fallback_count }}</dd>
