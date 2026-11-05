@@ -71,6 +71,27 @@ func TestClearFillersDropsQueuedFillers(t *testing.T) {
 	}
 }
 
+func TestStreamBufferShortensOnlyTheFirstChunk(t *testing.T) {
+	t.Setenv("QUASAR_SPEECH_FIRST_CHARS", "40")
+	buf := newStreamBuffer(500)
+
+	first := buf.Add("Согласно информации из загруженного документа, ему сорок девять лет. Дата рождения: двадцать восьмое декабря.")
+	if len(first) < 2 {
+		t.Fatalf("first add returned %d chunks: %#v", len(first), first)
+	}
+	if n := len([]rune(first[0])); n > 40 {
+		t.Fatalf("first chunk has %d runes: %q", n, first[0])
+	}
+	if strings.TrimSpace(first[0]) == "" || strings.TrimSpace(first[1]) == "" {
+		t.Fatalf("empty chunk: %#v", first)
+	}
+
+	second := buf.Add("Это уже второй ответ без искусственного дробления на короткие куски текста.")
+	if len(second) != 1 || len([]rune(second[0])) <= 40 {
+		t.Fatalf("second chunk was shortened: %#v", second)
+	}
+}
+
 func TestSpeechFillerConfig(t *testing.T) {
 	t.Setenv("QUASAR_SPEECH_FILLER", "1")
 	t.Setenv("QUASAR_SPEECH_FILLER_AFTER", "7")

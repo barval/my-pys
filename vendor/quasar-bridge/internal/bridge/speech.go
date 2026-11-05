@@ -25,6 +25,13 @@ func speechChunkLimit() int {
 	return envPositiveInt("QUASAR_SPEECH_MAX_CHUNKS", defaultSpeechChunkLimit)
 }
 
+// speechFirstChunkChars caps the first TTS request. The station synthesizes a
+// whole request before playback, so a long opening sentence sounds only after
+// all of it is synthesized; a short opener starts speaking much sooner.
+func speechFirstChunkChars() int {
+	return envPositiveInt("QUASAR_SPEECH_FIRST_CHARS", 40)
+}
+
 func speechFillerEnabled() bool {
 	return os.Getenv("QUASAR_SPEECH_FILLER") == "1"
 }

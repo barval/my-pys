@@ -78,6 +78,7 @@ func cleanSpeechText(text string) string {
 type streamBuffer struct {
 	pending  string
 	maxChars int
+	emitted  bool
 }
 
 func newStreamBuffer(maxChars int) *streamBuffer {
@@ -104,7 +105,7 @@ func (b *streamBuffer) Add(delta string) []string {
 		part := strings.TrimSpace(b.pending[:cut])
 		b.pending = b.pending[cut:]
 		if clean := cleanSpeechText(part); clean != "" {
-			out = append(out, splitSpeech(clean, b.maxChars, 100)...)
+			out = append(out, b.shortenFirst(splitSpeech(clean, b.maxChars, 100))...)
 		}
 	}
 	return out
@@ -120,7 +121,40 @@ func (b *streamBuffer) Flush() []string {
 	if clean == "" {
 		return nil
 	}
-	return splitSpeech(clean, b.maxChars, 100)
+	return b.shortenFirst(splitSpeech(clean, b.maxChars, 100))
+}
+
+// shortenFirst makes the very first TTS request short. The station synthesizes
+// the whole request before playback, so a long first sentence delays the first
+// audible word by ten seconds or more. Following chunks keep the normal size.
+func (b *streamBuffer) shortenFirst(chunks []string) []string {
+	if b.emitted || len(chunks) == 0 {
+		return chunks
+	}
+	b.emitted = true
+	limit := speechFirstChunkChars()
+	if limit < 1 || len([]rune(chunks[0])) <= limit {
+		return chunks
+	}
+	head, tail := splitAtWord(chunks[0], limit)
+	if head == "" || tail == "" {
+		return chunks
+	}
+	return append([]string{head, tail}, chunks[1:]...)
+}
+
+// splitAtWord cuts text before the last space inside limit runes.
+func splitAtWord(text string, limit int) (string, string) {
+	runes := []rune(text)
+	if len(runes) <= limit {
+		return text, ""
+	}
+	for i := limit; i > 0; i-- {
+		if unicode.IsSpace(runes[i-1]) {
+			return strings.TrimSpace(string(runes[:i-1])), strings.TrimSpace(string(runes[i:]))
+		}
+	}
+	return text, ""
 }
 
 // safeSentenceCut returns the byte index after the last complete sentence.
