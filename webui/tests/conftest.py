@@ -60,7 +60,8 @@ def make_profile(tmp_path):
             "SPEAKER_IP=192.168.1.101\n"
             "SPEAKER_SUBNET=192.168.1\n"
             "SPEAKER_DEVICE_ID=EXAMPLE000000000000000000000001\n"
-            "SPEAKER_MAC=02:00:00:00:00:01\n",
+            "SPEAKER_MAC=02:00:00:00:00:01\n"
+            "SPEAKER_ROOM=Комната A\n",
             encoding="utf-8",
         )
         return load_profiles(directory)[0]

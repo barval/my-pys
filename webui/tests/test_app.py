@@ -378,6 +378,7 @@ def test_speaker_page_shows_model_and_color(client, login):
     login()
     body = client.get("/speakers/speaker-a").get_data(as_text=True)
     assert "Яндекс Станция Лайт" in body
+    assert "Комната A" in body
     assert "speaker-icon" in body
 
 

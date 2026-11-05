@@ -39,6 +39,7 @@ def test_profile_model_and_color_defaults(tmp_path):
     profile = load_profiles(tmp_path)[0]
     assert profile.model == "Яндекс Станция Лайт"
     assert profile.color == ""
+    assert profile.room == ""
 
 
 def test_profile_reads_model_and_color(tmp_path):
@@ -53,3 +54,14 @@ def test_profile_reads_model_and_color(tmp_path):
     profile = load_profiles(tmp_path)[0]
     assert profile.model == "Yandex Station Micro v1.2"
     assert profile.color == "green"
+
+
+def test_profile_reads_room(tmp_path):
+    (tmp_path / "speaker-a.env").write_text(
+        "SPEAKER_NAME=speaker-a\n"
+        "SPEAKER_DEVICE_ID=EXAMPLE0001\n"
+        "SPEAKER_MAC=02:00:00:00:00:01\n"
+        "SPEAKER_ROOM=Комната B\n",
+        encoding="utf-8",
+    )
+    assert load_profiles(tmp_path)[0].room == "Комната B"

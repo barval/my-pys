@@ -20,6 +20,7 @@ class Profile:
     platform: str
     model: str
     color: str
+    room: str
 
 
 def parse_env(path: Path) -> dict[str, str]:
@@ -75,6 +76,7 @@ def load_profiles(directory: Path) -> list[Profile]:
                 platform=platform,
                 model=model,
                 color=values.get("SPEAKER_COLOR", "").strip().lower(),
+                room=values.get("SPEAKER_ROOM", "").strip(),
             )
         )
     return profiles

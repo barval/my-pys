@@ -30,7 +30,7 @@
         </td>
         <td>
           <a href="/speakers/{{ card.profile.name }}"><strong>{{ card.profile.name }}</strong></a>
-          <div class="muted small">{{ card.color_name }} · {{ card.profile.platform }}</div>
+          <div class="muted small">{{ card.profile.room or card.profile.platform }} · {{ card.color_name }}</div>
         </td>
         <td>{{ card.model }}</td>
         <td class="mono">{{ card.profile.ip or "—" }}</td>

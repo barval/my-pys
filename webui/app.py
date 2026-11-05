@@ -160,7 +160,25 @@ def create_app(settings: Settings | None = None) -> Flask:
             {profile.name: profile for profile in load_profiles(settings.speakers_dir)}
         )
 
+    def profiles_mtime() -> float:
+        try:
+            return max(
+                path.stat().st_mtime
+                for path in settings.speakers_dir.glob("*.env")
+            )
+        except ValueError:
+            return 0.0
+
+    profile_state = {"mtime": profiles_mtime()}
+
+    def refresh_profiles() -> None:
+        mtime = profiles_mtime()
+        if mtime != profile_state["mtime"]:
+            reload_profiles()
+            profile_state["mtime"] = mtime
+
     def speaker_cards() -> list[dict]:
+        refresh_profiles()
         overrides = load_overrides(appearance_path)
         return [
             {
@@ -180,6 +198,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         ]
 
     def get_profile(name: str):
+        refresh_profiles()
         profile = profiles.get(name)
         if profile is None:
             abort(404)
