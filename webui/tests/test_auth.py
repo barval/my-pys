@@ -23,3 +23,8 @@ def test_post_without_csrf_is_rejected(client, csrf):
     )
     response = client.post("/router/restart")
     assert response.status_code == 400
+
+
+def test_session_cookie_is_same_site_strict(app):
+    assert app.config["SESSION_COOKIE_SAMESITE"] == "Strict"
+    assert app.config["SESSION_COOKIE_HTTPONLY"] is True

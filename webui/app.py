@@ -19,7 +19,7 @@ from flask import (
 from router.llm_router import ConfigError
 
 from .actions import CommandBuilder, HOST_ACTIONS, SPEAKER_ACTIONS
-from .audit import record
+from .audit import record, redact
 from .auth import init_auth
 from .jobs import JobRunner
 from .keys import key_inventory, rotate_router_token, set_upstream_key
@@ -49,6 +49,8 @@ def _route_from_form(form, name: str, existing: dict) -> dict:
         errors.append("base_url должен начинаться с http:// или https://")
     if not token_file or Path(token_file).name != token_file:
         errors.append("token_file должен быть именем файла без каталогов")
+    if api_key_file and Path(api_key_file).name != api_key_file:
+        errors.append("api_key_file должен быть именем файла без каталогов")
     if history not in ("server", "client"):
         errors.append("history должен быть server или client")
     if errors:
@@ -59,9 +61,14 @@ def _route_from_form(form, name: str, existing: dict) -> dict:
     if fallback_base:
         if not fallback_base.startswith(("http://", "https://")):
             raise ValueError("fallback_base_url должен быть http(s)-адресом")
+        fallback_key_file = form.get("fallback_api_key_file", "").strip()
+        if fallback_key_file and Path(fallback_key_file).name != fallback_key_file:
+            raise ValueError(
+                "fallback_api_key_file должен быть именем файла без каталогов"
+            )
         fallback = {
             "base_url": fallback_base,
-            "api_key_file": form.get("fallback_api_key_file", "").strip(),
+            "api_key_file": fallback_key_file,
             "model": form.get("fallback_model", "").strip(),
             "history": form.get("fallback_history", "client").strip(),
             "timeout_seconds": timeout_seconds,
@@ -203,6 +210,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         if job is None:
             abort(404)
         text, offset = app.extensions["jobs"].tail(job_id, 0)
+        text = redact(text, settings.secrets_dir)
         return render_template("job.html", job=job, text=text, offset=offset)
 
     @app.get("/jobs/<job_id>/log")

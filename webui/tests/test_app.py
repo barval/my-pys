@@ -181,3 +181,53 @@ def test_audit_page_lists_login(client, login):
     login()
     body = client.get("/audit").get_data(as_text=True)
     assert "auth.login" in body
+
+
+def test_route_edit_rejects_path_in_api_key_file(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    before = path.read_text(encoding="utf-8")
+    response = client.post(
+        "/router/routes/speaker-a",
+        data={
+            "token_file": "router-token-speaker-a",
+            "base_url": "http://127.0.0.1:5000/v1",
+            "api_key_file": "../../etc/passwd",
+            "model": "flai-chat",
+            "history": "server",
+            "timeout_seconds": "180",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 400
+    assert path.read_text(encoding="utf-8") == before
+
+
+class EchoBuilder:
+    def __init__(self, command):
+        self.command = command
+
+    def build(self, action, profile):
+        return ["bash", "-c", self.command], {}
+
+
+def test_job_log_redacts_secret(client, app, login):
+    from webui.jobs import JobRunner
+
+    login()
+    settings = app.config["WEBUI_SETTINGS"]
+    secret = "super-secret-value-that-is-long"
+    settings.secrets_dir.mkdir(parents=True, exist_ok=True)
+    (settings.secrets_dir / "flai-token-speaker-a").write_text(
+        secret, encoding="utf-8"
+    )
+    runner = JobRunner(
+        settings.state_dir,
+        EchoBuilder(f"echo {secret}"),
+    )
+    app.extensions["jobs"] = runner
+    job = runner.submit("status", app.extensions["profiles"]["speaker-a"])
+    runner.wait(job.id, timeout=5)
+    body = client.get(f"/jobs/{job.id}").get_data(as_text=True)
+    assert secret not in body
+    assert "***" in body

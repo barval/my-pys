@@ -88,6 +88,10 @@ def load_or_create_session_key(path: Path) -> bytes:
 
 def init_auth(app: Flask, settings: Settings) -> None:
     app.secret_key = load_or_create_session_key(settings.session_key_file)
+    app.config.update(
+        SESSION_COOKIE_SAMESITE="Strict",
+        SESSION_COOKIE_HTTPONLY=True,
+    )
     attempts: dict[str, deque[float]] = defaultdict(deque)
 
     def audit(action: str, target: str, result: str = "ok", detail: str = "") -> None:
