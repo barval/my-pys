@@ -210,6 +210,97 @@ func feedSpeech(t *testing.T, n *Native, id string, streamID uint32, omitID bool
 	}
 }
 
+type streamingResolver struct {
+	chunks []string
+}
+
+func (r streamingResolver) Decide(context.Context, string) RouteDecision {
+	return RouteDecision{Route: "llm"}
+}
+
+func (r streamingResolver) Resolve(ctx context.Context, text string) (Resolution, error) {
+	return r.ResolveDecision(ctx, text, r.Decide(ctx, text))
+}
+
+func (r streamingResolver) ResolveDecision(context.Context, string, RouteDecision) (Resolution, error) {
+	return Resolution{Route: "llm", Answer: strings.Join(r.chunks, " ")}, nil
+}
+
+func (r streamingResolver) ResolveDecisionStream(_ context.Context, _ string, _ RouteDecision, onChunk func(string) error) (Resolution, error) {
+	for _, chunk := range r.chunks {
+		if err := onChunk(chunk); err != nil {
+			return Resolution{Route: "llm"}, err
+		}
+	}
+	return Resolution{Route: "llm", Answer: strings.Join(r.chunks, " "), Streamed: true}, nil
+}
+
+func TestStreamingAnswerSpeaksChunksAsTheyArrive(t *testing.T) {
+	t.Setenv("QUASAR_STREAM_LLM", "1")
+	chunks := []string{"Первое предложение.", "Второе предложение."}
+	down := make(chan wire.Frame, 128)
+	up := make(chan wire.Frame, 128)
+	n := NewNative(t.Context(), func(_ context.Context, _ websocket.MessageType, b []byte) error {
+		up <- wire.Decode(b, wire.ClientToServer)
+		return nil
+	}, func(_ context.Context, _ websocket.MessageType, b []byte) error {
+		down <- wire.Decode(b, wire.ServerToClient)
+		return nil
+	}, streamingResolver{chunks: chunks})
+	defer n.Close()
+	n.ShouldListen = false
+	n.ProgressAfter = time.Hour
+
+	input := &client.TClientMessage{Message: &client.TClientMessage_Event{Event: &client.TClientMessage_TEvent{Header: &header.TEventHeader{MessageId: "stream-request"}, Event: &client.TClientMessage_TEvent_TextInput{TextInput: &request.TAliceRequestProto{Header: &request.TAliceRequestProto_THeader{RequestId: new("stream-app")}, Request: &request.TAliceRequestProto_TRequest{Event: &common.TEvent{Text: new("расскажи")}}}}}}}
+	if err := n.Client(t.Context(), websocket.MessageBinary, aa(input)); err != nil {
+		t.Fatal(err)
+	}
+
+	var placeholder wire.Frame
+	deadline := time.After(3 * time.Second)
+	for placeholder.Kind() != "TtsGenerate" {
+		select {
+		case placeholder = <-up:
+		case <-deadline:
+			t.Fatal("missing streaming placeholder")
+		}
+	}
+	feedSpeech(t, n, placeholder.Client.GetEvent().GetHeader().GetMessageId(), 72, false)
+
+	var got []string
+	for range chunks {
+		var frame wire.Frame
+		deadline := time.After(3 * time.Second)
+		for {
+			select {
+			case frame = <-up:
+			case <-deadline:
+				t.Fatal("missing streaming chunk")
+			}
+			if frame.Kind() == "TtsGenerate" {
+				break
+			}
+		}
+		got = append(got, frame.Client.GetEvent().GetTtsGenerate().GetText())
+		feedSpeech(t, n, frame.Client.GetEvent().GetHeader().GetMessageId(), 72, false)
+	}
+	if strings.Join(got, " ") != strings.Join(chunks, " ") {
+		t.Fatalf("chunks=%#v", got)
+	}
+
+	deadline = time.After(3 * time.Second)
+	for {
+		select {
+		case f := <-down:
+			if sc := f.Server.GetStreamControl(); sc != nil && sc.GetClose() != nil {
+				return
+			}
+		case <-deadline:
+			t.Fatal("missing streaming close")
+		}
+	}
+}
+
 func TestLongLocalAnswerUsesMultipleTTSChunks(t *testing.T) {
 	answer := strings.TrimSpace(strings.Repeat("Это длинное предложение для проверки нарезки. ", 30))
 	down := make(chan wire.Frame, 128)

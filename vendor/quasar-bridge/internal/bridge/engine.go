@@ -157,7 +157,44 @@ func (e *Engine) ResolveDecision(ctx context.Context, text string, decision Rout
 		return Resolution{Route: "yandex"}, nil
 	}
 }
+func (e *Engine) ResolveDecisionStream(ctx context.Context, text string, decision RouteDecision, onChunk func(string) error) (Resolution, error) {
+	if decision.Route != "llm" {
+		return e.ResolveDecision(ctx, text, decision)
+	}
+	if decision.prepared {
+		ctx = e.dialogue().Use(ctx, decision.ticket)
+	} else {
+		ctx = e.Prepare(ctx)
+	}
+	_, _, ticket := e.dialogue().Start(ctx)
+	if ctx.Err() != nil {
+		return Resolution{Route: decision.Route}, ctx.Err()
+	}
+	if !e.dialogue().Current(ctx, ticket) {
+		return Resolution{Route: decision.Route}, context.Canceled
+	}
+	if decision.Source == "dialogue_retry" {
+		return e.retryQuestion(ctx, ticket)
+	}
+	if decision.Source == "dialogue_reset" {
+		e.dialogue().ClearReplay(ctx, ticket)
+		if !e.dialogue().Clear(ctx, ticket) {
+			return Resolution{Route: decision.Route}, context.Canceled
+		}
+		return Resolution{Route: "llm", Answer: "Начинаем новый разговор."}, nil
+	}
+	return e.fallback(ctx, text, onChunk)
+}
+
 func (e *Engine) Fallback(ctx context.Context, text string) (Resolution, error) {
+	return e.fallback(ctx, text, nil)
+}
+
+func (e *Engine) FallbackStream(ctx context.Context, text string, onChunk func(string) error) (Resolution, error) {
+	return e.fallback(ctx, text, onChunk)
+}
+
+func (e *Engine) fallback(ctx context.Context, text string, onChunk func(string) error) (Resolution, error) {
 	if strings.Contains(strings.ToLower(text), "сайт") || webaddress.MusicRequest(text) {
 		text = webaddress.Normalize(text)
 	}
@@ -179,12 +216,47 @@ func (e *Engine) Fallback(ctx context.Context, text string) (Resolution, error) 
 	private := snapshot.PrivateHistory
 	var answer string
 	var err error
-	if contextual, ok := answerer.(interface {
-		CompleteDialogue(context.Context, []llm.Message, bool) (string, bool, error)
-	}); ok {
-		answer, private, err = contextual.CompleteDialogue(ctx, messages, private)
-	} else {
-		answer, err = answerer.Complete(ctx, messages, false)
+	streamed := false
+	streamAttempted := false
+	if onChunk != nil && e.Assistant == nil {
+		if streamer, ok := answerer.(interface {
+			CompleteStream(context.Context, []llm.Message, func(string) error) (string, error)
+		}); ok {
+			streamAttempted = true
+			buf := newStreamBuffer(speechChunkChars())
+			sent := 0
+			answer, err = streamer.CompleteStream(ctx, messages, func(delta string) error {
+				for _, chunk := range buf.Add(delta) {
+					if chunk == "" {
+						continue
+					}
+					if err := onChunk(chunk); err != nil {
+						return err
+					}
+					sent++
+				}
+				return nil
+			})
+			for _, chunk := range buf.Flush() {
+				if chunk == "" {
+					continue
+				}
+				if err := onChunk(chunk); err != nil {
+					return r, err
+				}
+				sent++
+			}
+			streamed = sent > 0
+		}
+	}
+	if !streamed && !streamAttempted {
+		if contextual, ok := answerer.(interface {
+			CompleteDialogue(context.Context, []llm.Message, bool) (string, bool, error)
+		}); ok {
+			answer, private, err = contextual.CompleteDialogue(ctx, messages, private)
+		} else {
+			answer, err = answerer.Complete(ctx, messages, false)
+		}
 	}
 	if !e.dialogue().Current(ctx, ticket) {
 		return r, context.Canceled
@@ -195,8 +267,10 @@ func (e *Engine) Fallback(ctx context.Context, text string) (Resolution, error) 
 		}
 	}
 	r.Answer = answer
+	r.Streamed = streamed
 	return r, err
 }
+
 func containsOne(text string, needles []string) bool {
 	for _, s := range needles {
 		if strings.Contains(text, s) {

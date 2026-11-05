@@ -19,6 +19,7 @@ import (
 	header "github.com/freequasar/quasar-go-genproto/proto/alice/protos/api/alicekit/events/common/event_header"
 	continuation "github.com/freequasar/quasar-go-genproto/proto/alice/protos/api/alicekit/events/continue_request"
 	ack "github.com/freequasar/quasar-go-genproto/proto/alice/protos/api/alicekit/events/input_start_ack"
+	stream "github.com/freequasar/quasar-go-genproto/proto/alice/protos/api/alicekit/events/stream_control"
 	tts "github.com/freequasar/quasar-go-genproto/proto/alice/protos/api/alicekit/events/tts_generate"
 	client "github.com/freequasar/quasar-go-genproto/proto/alice/protos/api/alicekit/protocol/client"
 	server "github.com/freequasar/quasar-go-genproto/proto/alice/protos/api/alicekit/protocol/server"
@@ -31,8 +32,9 @@ import (
 )
 
 type Resolution struct {
-	Route  string
-	Answer string
+	Route    string
+	Answer   string
+	Streamed bool
 }
 type Resolver interface {
 	Resolve(context.Context, string) (Resolution, error)
@@ -43,6 +45,64 @@ type RoutedResolver interface {
 }
 type FallbackResolver interface {
 	Fallback(context.Context, string) (Resolution, error)
+}
+type StreamingFallbackResolver interface {
+	FallbackStream(context.Context, string, func(string) error) (Resolution, error)
+}
+type StreamingRoutedResolver interface {
+	ResolveDecisionStream(context.Context, string, RouteDecision, func(string) error) (Resolution, error)
+}
+
+type speechStream struct {
+	n       *Native
+	p       *nativeRequest
+	started bool
+	full    strings.Builder
+}
+
+func (s *speechStream) chunk(text string) error {
+	if strings.TrimSpace(text) == "" {
+		return nil
+	}
+	s.full.WriteString(text)
+	s.full.WriteByte(' ')
+	return s.n.enqueueSpeech(s.p, text)
+}
+
+// startSpeechKeepalive keeps the speaker's request alive while a slow search
+// or reasoning model is still producing the first sentence.
+func (n *Native) startSpeechKeepalive(p *nativeRequest) func() {
+	stop := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-p.ctx.Done():
+				return
+			case <-ticker.C:
+				if err := n.deferredPart(p, "", false); err != nil {
+					return
+				}
+			}
+		}
+	}()
+	return func() { close(stop) }
+}
+
+func (s *speechStream) finish(full string) error {
+	if !s.started {
+		return s.n.reply(s.p, full)
+	}
+	if strings.TrimSpace(full) == "" {
+		full = strings.TrimSpace(s.full.String())
+	}
+	if err := s.n.deferredPart(s.p, full, true); err != nil {
+		return err
+	}
+	return s.n.finishSpeechQueue(s.p)
 }
 
 type nativeRequest struct {
@@ -66,8 +126,9 @@ type nativeRequest struct {
 	continuation                    []byte
 	ttsID                           string
 	progressTTS                     string
-	speechChunks                    []string
-	speechIndex                     int
+	speechQueue                     []string
+	speechActive                    bool
+	speechDone                      bool
 	speechIDs                       []string
 	audio                           oggSpeech
 	audioIsProgress                 bool
@@ -346,22 +407,17 @@ func (n *Native) Server(ctx context.Context, k websocket.MessageType, data []byt
 					n.mu.Unlock()
 					return nil
 				}
-				if p.speechIndex < len(p.speechChunks) {
-					n.mu.Unlock()
-					return n.synthesizeNextChunk(p)
+				p.speechActive = false
+				hasNext := len(p.speechQueue) > 0
+				done := p.speechDone
+				n.mu.Unlock()
+				if hasNext {
+					return n.sendNextSpeech(p)
 				}
-				for _, id := range p.speechIDs {
-					delete(n.tts, id)
+				if !done {
+					return nil
 				}
-				p.speechChunks = nil
-				p.speechIDs = nil
-				p.speechIndex = 0
-				end := p.audio.finish()
-				if err := n.down(ctx, k, append(binary.BigEndian.AppendUint32(nil, p.audioStream), end...)); err != nil {
-					n.mu.Unlock()
-					return err
-				}
-				sc.StreamId = int64(p.audioStream)
+				return n.maybeFinishSpeech(p)
 			}
 			sc.MessageId = p.id
 			n.mu.Unlock()
@@ -552,6 +608,8 @@ func (n *Native) maybeResolve(p *nativeRequest) {
 		}
 		result := Resolution{Route: "yandex"}
 		var err error
+		var speech *speechStream
+		streamedSpeech := false
 		if n.resolver != nil && strings.TrimSpace(text) != "" {
 			if routed, ok := n.resolver.(RoutedResolver); ok {
 				decision := routed.Decide(p.ctx, text)
@@ -559,12 +617,40 @@ func (n *Native) maybeResolve(p *nativeRequest) {
 				p.listenOnStreamStart = decision.Source == "dialogue_retry"
 				n.mu.Unlock()
 				slog.Info("native_route_decision", "request", requestTag(p.id), "route", decision.Route, "source", decision.Source)
+				streaming := decision.Route == "llm" && streamLLMEnabled()
+				var stopKeepalive func()
+				if streaming {
+					if _, ok := routed.(StreamingRoutedResolver); ok {
+						speech = &speechStream{n: n, p: p}
+						if startErr := n.startSpeechStream(p); startErr != nil {
+							slog.Warn("native_stream_start_failed", "request", requestTag(p.id), "error", startErr)
+							n.mu.Lock()
+							p.streaming = false
+							p.progressAudioDone = nil
+							n.mu.Unlock()
+							speech = nil
+							streaming = false
+						} else {
+							speech.started = true
+							stopKeepalive = n.startSpeechKeepalive(p)
+						}
+					} else {
+						streaming = false
+					}
+				}
 				stop := func() {}
-				if decision.Route != "yandex" && n.ProgressAfter > 0 {
+				if decision.Route != "yandex" && n.ProgressAfter > 0 && !streaming {
 					stop = n.progress(p)
 				}
-				result, err = routed.ResolveDecision(p.ctx, text, decision)
+				if streaming {
+					result, err = routed.(StreamingRoutedResolver).ResolveDecisionStream(p.ctx, text, decision, speech.chunk)
+				} else {
+					result, err = routed.ResolveDecision(p.ctx, text, decision)
+				}
 				stop()
+				if stopKeepalive != nil {
+					stopKeepalive()
+				}
 			} else {
 				result, err = n.resolver.Resolve(p.ctx, text)
 			}
@@ -625,14 +711,22 @@ func (n *Native) maybeResolve(p *nativeRequest) {
 			n.tts[p.ttsID] = p
 		}
 		n.mu.Unlock()
+		if speech != nil && speech.started {
+			if finishErr := speech.finish(result.Answer); finishErr != nil {
+				slog.Warn("native_stream_finish_failed", "request", requestTag(p.id), "error", finishErr)
+			}
+			streamedSpeech = true
+		}
 		slog.Info("native_route", "request", requestTag(p.id), "route", result.Route)
 		if p.gated && !p.streaming {
 			if err := n.sendCancel(p.ctx, p.id); err != nil {
 				return
 			}
 		}
-		if err := n.reply(p, result.Answer); err != nil {
-			slog.Warn("native_reply_failed", "request", requestTag(p.id))
+		if !streamedSpeech {
+			if err := n.reply(p, result.Answer); err != nil {
+				slog.Warn("native_reply_failed", "request", requestTag(p.id))
+			}
 		}
 	})
 }
@@ -692,9 +786,9 @@ func (n *Native) synthesize(p *nativeRequest, text string) error {
 	return n.up(p.ctx, websocket.MessageBinary, b)
 }
 
-// replyChunked speaks a long answer through the deferred streaming path so
-// consecutive Opus segments are joined into one continuous Ogg stream.
-func (n *Native) replyChunked(p *nativeRequest, text string, chunks []string) error {
+// startSpeechStream opens the deferred streaming response and waits for the
+// placeholder Opus headers. Chunks can then be queued as the LLM produces them.
+func (n *Native) startSpeechStream(p *nativeRequest) error {
 	n.mu.Lock()
 	if p.canceled {
 		n.mu.Unlock()
@@ -706,8 +800,6 @@ func (n *Native) replyChunked(p *nativeRequest, text string, chunks []string) er
 	p.ttsID = newID()
 	p.progressTTS = p.ttsID
 	p.progressAudioDone = make(chan struct{})
-	p.speechChunks = chunks
-	p.speechIndex = 0
 	p.speechIDs = append(p.speechIDs, p.ttsID)
 	n.tts[p.ttsID] = p
 	n.mu.Unlock()
@@ -732,11 +824,25 @@ func (n *Native) replyChunked(p *nativeRequest, text string, chunks []string) er
 	case <-timer.C:
 		return errors.New("TTS header timeout")
 	}
+	return nil
+}
 
+// replyChunked speaks a long answer through the deferred streaming path so
+// consecutive Opus segments are joined into one continuous Ogg stream.
+func (n *Native) replyChunked(p *nativeRequest, text string, chunks []string) error {
+	if err := n.startSpeechStream(p); err != nil {
+		return err
+	}
 	if err := n.deferredPart(p, text, true); err != nil {
 		return err
 	}
-	return n.synthesizeNextChunk(p)
+	n.mu.Lock()
+	p.speechDone = true
+	n.mu.Unlock()
+	if err := n.enqueueSpeech(p, chunks...); err != nil {
+		return err
+	}
+	return n.maybeFinishSpeech(p)
 }
 
 func (n *Native) startSpeechChunks(p *nativeRequest, text string) error {
@@ -745,26 +851,92 @@ func (n *Native) startSpeechChunks(p *nativeRequest, text string) error {
 		return nil
 	}
 	n.mu.Lock()
-	p.speechChunks = chunks
-	p.speechIndex = 0
+	p.speechDone = true
 	n.mu.Unlock()
-	return n.synthesizeNextChunk(p)
+	if err := n.enqueueSpeech(p, chunks...); err != nil {
+		return err
+	}
+	return n.maybeFinishSpeech(p)
 }
 
-func (n *Native) synthesizeNextChunk(p *nativeRequest) error {
+func (n *Native) enqueueSpeech(p *nativeRequest, chunks ...string) error {
+	queued := false
 	n.mu.Lock()
-	if p.canceled || p.speechIndex >= len(p.speechChunks) {
+	if p.canceled {
 		n.mu.Unlock()
 		return nil
 	}
-	chunk := p.speechChunks[p.speechIndex]
-	p.speechIndex++
+	for _, chunk := range chunks {
+		chunk = strings.TrimSpace(chunk)
+		if chunk == "" {
+			continue
+		}
+		p.speechQueue = append(p.speechQueue, chunk)
+		queued = true
+	}
+	n.mu.Unlock()
+	if !queued {
+		return nil
+	}
+	return n.sendNextSpeech(p)
+}
+
+func (n *Native) sendNextSpeech(p *nativeRequest) error {
+	n.mu.Lock()
+	if p.canceled || p.speechActive || len(p.speechQueue) == 0 {
+		n.mu.Unlock()
+		return nil
+	}
+	chunk := p.speechQueue[0]
+	p.speechQueue = p.speechQueue[1:]
+	p.speechActive = true
 	p.ttsID = newID()
 	p.speechIDs = append(p.speechIDs, p.ttsID)
 	n.tts[p.ttsID] = p
 	n.mu.Unlock()
-	return n.synthesize(p, chunk)
+	if err := n.synthesize(p, chunk); err != nil {
+		n.mu.Lock()
+		p.speechActive = false
+		n.mu.Unlock()
+		return err
+	}
+	return nil
 }
+
+func (n *Native) finishSpeechQueue(p *nativeRequest) error {
+	n.mu.Lock()
+	p.speechDone = true
+	n.mu.Unlock()
+	return n.maybeFinishSpeech(p)
+}
+
+func (n *Native) maybeFinishSpeech(p *nativeRequest) error {
+	n.mu.Lock()
+	if p.canceled || p.speechActive || len(p.speechQueue) > 0 || !p.speechDone {
+		n.mu.Unlock()
+		return nil
+	}
+	for _, id := range p.speechIDs {
+		delete(n.tts, id)
+	}
+	p.speechIDs = nil
+	p.speechQueue = nil
+	p.speechDone = false
+	end := p.audio.finish()
+	streamID := p.audioStream
+	n.mu.Unlock()
+	if err := n.down(p.ctx, websocket.MessageBinary, append(binary.BigEndian.AppendUint32(nil, streamID), end...)); err != nil {
+		return err
+	}
+	sc := &stream.TStreamControl{MessageId: p.id, StreamId: int64(streamID), Action: &stream.TStreamControl_Close{Close: &stream.TStreamControl_TActionClose{}}}
+	msg := &server.TServerMessage{Message: &server.TServerMessage_StreamControl{StreamControl: sc}}
+	b, err := (wire.Frame{Server: msg, Prefix: []byte("AAPI")}).Marshal()
+	if err != nil {
+		return err
+	}
+	return n.down(p.ctx, websocket.MessageBinary, b)
+}
+
 func requestTag(id string) string {
 	sum := sha256.Sum256([]byte(id))
 	return fmt.Sprintf("%x", sum[:4])

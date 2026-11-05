@@ -16,6 +16,10 @@ func speechChunkChars() int {
 	return envPositiveInt("QUASAR_SPEECH_MAX_CHARS", defaultSpeechChunkChars)
 }
 
+func streamLLMEnabled() bool {
+	return os.Getenv("QUASAR_STREAM_LLM") == "1"
+}
+
 func speechChunkLimit() int {
 	return envPositiveInt("QUASAR_SPEECH_MAX_CHUNKS", defaultSpeechChunkLimit)
 }
