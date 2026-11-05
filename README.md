@@ -344,7 +344,7 @@ printf '%s\n' 'flai-...' > secrets/flai-token-speaker-b
 chmod 600 secrets/flai-token-speaker-b
 ```
 
-После этого маршрут `lp` станет доступен автоматически. Проверка:
+После этого маршрут `speaker-b` станет доступен автоматически. Проверка:
 
 ```bash
 SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/check-flai.sh
