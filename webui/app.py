@@ -23,7 +23,7 @@ from flask import (
 
 from router.llm_router import ConfigError
 
-from . import __version__
+from . import APP_TITLE, __version__
 from .actions import CommandBuilder, HOST_ACTIONS, SPEAKER_ACTIONS
 from .appearance import (
     COLOR_CHOICES,
@@ -132,6 +132,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+    app.config["WEBUI_TITLE"] = APP_TITLE
     app.config["WEBUI_VERSION"] = __version__
     asset = settings.static_dir / "app.css"
     app.config["WEBUI_ASSET_VERSION"] = (

@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#3498db">
-  <title>{% block title %}Web UI{% endblock %}</title>
+  <title>{% block title %}{{ config.WEBUI_TITLE }}{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css', v=config.WEBUI_ASSET_VERSION) }}">
 </head>
 <body>
 <header class="site-header">
   <a class="brand" href="/speakers">
     <span class="brand-mark">◉</span>
-    <span>Станции <small>Web UI</small></span>
+    <span>{{ config.WEBUI_TITLE }} <small>панель управления</small></span>
   </a>
   <div class="header-actions">
     <span class="user-label">Администратор</span>

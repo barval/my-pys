@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Маршрут {{ route.name }} — Web UI{% endblock %}
+{% block title %}Маршрут {{ route.name }} — {{ config.WEBUI_TITLE }}{% endblock %}
 {% block content %}
 {% set primary = route.get("primary", {}) %}
 <div class="page-head">

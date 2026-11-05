@@ -478,3 +478,12 @@ def test_fallback_is_added_edited_and_deleted(client, app, login, csrf):
     )
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert saved["routes"][0]["fallbacks"] == []
+
+
+def test_project_title_in_login_and_admin(client, login):
+    login_page = client.get("/login").get_data(as_text=True)
+    assert "Моя Яндекс Станция" in login_page
+    login()
+    admin_page = client.get("/speakers").get_data(as_text=True)
+    assert "Колонки — Моя Яндекс Станция" in admin_page
+    assert "Моя Яндекс Станция" in admin_page
