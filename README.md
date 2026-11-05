@@ -53,6 +53,7 @@ docs/
   03-runbook.md               точные команды и порядок действий
   04-risks.md                 риски, ограничения и откат
   05-troubleshooting.md       диагностика типовых ошибок
+  07-webui.md                 веб-панель: Docker, вход, разделы, бэкапы
 config/
   llm.env.example             пример переменных внешней LLM
   router-routes.example.json  пример таблицы маршрутов роутера
@@ -69,7 +70,12 @@ webui/
   jobs.py                     очередь заданий и логи
   router_config.py            проверка и атомарная запись конфига роутера
   keys.py                     инвентарь и ротация ключей
-  tests/                      тесты панели
+  backup.py                   шифрованные резервные копии
+  appearance.py               цвет и модель колонки
+  router_control.py           клиент router-control
+  stand_control.py            sidecar управления lite-kit
+  stand_client.py             клиент stand-control
+  templates/ static/ tests/   шаблоны, стили, тесты
 deploy/
   webui.service               unit-файл systemd
 scripts/
@@ -91,6 +97,7 @@ docker/
   lite-kit.Dockerfile         контейнер со стендом (dnsmasq + Python)
   docker-compose.lite-kit.yml
   docker-compose.router.yml   контейнер llm-router на 5002
+  docker-compose.webui.yml    webui + router-control + stand-control
 vendor/
   lite-kit/                   снапшот krevetkqqq/lite-kit
   quasar-bridge/              снапшот skrashevich/quasar-bridge v0.6.2
@@ -136,7 +143,7 @@ make webui-passwd  # задать пароль
 - **Колонки** — статус, Bridge, routing, ключ, SSH/OTA.
 - **Прошивка** — скачать образ, запустить/остановить стенд, найти
   колонку и выполнить действия после root.
-- **LLM-роутер** — основной и запасные маршруты отдельными строками.
+- **LLM-роутер** — маршруты и до 9 fallback, порядок стрелками, проверка доступности.
 - **Ключи** — промежуточные токены и upstream-ключи.
 - **Бэкапы** — шифрованные архивы всей конфигурации или одной колонки.
 - **Аудит** и **Пароль**.
@@ -346,8 +353,8 @@ SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
 ### Fallback
 
 У каждого маршрута может быть до **9** резервных upstream в массиве
-`fallbacks` (в порядке попыток). Порядок меняется стрелками ↑/↓ в
-веб-панели:
+`fallbacks` (в порядке попыток). Порядок меняется стрелками ▲/▼
+под именем маршрута в веб-панели:
 
 ```json
 "fallbacks": [
@@ -556,7 +563,8 @@ WEBUI_BIND=0.0.0.0 make webui
 - **Прошивка** — скачивание образа, список файлов, запуск/остановка
   `lite-kit`, поиск колонки и действия после root.
 - **LLM-роутер** — создание маршрута, отдельные строки для основного и
-  запасных upstream, добавление/редактирование/удаление fallback.
+  запасных upstream, до 9 fallback, смена порядка стрелками ▲/▼ и проверка
+  доступности через `GET /models`.
 - **Ключи** — ротация промежуточных токенов и запись upstream-ключей.
 - **Бэкапы** — шифрованные архивы всей конфигурации или одной колонки.
   Архив включает ключи и SSH-ключ, поэтому защищён паролем.
@@ -606,7 +614,8 @@ sh /data/opt/quasar-bridge/app/uninstall.sh
 ```
 
 Вернуть обновления Яндекса: `sh /data/opt/yandex-noupdate.sh restore`.
-Остановить стенд: `./scripts/stop-lite-kit.sh`, вернуть DNS роутера.
+Остановить стенд: `./scripts/stop-lite-kit.sh` или кнопкой
+«Остановить стенд» на вкладке «Прошивка», затем вернуть DNS роутера.
 
 ## Если что-то пошло не так
 

@@ -29,15 +29,46 @@ make check
 основной диалог колонки.
 
 Если `401` — проверьте `secrets/router-token-<колонка>`. Если `503` —
-нет upstream-ключа `secrets/flai-token-<колонка>` или не настроен fallback.
+нет upstream-ключа `secrets/upstream-token-<колонка>` или не настроен fallback.
 Если `000` — контейнер `llm-router` не слушает `192.168.1.2:5002`.
 
-Прямая проверка FLAI (в обход роутера):
+Прямая проверка upstream (в обход роутера, пример):
 
 ```bash
-curl -sS -H "Authorization: Bearer $(cat secrets/flai-token-speaker-a)" \
+curl -sS -H "Authorization: Bearer $(cat secrets/upstream-token-speaker-a)" \
   http://192.168.1.2:5000/v1/models | head -c 200
 ```
+
+Имя файла ключа задаётся в `api_key_file` маршрута; это не обязательно
+`upstream-token-*`.
+
+## 0.1. Веб-панель
+
+Дальше управление идёт через панель, но первичная прошивка всё равно
+ручная.
+
+```bash
+make router        # LLM-роутер
+make webui         # панель, router-control и stand-control
+make webui-passwd  # задать пароль
+```
+
+Открыть `http://127.0.0.1:8080`. Доступ с других устройств:
+`WEBUI_BIND=0.0.0.0 make webui`.
+
+Вкладки:
+
+- **Колонки** — статус, проверка LLM, ключ, routing, Bridge, SSH/OTA;
+- **Прошивка** — скачать образ, запустить/остановить `lite-kit`, найти
+  колонку, выполнить действия после root;
+- **LLM-роутер** — primary и fallback отдельными строками, до 9
+  запасных, смена порядка, проверка доступности;
+- **Ключи** — промежуточные токены и upstream-ключи;
+- **Бэкапы** — шифрованные архивы всей конфигурации или одной колонки;
+- **Аудит** и **Пароль**.
+
+Сброс кнопкой и привязка в «Дом с Алисой» остаются ручными. Панель
+показывает чек-лист, но не нажимает кнопку.
 
 ## 1. Прошивка и стенд root
 
@@ -251,7 +282,7 @@ GitHub release-assets файл за 15 секунд.
 
 ### LLM-роутер
 
-Bridge подключается к локальному роутеру, а не напрямую к FLAI:
+Bridge подключается к локальному роутеру, а не напрямую к провайдеру:
 
 ```text
 http://192.168.1.2:5002/v1
@@ -265,8 +296,10 @@ make router
 make router-status
 ```
 
-Маршруты и fallback лежат в `secrets/router-routes.json`; изменения
-подхватываются без перезапуска. Колонка при смене upstream не меняется:
+Маршруты и цепочка `fallbacks` (до 9 запасных) лежат в
+`secrets/router-routes.json`; изменения подхватываются без перезапуска.
+Порядок fallback меняется стрелками ▲/▼ под именем маршрута в панели. Колонка при смене
+upstream не меняется:
 в её `runtime.env` остаются адрес роутера и промежуточный ключ
 `secrets/router-token-<колонка>`.
 
@@ -278,6 +311,13 @@ make router-status
 ./scripts/build-quasar-bridge.sh
 ```
 
+Проверить доступность upstream можно без панели:
+
+```bash
+curl -s http://192.168.1.2:5002/health?probe=1 | python3 -m json.tool
+```
+
+Роутер дергает `GET /models` у каждого upstream с таймаутом 3 с.
 Установщик автоматически выбирает `v0.6.2-chunked`, если сборка есть в
 `.cache/release-v0.6.2-chunked/`. Явно:
 
@@ -485,13 +525,13 @@ export SPEAKER_ENV=local/speakers/speaker-b.env
 make status
 ```
 
-Ключ FLAI для профиля лежит в `secrets/flai-token-speaker-b` (см. таблицу в
+Ключ upstream для профиля лежит в файле из `api_key_file` маршрута (например, `secrets/upstream-token-speaker-b`, см. таблицу в
 README). Профиль уже содержит `LLM_TOKEN_FILE` с этим путём. Записать ключ
 в колонку можно и отдельно:
 
 ```bash
 SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
-SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/check-flai.sh
+SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/check-llm.sh
 ```
 
 Сброс и привязка — как в шагах 3–4. Остальные колонки на это время
@@ -516,7 +556,7 @@ SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/check-flai.sh
    ls -la backups/
    ```
 
-5. Закоммитить изменения и поставить тег `v1.0` (после проверки).
+5. Закоммитить изменения и поставить тег `v2.0.0` (после проверки).
 
 ## 12. Откат
 

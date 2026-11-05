@@ -1,8 +1,9 @@
 # Внешняя LLM для Quasar Bridge
 
 Bridge отдаёт все не-сервисные запросы любой модели с OpenAI-совместимым
-API. По умолчанию используется локальный FLAI, но подойдут Ollama, vLLM,
-LM Studio, облачный OpenAI-совместимый сервис и т.п.
+API. Подойдут FLAI, Ollama, vLLM, LM Studio, облачный OpenAI-совместимый
+сервис и т.п. Управлять маршрутами и ключами удобнее в веб-панели
+(`docs/07-webui.md`).
 
 ## Переменные
 
@@ -13,11 +14,11 @@ cp config/llm.env.example local/.env
 | Переменная | Значение по умолчанию | Что значит |
 |---|---|---|
 | `LLM_BASE_URL` | `http://192.168.1.2:5000/v1` | endpoint внешней LLM |
-| `LLM_MODEL` | `flai-chat` | имя модели у провайдера |
-| `LLM_TOKEN_FILE` | `secrets/flai-token` | файл с Bearer-ключом |
+| `LLM_MODEL` | `your-model` | имя модели у провайдера |
+| `LLM_TOKEN_FILE` | `secrets/upstream-token-example` | файл с Bearer-ключом |
 
-`FLAI_*` оставлены как алиасы. Для другой LLM поменяйте `LLM_BASE_URL`,
-`LLM_MODEL` и ключ, затем перезапустите Bridge.
+`FLAI_*` оставлены как алиасы для совместимости. Поменяйте
+`LLM_BASE_URL`, `LLM_MODEL` и ключ, затем перезапустите Bridge.
 
 ## Маршрутизация
 
@@ -73,7 +74,7 @@ pkg=/data/opt/quasar-bridge/app
 
 ## Камера (пример FLAI)
 
-Если внешняя LLM — FLAI с доступом к камере, запрос
+Если внешняя LLM — [FLAI](https://github.com/barval/flai) с доступом к камере, запрос
 
 ```
 «Алиса, как дела в комнате A?»
@@ -94,7 +95,7 @@ Bridge отдаёт текст в Yandex TTS — Алиса озвучивает
 
 ## Отдельный пользователь FLAI (по желанию)
 
-1. В FLAI: «Администрирование» → «Пользователи» → создать `alice`.
+1. В FLAI: «Администрирование» → «Пользователи» → создать `alice` (или отдельного пользователя у своего провайдера).
 2. Войти как `alice`, создать API-ключ.
-3. Заменить `secrets/flai-token`.
+3. Заменить файл из `api_key_file` (например, `secrets/upstream-token-speaker-a`).
 4. Перезапустить Bridge.
