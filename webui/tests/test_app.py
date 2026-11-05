@@ -623,3 +623,58 @@ def test_fallback_order_can_be_changed(client, app, login, csrf):
     )
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert [item["model"] for item in saved["routes"][0]["fallbacks"]] == ["m0", "m1"]
+
+
+def test_router_probe_shows_colored_upstream_status(client, app, login, monkeypatch):
+    login()
+    write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+            self.status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return json.dumps(self.payload).encode()
+
+    ok_payload = {
+        "status": "ok",
+        "routes": [
+            {
+                "name": "speaker-a",
+                "available": True,
+                "primary": {"state": "ok", "http": 200},
+                "fallbacks": [],
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        "urllib.request.urlopen", lambda *args, **kwargs: Response(ok_payload)
+    )
+    body = client.get("/router?probe=1").get_data(as_text=True)
+    assert "health-ok" in body
+    assert "живой" in body
+
+    error_payload = {
+        "status": "ok",
+        "routes": [
+            {
+                "name": "speaker-a",
+                "available": False,
+                "primary": {"state": "unreachable"},
+                "fallbacks": [],
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        "urllib.request.urlopen", lambda *args, **kwargs: Response(error_payload)
+    )
+    body = client.get("/router?probe=1").get_data(as_text=True)
+    assert "health-err" in body
+    assert "недоступен" in body

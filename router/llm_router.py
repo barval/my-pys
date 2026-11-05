@@ -21,11 +21,12 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable, Mapping
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 LOG = logging.getLogger("llm-router")
 
@@ -202,6 +203,33 @@ def _parse_response_policy(raw: Any, default_sentences: int = 3, default_chars: 
         max_chars=max_chars,
         strip_markdown=bool(raw.get("strip_markdown", True)),
     )
+
+
+def probe_upstream(upstream: Upstream, timeout: float = 3.0) -> dict[str, Any]:
+    """Return a short live status for an upstream without exposing its key."""
+    if not upstream.available:
+        return {"state": "no_key"}
+    url = upstream.base_url.rstrip("/") + "/models"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {upstream.api_key}",
+            "Accept": "application/json",
+            "User-Agent": "llm-router/1.0",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            status = int(response.status)
+            response.read(64)
+            return {
+                "state": "ok" if 200 <= status < 300 else "error",
+                "http": status,
+            }
+    except urllib.error.HTTPError as exc:
+        return {"state": "error", "http": exc.code}
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        return {"state": "unreachable", "error": str(exc)[:200]}
 
 
 def load_config(path: Path) -> Config:
@@ -687,22 +715,49 @@ class ProxyHandler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == "/health":
             config = self.server.config_store.get()
-            self._send_json(
-                200,
-                {
-                    "status": "ok",
-                    "routes": [
-                        {
-                            "name": route.name,
-                            "available": bool(
-                                route.primary.available
-                                or any(item.available for item in route.fallbacks)
-                            ),
-                        }
-                        for route in config.routes
-                    ],
-                },
-            )
+            query = parse_qs(urlsplit(self.path).query)
+            probe = query.get("probe", ["0"])[0].lower() in ("1", "true", "yes")
+            if not probe:
+                self._send_json(
+                    200,
+                    {
+                        "status": "ok",
+                        "routes": [
+                            {
+                                "name": route.name,
+                                "available": bool(
+                                    route.primary.available
+                                    or any(item.available for item in route.fallbacks)
+                                ),
+                            }
+                            for route in config.routes
+                        ],
+                    },
+                )
+                return
+            entries: list[tuple[Route, str, Upstream]] = []
+            for route in config.routes:
+                entries.append((route, "primary", route.primary))
+                for index, fallback in enumerate(route.fallbacks):
+                    entries.append((route, f"fallback:{index}", fallback))
+            with ThreadPoolExecutor(max_workers=min(8, max(1, len(entries)))) as pool:
+                results = list(pool.map(lambda item: probe_upstream(item[2]), entries))
+            by_route: dict[str, dict[str, Any]] = {}
+            for (route, slot, _), result in zip(entries, results):
+                item = by_route.setdefault(
+                    route.name,
+                    {"name": route.name, "primary": {}, "fallbacks": []},
+                )
+                if slot == "primary":
+                    item["primary"] = result
+                else:
+                    item["fallbacks"].append(result)
+            for item in by_route.values():
+                item["available"] = item["primary"].get("state") == "ok" or any(
+                    fallback.get("state") == "ok"
+                    for fallback in item["fallbacks"]
+                )
+            self._send_json(200, {"status": "ok", "routes": list(by_route.values())})
             return
 
         if not path.startswith("/v1/"):

@@ -520,3 +520,24 @@ def test_health_does_not_require_token(tmp_path):
     finally:
         stop(router)
         stop(primary)
+
+
+def test_probe_upstream_reports_ok(tmp_path):
+    upstream = start_upstream(lambda seen: (200, {"data": []}, False))
+    try:
+        result = r.probe_upstream(
+            r.Upstream(
+                base_url=f"http://127.0.0.1:{upstream.server_port}/v1",
+                api_key="test-key",
+            ),
+            timeout=2,
+        )
+        assert result == {"state": "ok", "http": 200}
+        assert upstream.seen[0]["path"] == "/v1/models"
+    finally:
+        stop(upstream)
+
+
+def test_probe_upstream_without_key_does_not_connect():
+    result = r.probe_upstream(r.Upstream(base_url="http://127.0.0.1:1/v1"))
+    assert result == {"state": "no_key"}

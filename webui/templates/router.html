@@ -1,12 +1,29 @@
 {% extends "base.html" %}
 {% block title %}LLM-роутер — {{ config.WEBUI_TITLE }}{% endblock %}
 {% block content %}
+{% macro upstream_status(info) %}
+  {% set state = info.get("state", "unknown") %}
+  {% if state == "ok" %}
+  <span class="health-ok">живой · HTTP {{ info.get("http", "") }}</span>
+  {% elif state == "no_key" %}
+  <span class="muted small">нет ключа</span>
+  {% elif state == "unreachable" %}
+  <span class="health-err">недоступен</span>
+  {% elif state == "error" %}
+  <span class="health-err">ошибка · HTTP {{ info.get("http", "") }}</span>
+  {% else %}
+  <span class="muted small">не проверено</span>
+  {% endif %}
+{% endmacro %}
+
 <div class="page-head">
   <div>
     <h1>LLM-роутер</h1>
     <div class="sub">Основные и запасные маршруты</div>
   </div>
   <div class="actions">
+    <a class="btn btn-warning" href="/router?probe=1"
+       title="GET /models у каждого upstream с его ключом">Проверить доступность</a>
     <a class="btn btn-primary" href="/router/routes/new">Добавить маршрут</a>
   </div>
 </div>
@@ -62,6 +79,7 @@
           <th>Модель</th>
           <th>История</th>
           <th>Ключ</th>
+          <th>Статус</th>
           <th></th>
         </tr>
       </thead>
@@ -75,6 +93,13 @@
           <td class="mono">{{ primary.get("model", "") }}</td>
           <td>{{ primary.get("history", "") }}</td>
           <td class="mono">{{ primary.get("api_key_file", "—") }}</td>
+          <td>
+            {% if probe_requested %}
+            {{ upstream_status(probe_results.get(route.name, {}).get("primary", {})) }}
+            {% else %}
+            <span class="muted small">не проверено</span>
+            {% endif %}
+          </td>
           <td class="row-actions">
             <a class="btn btn-warning btn-sm" href="/router/routes/{{ route.name }}">Изменить</a>
             <form method="post" action="/router/routes/{{ route.name }}/delete" class="inline">
@@ -91,6 +116,14 @@
           <td class="mono">{{ fallback.get("model", "") }}</td>
           <td>{{ fallback.get("history", "") }}</td>
           <td class="mono">{{ fallback.get("api_key_file", "—") }}</td>
+          <td>
+            {% set probe_fallbacks = probe_results.get(route.name, {}).get("fallbacks", []) %}
+            {% if probe_requested and loop.index0 < (probe_fallbacks | length) %}
+            {{ upstream_status(probe_fallbacks[loop.index0]) }}
+            {% else %}
+            <span class="muted small">не проверено</span>
+            {% endif %}
+          </td>
           <td class="row-actions">
             <div class="move-actions">
               <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/move">
@@ -113,7 +146,7 @@
         </tr>
         {% endfor %}
         <tr class="add-row">
-          <td colspan="7">
+          <td colspan="8">
             {% if route.fallbacks | length >= max_fallbacks %}
             <span class="muted">Достигнут лимит: {{ max_fallbacks }} запасных маршрутов.</span>
             {% else %}
@@ -128,5 +161,6 @@
   {% else %}
   <div class="empty">Маршруты не настроены. Нажмите «Добавить маршрут».</div>
   {% endif %}
+  <p class="muted small">«Проверить доступность» делает GET /models к каждому upstream с его ключом. Таймаут — 3 секунды; это может занять несколько секунд.</p>
 </section>
 {% endblock %}

@@ -248,10 +248,13 @@ def create_app(settings: Settings | None = None) -> Flask:
         except (OSError, ValueError):
             return {"routes": []}
 
-    def health() -> tuple[dict, int]:
+    def health(probe: bool = False) -> tuple[dict, int]:
+        url = settings.router_health_url
+        if probe:
+            url += ("&" if "?" in url else "?") + "probe=1"
         try:
             with urllib.request.urlopen(
-                settings.router_health_url, timeout=2
+                url, timeout=12 if probe else 2
             ) as response:
                 return json.loads(response.read().decode("utf-8")), 200
         except Exception:
@@ -396,10 +399,18 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/router")
     def router_page():
-        payload, status = health()
+        probe = request.args.get("probe", "").lower() in ("1", "true", "yes")
+        payload, status = health(probe=probe)
+        probe_results = (
+            {item["name"]: item for item in payload.get("routes", [])}
+            if probe
+            else {}
+        )
         return render_template(
             "router.html",
             routes=normalized_routes(),
+            probe_requested=probe,
+            probe_results=probe_results,
             max_fallbacks=MAX_FALLBACKS,
             fallback_count=sum(
                 len(route["fallbacks"]) for route in normalized_routes()
