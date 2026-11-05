@@ -508,3 +508,17 @@ pre {
 
 .move-actions { display: flex; gap: .35rem; }
 .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.route-cell { min-width: 120px; }
+.route-cell .move-actions { margin-top: .35rem; gap: .4rem; }
+.move-btn {
+  min-width: 2.3rem;
+  padding: .22rem .55rem;
+  line-height: 1;
+  font-size: 1rem;
+}
+.move-btn:not(:disabled) {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface-2));
+}

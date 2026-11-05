@@ -110,7 +110,21 @@
         </tr>
         {% for fallback in route.fallbacks %}
         <tr>
-          <td>{{ route.name }}</td>
+          <td class="route-cell">
+            <div>{{ route.name }}</div>
+            <div class="move-actions">
+              <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/move">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="direction" value="up">
+                <button class="btn btn-sm move-btn" type="submit" title="Выше"{% if loop.first %} disabled{% endif %}>▲</button>
+              </form>
+              <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/move">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="direction" value="down">
+                <button class="btn btn-sm move-btn" type="submit" title="Ниже"{% if loop.last %} disabled{% endif %}>▼</button>
+              </form>
+            </div>
+          </td>
           <td><span class="badge badge-warn">запасной {{ loop.index }}</span></td>
           <td class="mono">{{ fallback.get("base_url", "") }}</td>
           <td class="mono">{{ fallback.get("model", "") }}</td>
@@ -125,18 +139,6 @@
             {% endif %}
           </td>
           <td class="row-actions">
-            <div class="move-actions">
-              <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/move">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="direction" value="up">
-                <button class="btn btn-sm" type="submit" title="Выше"{% if loop.first %} disabled{% endif %}>↑</button>
-              </form>
-              <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/move">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="direction" value="down">
-                <button class="btn btn-sm" type="submit" title="Ниже"{% if loop.last %} disabled{% endif %}>↓</button>
-              </form>
-            </div>
             <a class="btn btn-warning btn-sm" href="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}">Изменить</a>
             <form method="post" action="/router/routes/{{ route.name }}/fallback/{{ loop.index0 }}/delete" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
