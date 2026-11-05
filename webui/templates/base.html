@@ -11,12 +11,12 @@
     <strong>Станции</strong>
     {% if session.get('user') %}
       <nav>
-        <a href="{{ url_for('speakers') }}">Колонки</a>
-        <a href="{{ url_for('router_page') }}">Роутер</a>
-        <a href="{{ url_for('keys_page') }}">Ключи</a>
-        <a href="{{ url_for('audit_page') }}">Аудит</a>
+        <a href="/speakers">Колонки</a>
+        <a href="/router">Роутер</a>
+        <a href="/keys">Ключи</a>
+        <a href="/audit">Аудит</a>
       </nav>
-      <form method="post" action="{{ url_for('logout') }}" class="inline">
+      <form method="post" action="/logout" class="inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit">Выйти</button>
       </form>

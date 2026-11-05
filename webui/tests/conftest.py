@@ -17,6 +17,17 @@ def settings(tmp_path):
 
 
 @pytest.fixture
+def login(client, csrf):
+    def do():
+        client.post(
+            "/login",
+            data={"password": "correct horse", "csrf_token": csrf(client)},
+        )
+
+    return do
+
+
+@pytest.fixture
 def csrf():
     def token(client):
         client.get("/login")
@@ -27,7 +38,8 @@ def csrf():
 
 
 @pytest.fixture
-def app(settings):
+def app(settings, make_profile):
+    make_profile("speaker-a")
     app = create_app(settings)
     app.config.update(TESTING=True)
     return app

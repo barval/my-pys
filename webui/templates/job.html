@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Задание {{ job.id }} — Web UI{% endblock %}
+{% block content %}
+<h1>Задание {{ job.id }}</h1>
+<dl>
+  <dt>Действие</dt><dd>{{ job.action }}</dd>
+  <dt>Цель</dt><dd>{{ job.target }}</dd>
+  <dt>Статус</dt><dd>{{ job.status }}</dd>
+  <dt>Код выхода</dt><dd>{{ job.exit_code if job.exit_code is not none else "—" }}</dd>
+</dl>
+{% include "job_log.html" %}
+{% endblock %}

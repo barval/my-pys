@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Колонки — Web UI{% endblock %}
+{% block content %}
+<h1>Колонки</h1>
+{% if profiles %}
+<table>
+  <thead>
+    <tr><th>Профиль</th><th>IP</th><th>MAC</th><th>Device ID</th></tr>
+  </thead>
+  <tbody>
+    {% for profile in profiles %}
+    <tr>
+      <td><a href="/speakers/{{ profile.name }}">{{ profile.name }}</a></td>
+      <td>{{ profile.ip }}</td>
+      <td>{{ mask(profile.mac) }}</td>
+      <td>{{ mask(profile.device_id) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Профили не найдены. Добавьте файлы в <code>local/speakers/</code>.</p>
+{% endif %}
+{% endblock %}
