@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -22,6 +23,37 @@ func streamLLMEnabled() bool {
 
 func speechChunkLimit() int {
 	return envPositiveInt("QUASAR_SPEECH_MAX_CHUNKS", defaultSpeechChunkLimit)
+}
+
+func speechFillerEnabled() bool {
+	return os.Getenv("QUASAR_SPEECH_FILLER") == "1"
+}
+
+func speechFillerAfter() time.Duration {
+	return time.Duration(envPositiveInt("QUASAR_SPEECH_FILLER_AFTER", 10)) * time.Second
+}
+
+func speechFillerEvery() time.Duration {
+	return time.Duration(envPositiveInt("QUASAR_SPEECH_FILLER_EVERY", 15)) * time.Second
+}
+
+func speechFillerPhrases() []string {
+	raw := strings.TrimSpace(os.Getenv("QUASAR_SPEECH_FILLERS"))
+	if raw == "" {
+		return []string{
+			"Секунду, ищу ответ.",
+			"Пока думаю.",
+			"Мне нужно чуть больше времени.",
+			"Ещё немного, и смогу сказать.",
+		}
+	}
+	var phrases []string
+	for _, part := range strings.Split(raw, "|") {
+		if phrase := strings.TrimSpace(part); phrase != "" {
+			phrases = append(phrases, phrase)
+		}
+	}
+	return phrases
 }
 
 func envPositiveInt(name string, fallback int) int {

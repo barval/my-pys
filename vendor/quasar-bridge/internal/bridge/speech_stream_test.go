@@ -3,6 +3,7 @@ package bridge
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCleanSpeechText(t *testing.T) {
@@ -49,6 +50,33 @@ func TestCleanSpeechTextTable(t *testing.T) {
 	got := cleanSpeechText("| a | b |\n|---|---|\n| 1 | 2 |")
 	if strings.Contains(got, "|") || strings.Contains(got, "---") || !strings.Contains(got, "a") || !strings.Contains(got, "2") {
 		t.Fatalf("unexpected: %q", got)
+	}
+}
+
+func TestSpeechFillerConfig(t *testing.T) {
+	t.Setenv("QUASAR_SPEECH_FILLER", "1")
+	t.Setenv("QUASAR_SPEECH_FILLER_AFTER", "7")
+	t.Setenv("QUASAR_SPEECH_FILLER_EVERY", "9")
+	t.Setenv("QUASAR_SPEECH_FILLERS", "раз| два |")
+
+	if !speechFillerEnabled() {
+		t.Fatal("fillers not enabled")
+	}
+	if got := speechFillerAfter(); got != 7*time.Second {
+		t.Fatalf("after=%v", got)
+	}
+	if got := speechFillerEvery(); got != 9*time.Second {
+		t.Fatalf("every=%v", got)
+	}
+	if got := speechFillerPhrases(); len(got) != 2 || got[0] != "раз" || got[1] != "два" {
+		t.Fatalf("phrases=%#v", got)
+	}
+}
+
+func TestSpeechFillerDefaults(t *testing.T) {
+	t.Setenv("QUASAR_SPEECH_FILLERS", "")
+	if got := speechFillerPhrases(); len(got) == 0 {
+		t.Fatal("default phrases are empty")
 	}
 }
 
