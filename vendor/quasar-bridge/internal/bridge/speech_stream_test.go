@@ -75,6 +75,7 @@ func TestSpeechFillerConfig(t *testing.T) {
 	t.Setenv("QUASAR_SPEECH_FILLER", "1")
 	t.Setenv("QUASAR_SPEECH_FILLER_AFTER", "7")
 	t.Setenv("QUASAR_SPEECH_FILLER_EVERY", "9")
+	t.Setenv("QUASAR_SPEECH_FILLER_MAX", "2")
 	t.Setenv("QUASAR_SPEECH_FILLERS", "раз| два |")
 
 	if !speechFillerEnabled() {
@@ -85,6 +86,9 @@ func TestSpeechFillerConfig(t *testing.T) {
 	}
 	if got := speechFillerEvery(); got != 9*time.Second {
 		t.Fatalf("every=%v", got)
+	}
+	if got := speechFillerMax(); got != 2 {
+		t.Fatalf("max=%d", got)
 	}
 	if got := speechFillerPhrases(); len(got) != 2 || got[0] != "раз" || got[1] != "два" {
 		t.Fatalf("phrases=%#v", got)

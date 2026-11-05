@@ -33,7 +33,9 @@ func TestEngineStreamsFallbackChunks(t *testing.T) {
 	engine := &Engine{LLM: &llm.Client{BaseURL: s.URL, Model: "fixture-model"}}
 	var chunks []string
 	result, err := engine.FallbackStream(t.Context(), "вопрос", func(chunk string) error {
-		chunks = append(chunks, chunk)
+		if chunk != "" {
+			chunks = append(chunks, chunk)
+		}
 		return nil
 	})
 	if err != nil {

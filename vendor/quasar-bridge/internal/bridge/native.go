@@ -75,6 +75,8 @@ func (s *speechStream) stopFillersOnce() {
 
 func (s *speechStream) chunk(text string) error {
 	if strings.TrimSpace(text) == "" {
+		s.stopFillersOnce()
+		s.n.clearFillers(s.p)
 		return nil
 	}
 	s.stopFillersOnce()
@@ -129,7 +131,7 @@ func (n *Native) startSpeechFillers(p *nativeRequest) func() {
 			return
 		case <-timer.C:
 		}
-		for index := 0; ; index++ {
+		for index := 0; index < speechFillerMax(); index++ {
 			if err := n.enqueueFiller(p, phrases[index%len(phrases)]); err != nil {
 				return
 			}

@@ -307,6 +307,7 @@ deferred-сообщениями каждые 3 секунды и начинае�
 QUASAR_SPEECH_FILLER=1
 QUASAR_SPEECH_FILLER_AFTER=10
 QUASAR_SPEECH_FILLER_EVERY=15
+QUASAR_SPEECH_FILLER_MAX=3
 QUASAR_SPEECH_FILLERS="Секунду, ищу ответ.|Пока думаю.|Мне нужно чуть больше времени.|Ещё немного, и смогу сказать."
 ```
 

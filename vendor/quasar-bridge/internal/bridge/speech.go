@@ -37,6 +37,10 @@ func speechFillerEvery() time.Duration {
 	return time.Duration(envPositiveInt("QUASAR_SPEECH_FILLER_EVERY", 15)) * time.Second
 }
 
+func speechFillerMax() int {
+	return envPositiveInt("QUASAR_SPEECH_FILLER_MAX", 3)
+}
+
 func speechFillerPhrases() []string {
 	raw := strings.TrimSpace(os.Getenv("QUASAR_SPEECH_FILLERS"))
 	if raw == "" {
