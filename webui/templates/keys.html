@@ -23,7 +23,10 @@
 {% if items %}
 <h2>Промежуточные токены</h2>
 <p class="muted small">Один токен на маршрут. Колонка ходит с ним в LLM-роутер,
-а роутер по нему выбирает маршрут.</p>
+а роутер по нему выбирает маршрут. «Сменить токен» сразу заменяет значение
+в файле: старый токен перестанет работать, поэтому после смены запишите
+новый токен в колонку через «Колонки → Записать ключ» или
+<code>./scripts/set-speaker-key.sh</code>.</p>
 <div class="table-wrap">
   <table>
     <thead>
@@ -40,9 +43,10 @@
           </span>
         </td>
         <td>
-          <form method="post" action="/keys/router/{{ item.route }}/rotate" class="inline">
+          <form method="post" action="/keys/router/{{ item.route }}/rotate" class="inline"
+                onsubmit="return confirm('Старый токен перестанет работать. После смены запишите новый токен в колонку. Продолжить?')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-warning btn-sm" type="submit">Ротировать</button>
+            <button class="btn btn-warning btn-sm" type="submit">Сменить токен</button>
           </form>
         </td>
       </tr>
