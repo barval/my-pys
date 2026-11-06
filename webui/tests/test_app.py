@@ -554,6 +554,22 @@ def test_home_search_filters_cards(client, login):
     assert "speaker-a" not in client.get("/?q=zzz").get_data(as_text=True)
 
 
+def test_home_shows_cached_status(client, app, login):
+    from webui.status import save_status, SpeakerStatus
+    from webui.settings import load_settings
+
+    login()
+    settings = app.config["WEBUI_SETTINGS"]
+    save_status(
+        settings.state_dir / "speaker-status.json",
+        {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", True, False)},
+    )
+    body = client.get("/").get_data(as_text=True)
+    assert "онлайн" in body
+    assert "Bridge не отвечает" in body
+    assert 'class="status ok"' in body
+
+
 def test_mode_switch_sets_cookie(client, login, csrf):
     login()
     response = client.post(

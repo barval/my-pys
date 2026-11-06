@@ -2,12 +2,24 @@
 {% block title %}{{ profile.name }} — {{ config.WEBUI_TITLE }}{% endblock %}
 {% block content %}
 <div class="page-head speaker-head">
+  {% set status = statuses.get(profile.name) %}
+  {% set online_class = "ok" if status and status.online is true else "bad" if status and status.online is false else "unknown" %}
   <div class="speaker-title">
     {% with color=card.color, color_name=card.color_name, icon_id=profile.name, model=card.model %}{% include "_speaker_icon.html" %}{% endwith %}
     <div>
       <a class="back" href="/speakers">← Все колонки</a>
       <h1>{{ profile.name }}</h1>
       <div class="sub">{{ profile.room }} · {{ card.model }} · {{ card.color_name }}</div>
+      <p class="status-line small">
+        <span class="status {{ online_class }}"></span>
+        {% if status %}
+          {% if status.online is true %}<span class="status-text ok">онлайн</span>{% elif status.online is false %}<span class="status-text bad">не в сети</span>{% endif %}
+          {% if status.bridge is false %}<span class="status-text bad">Bridge не отвечает</span>{% endif %}
+          {% if status.llm is false %}<span class="status-text bad">LLM не отвечает</span>{% endif %}
+        {% else %}
+          <span class="status-text unknown">не проверялась</span>
+        {% endif %}
+      </p>
     </div>
   </div>
 </div>

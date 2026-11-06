@@ -58,6 +58,7 @@ from .keys import (
 from .profiles import load_profiles, parse_env
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
+from .status import sync_from_jobs
 from .ui_mode import ADVANCED, COOKIE_NAME, SIMPLE, current_mode
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
@@ -170,6 +171,12 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.extensions["profiles"] = profiles
     app.extensions["jobs"] = runner
     appearance_path = settings.state_dir / "speaker-appearance.json"
+    status_path = settings.state_dir / "speaker-status.json"
+
+    def speaker_statuses() -> dict:
+        runner = app.extensions["jobs"]
+        jobs = runner.list(limit=200) if hasattr(runner, "list") else []
+        return sync_from_jobs(status_path, jobs)
 
     def reload_profiles() -> None:
         profiles.clear()
@@ -326,7 +333,12 @@ def create_app(settings: Settings | None = None) -> Flask:
                      card["model"])
                 ).casefold()
             ]
-        return render_template("speakers.html", cards=cards, query=query)
+        return render_template(
+            "speakers.html",
+            cards=cards,
+            query=query,
+            statuses=speaker_statuses(),
+        )
 
     @app.get("/speakers")
     def legacy_speakers():
@@ -365,6 +377,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             color_choices=COLOR_CHOICES,
             actions=SPEAKER_ACTIONS.values(),
             jobs=jobs,
+            statuses=speaker_statuses(),
         )
 
     @app.post("/speakers/<name>/appearance")

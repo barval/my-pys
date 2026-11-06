@@ -579,6 +579,14 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
   background: var(--ok);
   align-self: flex-end;
 }
+.status.ok { background: var(--ok); }
+.status.bad { background: var(--danger); }
+.status.unknown { background: var(--muted); }
+.status-text.ok { color: var(--ok); }
+.status-text.bad { color: var(--danger); }
+.status-text.unknown { color: var(--muted); }
+.status-line { margin: .25rem 0 0; display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.status-line .status { align-self: center; }
 .speaker-card-body {
   display: flex;
   gap: .9rem;

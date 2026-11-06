@@ -15,8 +15,10 @@
 {% if cards %}
 <div class="speaker-grid">
   {% for card in cards %}
+  {% set status = statuses.get(card["profile"].name) %}
+  {% set online_class = "ok" if status and status.online is true else "bad" if status and status.online is false else "unknown" %}
   <article class="speaker-card">
-    <div class="status"></div>
+    <div class="status {{ online_class }}"></div>
     <div class="speaker-card-body">
       <div class="speaker-card-icon">
         {% with color=card.color, color_name=card.color_name, icon_id=card.profile.name, model=card.model %}{% include "_speaker_icon.html" %}{% endwith %}
@@ -25,6 +27,15 @@
         <h2>{{ card.profile.name }}</h2>
         <p class="muted">{{ card.profile.room or card.profile.platform }}</p>
         <p class="muted small">{{ card.model }}</p>
+        <p class="status-line small">
+          {% if status %}
+            {% if status.online is true %}<span class="status-text ok">онлайн</span>{% elif status.online is false %}<span class="status-text bad">не в сети</span>{% endif %}
+            {% if status.bridge is false %}<span class="status-text bad">Bridge не отвечает</span>{% endif %}
+            {% if status.llm is false %}<span class="status-text bad">LLM не отвечает</span>{% endif %}
+          {% else %}
+            <span class="status-text unknown">не проверялась</span>
+          {% endif %}
+        </p>
       </div>
     </div>
     <div class="speaker-card-actions">
