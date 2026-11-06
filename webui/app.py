@@ -626,8 +626,9 @@ def create_app(settings: Settings | None = None) -> Flask:
         if request.form.get("direction") != "down":
             abort(400)
         fallbacks = route_fallbacks(route)
+        anchor = f"route-{name}"
         if not fallbacks:
-            return redirect(url_for("router_page"))
+            return redirect(url_for("router_page", _anchor=anchor))
         primary = route.get("primary")
         fallbacks[0], primary = primary, fallbacks[0]
         updated = dict(route)
@@ -639,7 +640,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         except (ConfigError, OSError) as exc:
             return str(exc), 400
         audit("router.primary.move", name, detail="primary<->fallback1")
-        return redirect(url_for("router_page"))
+        return redirect(url_for("router_page", _anchor=anchor))
 
     @app.post("/router/routes/<name>/fallback/<int:index>/move")
     def fallback_move(name: str, index: int):
@@ -653,6 +654,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             abort(400)
         if index < 0 or index >= len(fallbacks):
             abort(404)
+        anchor = f"route-{name}"
         updated = dict(route)
         if direction == "up" and index == 0:
             primary = route.get("primary")
@@ -661,8 +663,9 @@ def create_app(settings: Settings | None = None) -> Flask:
         else:
             target = index - 1 if direction == "up" else index + 1
             if target < 0 or target >= len(fallbacks):
-                return redirect(url_for("router_page"))
+                return redirect(url_for("router_page", _anchor=anchor))
             fallbacks[index], fallbacks[target] = fallbacks[target], fallbacks[index]
+            anchor = f"route-{name}-fallback-{target}"
         updated["fallbacks"] = fallbacks
         updated.pop("fallback", None)
         try:
@@ -670,7 +673,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         except (ConfigError, OSError) as exc:
             return str(exc), 400
         audit("router.fallback.move", name, detail=f"{index} {direction}")
-        return redirect(url_for("router_page"))
+        return redirect(url_for("router_page", _anchor=anchor))
 
     @app.post("/router/routes/<name>/fallback/<int:index>/delete")
     def fallback_delete(name: str, index: int):

@@ -86,7 +86,7 @@
       <tbody>
         {% for route in routes %}
         {% set primary = route.get("primary", {}) %}
-        <tr>
+        <tr id="route-{{ route.name }}">
           <td class="route-cell">
             <strong>{{ route.name }}</strong>
             {% if route.fallbacks %}
@@ -120,7 +120,7 @@
           </td>
         </tr>
         {% for fallback in route.fallbacks %}
-        <tr>
+        <tr id="route-{{ route.name }}-fallback-{{ loop.index0 }}">
           <td class="route-cell">
             <div>{{ route.name }}</div>
             <div class="move-actions">

@@ -528,3 +528,6 @@ pre {
 
 .keys-table th, .keys-table td { vertical-align: middle; }
 .keys-table form { margin: 0; }
+
+/* Keep the reordered route visible below the sticky header. */
+tr[id^="route-"] { scroll-margin-top: 5.5rem; }

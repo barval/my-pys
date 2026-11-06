@@ -786,3 +786,39 @@ def test_primary_and_first_fallback_can_swap(client, app, login, csrf):
     route = saved["routes"][0]
     assert route["primary"]["model"] == "primary-model"
     assert route["fallbacks"][0]["model"] == "fallback-model"
+
+
+def test_reorder_returns_to_the_route_anchor(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["routes"][0]["fallbacks"] = [
+        {
+            "base_url": f"https://api{i}.example/v1",
+            "api_key_file": "fallback-token-speaker-a",
+            "model": f"m{i}",
+            "history": "client",
+        }
+        for i in range(2)
+    ]
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    response = client.post(
+        "/router/routes/speaker-a/fallback/0/move",
+        data={"direction": "down"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("#route-speaker-a-fallback-1")
+
+    response = client.post(
+        "/router/routes/speaker-a/primary/move",
+        data={"direction": "down"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("#route-speaker-a")
+
+    body = client.get("/router").get_data(as_text=True)
+    assert 'id="route-speaker-a"' in body
+    assert 'id="route-speaker-a-fallback-0"' in body
