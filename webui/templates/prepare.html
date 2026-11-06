@@ -2,11 +2,11 @@
 {% block title %}{{ host_step.title }} — {{ config.WEBUI_TITLE }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>{{ host_step.number }}. {{ host_step.title }}</h1>
+  <h1>Подготовка хоста</h1>
 </div>
 
 <section class="card">
-  <h2>Зачем</h2>
+  <h2>Начало</h2>
   <p>{{ host_step.hint }}</p>
   <p class="muted small">Не забудьте вернуть DNS роутера после прошивки, иначе доступ в интернет на колонке может не заработать.</p>
 </section>
@@ -33,10 +33,16 @@
   {% endif %}
 
   <div class="actions" style="margin-top:1rem">
+    {% set button_classes = {
+      "firmware": "btn-primary",
+      "stand-start": "btn-success",
+      "stand-stop": "btn-danger",
+      "stand-status": "btn-warning",
+    } %}
     {% for key, action in host_actions.items() %}
     <form method="post" action="/setup/prepare/actions/{{ key }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn" type="submit">{{ action.label }}</button>
+      <button class="btn {{ button_classes.get(key, '') }}" type="submit">{{ action.label }}</button>
     </form>
     {% endfor %}
   </div>

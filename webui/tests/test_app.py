@@ -1364,3 +1364,15 @@ def test_access_add_key_form_has_no_label_field(client, app, login):
     assert 'name="label"' not in body
     assert 'placeholder="Orca free"' not in body
     assert 'placeholder="orca-token-2"' not in body
+
+
+def test_prepare_screen_headings_and_button_colours(client, app, login):
+    login()
+    body = client.get("/setup/prepare").get_data(as_text=True)
+    assert "<h1>Подготовка хоста</h1>" in body
+    assert "<h2>Начало</h2>" in body
+    assert "Зачем" not in body
+    assert 'class="btn btn-primary" type="submit">Скачать прошивку' in body
+    assert 'class="btn btn-success" type="submit">Запустить стенд' in body
+    assert 'class="btn btn-danger" type="submit">Остановить стенд' in body
+    assert 'class="btn btn-warning" type="submit">Статус стенда' in body
