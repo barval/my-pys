@@ -41,10 +41,8 @@ def test_unknown_speaker_returns_404(client, login):
     assert client.get("/speakers/nope").status_code == 404
 
 
-def test_speaker_page_has_say_dialog(client, login, csrf):
+def test_speaker_page_has_say_dialog(client, login):
     login()
-    client.post("/mode", data={"mode": "advanced", "next": "/"},
-                headers={"X-CSRF-Token": csrf(client)})
     body = client.get("/speakers/speaker-a").get_data(as_text=True)
     assert "Сказать" in body
     assert 'action="/speakers/speaker-a/say"' in body
@@ -526,7 +524,6 @@ def test_speakers_page_has_logout_and_tabs(client, login):
     body = client.get("/").get_data(as_text=True)
     assert "Выйти" in body
     assert "topbar" in body
-    assert "Администратор" in body
 
 
 def test_login_redirects_authenticated_user(client, login):
@@ -610,18 +607,6 @@ def test_speaker_page_shows_cached_status(client, app, login):
     assert 'class="status ok"' in body
 
 
-def test_mode_switch_sets_cookie(client, login, csrf):
-    login()
-    response = client.post(
-        "/mode", data={"mode": "advanced"}, headers={"X-CSRF-Token": csrf(client)}
-    )
-    assert response.status_code == 303
-    assert response.headers["Set-Cookie"].startswith("ui_mode=advanced")
-
-
-def test_advanced_nav_is_hidden_in_simple_mode(client, login):
-    login()
-    assert 'href="/advanced"' not in client.get("/").get_data(as_text=True)
 
 
 def test_create_route_generates_token(client, app, login, csrf):
@@ -1248,9 +1233,9 @@ def test_simple_route_form_hides_technical_fields_and_preserves_them(
     }]
     settings.router_config.write_text(json.dumps(raw), encoding="utf-8")
     body = client.get("/access/routes/speaker-a").get_data(as_text=True)
-    assert "Таймаут" not in body
-    assert "token_file" not in body
-    assert 'type="hidden" name="timeout_seconds"' in body
+    assert "Таймаут" in body
+    assert "token_file" in body
+    assert 'name="timeout_seconds"' in body
     response = client.post(
         "/router/routes/speaker-a",
         headers={"X-CSRF-Token": csrf(client)},

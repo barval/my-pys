@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Новый маршрут — {{ config.WEBUI_TITLE }}{% endblock %}
 {% block head %}
-{% if not advanced %}
 <script>
 const providerModels = {
 {% for provider in providers %}
@@ -24,7 +23,6 @@ function updateModels() {
 }
 document.addEventListener('DOMContentLoaded', updateModels);
 </script>
-{% endif %}
 {% endblock %}
 {% block content %}
 <div class="page-head">
@@ -44,7 +42,6 @@ document.addEventListener('DOMContentLoaded', updateModels);
   </label>
   <p class="muted">Имя маршрута — произвольный идентификатор: латиница, цифры и дефис. Промежуточный токен будет создан автоматически и показан один раз.</p>
 
-  {% if advanced %}
   <div class="form-grid">
     <label>Base URL
       <input name="base_url" value="{{ request.form.get('base_url', 'http://127.0.0.1:5000/v1') }}" required>
@@ -72,32 +69,6 @@ document.addEventListener('DOMContentLoaded', updateModels);
       <input name="timeout_seconds" type="number" step="1" value="{{ request.form.get('timeout_seconds', 180) }}">
     </label>
   </div>
-  {% else %}
-  <div class="form-grid">
-    <label>Провайдер
-      {% set current_provider = request.form.get('provider_id', '') %}
-      <select name="provider_id" id="provider_id" onchange="updateModels()">
-        {% for provider in providers %}
-        <option value="{{ provider.id }}"{% if provider.id == current_provider %} selected{% endif %}>{{ provider.name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label>Модель
-      <select name="model" id="model"></select>
-    </label>
-    <label>Ключ
-      {% set current_key = request.form.get('api_key_file', '') %}
-      <select name="api_key_file">
-        <option value="">— без ключа —</option>
-        {% for key in upstream_keys %}
-        <option value="{{ key.file }}"{% if key.file == current_key %} selected{% endif %}>{{ key.file }}</option>
-        {% endfor %}
-      </select>
-    </label>
-  </div>
-  <input type="hidden" name="history" value="{{ request.form.get('history', 'server') }}">
-  <input type="hidden" name="timeout_seconds" value="{{ request.form.get('timeout_seconds', 180) }}">
-  {% endif %}
   <div class="form-actions">
     <button class="btn btn-success" type="submit">Создать</button>
   </div>

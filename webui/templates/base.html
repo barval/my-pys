@@ -20,22 +20,9 @@
     <a class="{% if request.path.startswith('/access') %}active{% endif %}" href="/access">Модели</a>
     <a class="{% if request.path.startswith('/test') %}active{% endif %}" href="/test">Проверка</a>
     <a class="{% if request.path.startswith('/more') %}active{% endif %}" href="/more">Ещё</a>
-    {% if advanced %}
-    <a class="{% if request.path.startswith('/advanced') %}active{% endif %}" href="/advanced">Продвинутое</a>
-    {% endif %}
+    <a class="{% if request.path.startswith('/advanced') %}active{% endif %}" href="/advanced">Дополнительно</a>
   </nav>
   <div class="header-actions">
-    <form class="mode-switch" method="post" action="/mode">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="next" value="{{ request.full_path }}">
-      {% if advanced %}
-      <button class="btn btn-sm" type="submit" name="mode" value="simple">Простой</button>
-      {% else %}
-      <button class="btn btn-sm" type="submit" name="mode" value="advanced">Продвинутый</button>
-      {% endif %}
-    </form>
-    <span class="user-label">Администратор</span>
-    <span class="muted version">v{{ config.WEBUI_VERSION }}</span>
     <form method="post" action="/logout">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-sm" type="submit">Выйти</button>

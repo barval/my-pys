@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Новый запасной' if index is none else 'Запасной' }} — {{ route.name }} — {{ config.WEBUI_TITLE }}{% endblock %}
+{% set action = '/router/routes/' ~ route.name ~ '/fallback/new' if index is none else '/router/routes/' ~ route.name ~ '/fallback/' ~ index %}
 {% block head %}
-{% if not advanced %}
 <script>
 const providerModels = {
 {% for provider in providers %}
@@ -26,7 +26,6 @@ function updateFallbackModels() {
 }
 document.addEventListener('DOMContentLoaded', updateFallbackModels);
 </script>
-{% endif %}
 {% endblock %}
 {% block content %}
 <div class="page-head">
@@ -38,11 +37,8 @@ document.addEventListener('DOMContentLoaded', updateFallbackModels);
 
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
-{% set action = '/router/routes/' ~ route.name ~ '/fallback/new' if index is none else '/router/routes/' ~ route.name ~ '/fallback/' ~ index %}
-
 <form method="post" action="{{ action }}" class="card">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  {% if advanced %}
   <div class="form-grid">
     <label>Base URL
       <input name="base_url" value="{{ fallback.get('base_url', '') }}" required>
@@ -70,33 +66,6 @@ document.addEventListener('DOMContentLoaded', updateFallbackModels);
       <input name="timeout_seconds" type="number" step="1" value="{{ fallback.get('timeout_seconds', 180) }}">
     </label>
   </div>
-  {% else %}
-  {% set matched_provider = providers | selectattr('base_url', 'equalto', fallback.get('base_url', '')) | first %}
-  {% set current_provider = request.form.get('provider_id', matched_provider.id if matched_provider else (providers[0].id if providers else '')) %}
-  <div class="form-grid">
-    <label>Провайдер
-      <select name="provider_id" id="provider_id" onchange="updateFallbackModels()">
-        {% for provider in providers %}
-        <option value="{{ provider.id }}"{% if provider.id == current_provider %} selected{% endif %}>{{ provider.name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label>Модель
-      <select name="model" id="model" data-current="{{ fallback.get('model', '') }}"></select>
-    </label>
-    <label>Ключ
-      {% set current_key = fallback.get('api_key_file', '') %}
-      <select name="api_key_file">
-        <option value="">— без ключа —</option>
-        {% for key in upstream_keys %}
-        <option value="{{ key.file }}"{% if key.file == current_key %} selected{% endif %}>{{ key.file }}</option>
-        {% endfor %}
-      </select>
-    </label>
-  </div>
-  <input type="hidden" name="history" value="{{ fallback.get('history', 'client') }}">
-  <input type="hidden" name="timeout_seconds" value="{{ request.form.get('timeout_seconds', fallback.get('timeout_seconds', 180)) }}">
-  {% endif %}
   <div class="form-actions">
     <button class="btn btn-success" type="submit">Сохранить</button>
   </div>

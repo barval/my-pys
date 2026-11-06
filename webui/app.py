@@ -70,7 +70,6 @@ from .providers import (
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
 from .status import sync_from_jobs
-from .ui_mode import ADVANCED, COOKIE_NAME, SIMPLE, current_mode, is_advanced
 from .wizard import HOST_STEP, STEPS, advance, load_progress, save_progress, set_last_job, step_by_number
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
@@ -406,11 +405,6 @@ def create_app(settings: Settings | None = None) -> Flask:
             response.headers["Cache-Control"] = "no-store"
         return response
 
-    @app.context_processor
-    def ui_context():
-        mode = current_mode(request.cookies.get(COOKIE_NAME))
-        return {"ui_mode": mode, "advanced": mode == ADVANCED}
-
     @app.get("/")
     def speakers_page():
         query = request.args.get("q", "").strip()
@@ -436,22 +430,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     def legacy_speakers():
         return redirect(url_for("speakers_page"), code=301)
 
-    @app.post("/mode")
-    def mode_switch():
-        mode = request.form.get("mode", "")
-        if mode not in (SIMPLE, ADVANCED):
-            abort(400)
-        target = request.form.get("next", "")
-        if not target.startswith("/") or target.startswith("//"):
-            target = url_for("speakers_page")
-        response = redirect(target, code=303)
-        response.set_cookie(
-            COOKIE_NAME, mode, max_age=31536000, samesite="Strict", httponly=True
-        )
-        audit("ui.mode", mode)
-        return response
-
-    @app.get("/speakers/new")
+    @app.post("/speakers/<name>/delete")
     def speaker_new():
         error = None
         devices = None
@@ -1636,13 +1615,8 @@ def create_app(settings: Settings | None = None) -> Flask:
             entries=audit_entries(),
         )
 
-    def require_advanced() -> None:
-        if not is_advanced(request.cookies.get(COOKIE_NAME)):
-            abort(404)
-
     @app.get("/advanced")
     def advanced_page():
-        require_advanced()
         return render_template(
             "advanced.html",
             view="index",
@@ -1652,7 +1626,6 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/advanced/jobs")
     def advanced_jobs():
-        require_advanced()
         runner = app.extensions["jobs"]
         jobs = runner.list(limit=200) if hasattr(runner, "list") else []
         return render_template(
@@ -1665,7 +1638,6 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/advanced/routes")
     def advanced_routes():
-        require_advanced()
         return render_template(
             "advanced.html",
             view="routes",
@@ -1676,7 +1648,6 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/advanced/bridge")
     def advanced_bridge():
-        require_advanced()
         policy_path = settings.root / "config" / "quasar-bridge-policy.json"
         policy_json = None
         try:

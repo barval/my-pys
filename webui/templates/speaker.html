@@ -85,9 +85,7 @@
     <button class="btn btn-danger" type="submit">Удалить колонку</button>
   </form>
 </section>
-
-{% if advanced %}
-<section class="card" style="margin-top:1rem">
+  <section class="card" style="margin-top:1rem">
   <h2>Продвинутые действия</h2>
   <div class="actions">
     {% for action in actions %}
@@ -99,7 +97,7 @@
     <button class="btn btn-primary" type="button"
             data-dialog-open="say-dialog-{{ profile.name }}">Сказать</button>
   </div>
-  <p class="muted">Действия выполняются по очереди; лог откроется на отдельной странице.</p>
+  <p class="muted">Действия выполняются по очереди; лог откроется на отдельной странице.
 
   <dialog class="say-dialog" id="say-dialog-{{ profile.name }}">
     <form method="post" action="/speakers/{{ profile.name }}/say" class="stack">
@@ -118,7 +116,7 @@
     </form>
   </dialog>
 </section>
-{% endif %}
+
 
 <section class="card" style="margin-top:1rem">
   <h2>Последние задания</h2>
