@@ -17,6 +17,8 @@
 Связанные файлы:
 
 - [README.md](../README.md) — обзор и быстрый старт.
+- [.opencode/skills/deploying-my-pys/](../.opencode/skills/deploying-my-pys/SKILL.md)
+  — навык для ИИ-агента: развёртывание, прошивка, маршруты, ключи, бэкапы.
 - [config/quasar-bridge-notes.md](../config/quasar-bridge-notes.md) —
   настройки Bridge под любую OpenAI-совместимую LLM.
 - [vendor/README.md](../vendor/README.md) — версии сторонних проектов.

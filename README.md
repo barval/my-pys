@@ -105,6 +105,8 @@ vendor/
   lite-kit/                   снапшот krevetkqqq/lite-kit
   quasar-bridge/              снапшот skrashevich/quasar-bridge v0.6.2
   station-tools/              dropbear, dropbearkey, yandex-noupdate.sh
+.opencode/skills/
+  deploying-my-pys/           навык для ИИ-агента: развёртывание и эксплуатация
 ```
 
 ## Перед началом
