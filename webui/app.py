@@ -1457,7 +1457,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             key_file = add_upstream_key(
                 registry_path,
                 settings.secrets_dir,
-                request.form.get("label", ""),
+                "",
                 request.form.get("file", ""),
                 request.form.get("value", ""),
             )

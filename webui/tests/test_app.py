@@ -1345,3 +1345,22 @@ def test_speaker_new_falls_back_to_profile_subnets(client, app, login, settings)
     login()
     body = client.get("/speakers/new").get_data(as_text=True)
     assert '<option value="192.168.1">' in body
+
+
+def test_access_probe_buttons_are_primary(client, app, login, settings):
+    from webui.providers import Provider, save_providers
+
+    login()
+    save_providers(settings.state_dir / "providers.json",
+                   [Provider("flai", "FLAI", "http://10.0.0.2:5000/v1", ("m",))])
+    body = client.get("/access").get_data(as_text=True)
+    assert 'class="btn btn-primary btn-sm" type="submit">Проверить связь' in body
+    assert "page-wide" in body
+
+
+def test_access_add_key_form_has_no_label_field(client, app, login):
+    login()
+    body = client.get("/access").get_data(as_text=True)
+    assert 'name="label"' not in body
+    assert 'placeholder="Orca free"' not in body
+    assert 'placeholder="orca-token-2"' not in body

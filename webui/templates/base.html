@@ -30,7 +30,7 @@
   </div>
 </header>
 
-<div class="page">
+<div class="page{% block page_class %}{% endblock %}">
   <main>
     {% with messages = get_flashed_messages() %}
       {% if messages %}

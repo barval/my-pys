@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Модели и доступ — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block page_class %} page-wide{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -40,7 +41,7 @@
                   {% endfor %}
                 </select>
               </label>
-              <button class="btn btn-sm" type="submit">Проверить связь</button>
+              <button class="btn btn-primary btn-sm" type="submit">Проверить связь</button>
             </form>
           </td>
         </tr>
