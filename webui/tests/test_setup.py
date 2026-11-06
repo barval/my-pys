@@ -1,7 +1,4 @@
-from types import SimpleNamespace
-
 from webui.providers import Provider, save_providers
-from webui.settings import load_settings
 
 from webui.tests.test_app import FakeRunner
 
@@ -21,6 +18,20 @@ def test_run_step_submits_bridge_job(client, app, login, csrf):
                            headers={"X-CSRF-Token": csrf(client)}, data={"op": "run"})
     assert response.status_code == 303
     assert runner.actions[0][0] == "bridge"
+
+
+def test_run_step_does_not_mark_done(client, app, login, csrf, settings):
+    from webui.wizard import load_progress
+
+    login()
+    app.extensions["jobs"] = FakeRunner()
+    response = client.post("/speakers/speaker-a/setup/7",
+                           headers={"X-CSRF-Token": csrf(client)}, data={"op": "run"})
+    assert response.status_code == 303
+    progress = load_progress(settings.state_dir / "setup" / "speaker-a.json")
+    assert "bridge" not in progress.done
+    assert progress.step == 2
+    assert progress.last_job == "job-1"
 
 
 def test_route_step_writes_profile_and_token(client, app, login, csrf, settings):

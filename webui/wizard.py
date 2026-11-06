@@ -143,3 +143,7 @@ def advance(progress: Progress, key: str, *, skipped: bool = False, job: str | N
 
 def step_by_number(number: int) -> Step | None:
     return next((step for step in STEPS if step.number == number), None)
+
+
+def set_last_job(progress: Progress, job: str) -> Progress:
+    return replace(progress, last_job=job, updated_at=_utc_now())

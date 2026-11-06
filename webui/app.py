@@ -70,7 +70,7 @@ from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
 from .status import sync_from_jobs
 from .ui_mode import ADVANCED, COOKIE_NAME, SIMPLE, current_mode
-from .wizard import HOST_STEP, STEPS, advance, load_progress, save_progress, step_by_number
+from .wizard import HOST_STEP, STEPS, advance, load_progress, save_progress, set_last_job, step_by_number
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 _ROUTER_ACTIONS = {"router-start", "router-stop", "router-restart"}
@@ -550,7 +550,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         if action is None:
             abort(400)
         job = app.extensions["jobs"].submit(action, profile)
-        progress = advance(progress, current.key, job=job.id)
+        progress = set_last_job(progress, job.id)
         save_progress(progress_path(name), progress)
         audit("setup.run", name, detail=f"step={current.key} job={job.id}")
         return redirect(url_for("job_page", job_id=job.id), code=303)
@@ -601,16 +601,20 @@ def create_app(settings: Settings | None = None) -> Flask:
         token_path = settings.secrets_dir / token_file
         if not token_path.exists():
             rotate_router_token(settings.secrets_dir, token_file)
+        try:
+            model = route["primary"]["model"]
+        except KeyError:
+            return "Маршрут повреждён: отсутствует основной upstream", 400
         merge_profile_env(
             profile.path,
             {
                 "LLM_BASE_URL": settings.router_display_url,
-                "LLM_MODEL": route["primary"]["model"],
+                "LLM_MODEL": model,
                 "LLM_TOKEN_FILE": f"secrets/{token_file}",
             },
         )
         job = app.extensions["jobs"].submit("key", profile)
-        progress = advance(progress, "route", job=job.id)
+        progress = set_last_job(progress, job.id)
         save_progress(progress_path(name), progress)
         audit("setup.route", name, detail=f"job={job.id}")
         return redirect(url_for("job_page", job_id=job.id), code=303)
