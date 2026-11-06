@@ -649,3 +649,14 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
 #routes th,
 #routes td { white-space: nowrap; }
 #routes td.route-cell { white-space: nowrap; }
+
+/* Аудит: показываем примерно 10 строк и прокручиваем остальное */
+.audit-scroll {
+  max-height: 27rem;
+  overflow-y: auto;
+}
+.audit-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}

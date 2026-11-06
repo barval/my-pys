@@ -70,3 +70,9 @@ def test_advanced_bridge_policy_is_read_only(client, login, csrf):
     assert "default_route" in body
     assert 'name="rules"' not in body
     assert "/speakers/speaker-a/actions/routing" in body
+
+def test_more_page_audit_is_scrollable(client, login):
+    login()
+    body = client.get("/more").get_data(as_text=True)
+    assert "audit-scroll" in body
+    assert "Записей нет" in body or "<tbody>" in body
