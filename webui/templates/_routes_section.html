@@ -100,6 +100,10 @@
           </td>
           <td class="row-actions">
             <a class="btn btn-warning btn-sm" href="/access/routes/{{ route.name }}">Изменить</a>
+            <form method="post" action="/access/routes/{{ route.name }}/write-key" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-success btn-sm" type="submit">Записать ключ в колонку</button>
+            </form>
             <form method="post" action="/router/routes/{{ route.name }}/delete" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-danger btn-sm" type="submit">Удалить</button>

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Новый маршрут — {{ config.WEBUI_TITLE }}{% endblock %}
 {% block head %}
+{% if not advanced %}
 <script>
 const providerModels = {
 {% for provider in providers %}
@@ -8,19 +9,22 @@ const providerModels = {
 {% endfor %}
 };
 function updateModels() {
-  const pid = document.getElementById('provider_id').value;
-  const select = document.getElementById('model');
-  select.innerHTML = '';
+  const providerSelect = document.getElementById('provider_id');
+  const modelSelect = document.getElementById('model');
+  if (!providerSelect || !modelSelect) return;
+  const pid = providerSelect.value;
+  modelSelect.innerHTML = '';
   const models = providerModels[pid] || [];
   models.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m;
     opt.textContent = m;
-    select.appendChild(opt);
+    modelSelect.appendChild(opt);
   });
 }
 document.addEventListener('DOMContentLoaded', updateModels);
 </script>
+{% endif %}
 {% endblock %}
 {% block content %}
 <div class="page-head">
@@ -92,7 +96,7 @@ document.addEventListener('DOMContentLoaded', updateModels);
     </label>
   </div>
   <input type="hidden" name="history" value="{{ request.form.get('history', 'server') }}">
-  <input type="hidden" name="timeout" value="{{ request.form.get('timeout', request.form.get('timeout_seconds', 180)) }}">
+  <input type="hidden" name="timeout_seconds" value="{{ request.form.get('timeout_seconds', 180) }}">
   {% endif %}
   <div class="form-actions">
     <button class="btn btn-success" type="submit">Создать</button>

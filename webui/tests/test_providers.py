@@ -1,7 +1,9 @@
 import json
 
+import pytest
+
 from webui.providers import (
-    Provider, fetch_models, load_providers, save_providers, slugify, upsert_provider,
+    Provider, delete_provider, fetch_models, load_providers, save_providers, slugify, upsert_provider,
 )
 
 
@@ -42,3 +44,12 @@ def test_fetch_models_parses_openai_response():
         def read(self): return b'{"data":[{"id":"model-a"},{"id":"model-b"}]}'
 
     assert fetch_models("http://10.0.0.2:5000/v1", "secret", opener=lambda *a, **k: Response()) == ["model-a", "model-b"]
+
+
+def test_delete_provider(tmp_path):
+    path = tmp_path / "providers.json"
+    save_providers(path, [Provider("a", "A", "http://10.0.0.2:5000/v1", ("m",))])
+    delete_provider(path, "a")
+    assert load_providers(path, []) == []
+    with pytest.raises(KeyError):
+        delete_provider(path, "a")

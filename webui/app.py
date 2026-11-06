@@ -63,7 +63,6 @@ from .providers import (
     delete_provider,
     fetch_models,
     load_providers,
-    save_providers,
     slugify,
     upsert_provider,
 )
@@ -93,7 +92,7 @@ def _upstream_from_form(form, *, prefix: str = "", default_history: str = "serve
     history = form.get(f"{prefix}history", default_history).strip()
     try:
         timeout_seconds = float(
-            form.get(f"{prefix}timeout_seconds") or form.get(f"{prefix}timeout") or "180"
+            form.get(f"{prefix}timeout_seconds", "180") or "180"
         )
     except ValueError as exc:
         raise ValueError("timeout_seconds должен быть числом") from exc
@@ -161,7 +160,7 @@ def _upstream_from_provider(
     if history not in ("server", "client"):
         raise ValueError("history должен быть server или client")
     try:
-        timeout_seconds = float(form.get("timeout_seconds", "180") or "180")
+        timeout_seconds = float(form.get("timeout_seconds") or form.get("timeout") or "180")
     except ValueError as exc:
         raise ValueError("timeout_seconds должен быть числом") from exc
     return {
@@ -610,6 +609,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         return render_template(
             "access.html",
             providers=providers(),
+            upstream_keys=upstream_keys(),
             items=key_inventory(settings.secrets_dir, normalized_routes()),
             routes=normalized_routes(),
             probe_requested=probe,
@@ -749,7 +749,22 @@ def create_app(settings: Settings | None = None) -> Flask:
         raw = router_config()
         existing = find_route(raw, name) or {}
         try:
-            route = _route_from_form(request.form, name, existing)
+            if request.form.get("provider_id", "").strip():
+                token_file = (existing.get("token_file") or "").strip()
+                if not token_file or Path(token_file).name != token_file:
+                    raise ValueError("token_file должен быть именем файла без каталогов")
+                primary = _upstream_from_provider(
+                    request.form, providers(), default_history="server"
+                )
+                route = {
+                    "name": name,
+                    "token_file": token_file,
+                    "session": dict(existing.get("session") or {}),
+                    "primary": primary,
+                    "fallbacks": route_fallbacks(existing),
+                }
+            else:
+                route = _route_from_form(request.form, name, existing)
             save_config(settings.router_config, upsert_route(raw, route))
             audit("router.save", name)
         except (ValueError, ConfigError, OSError) as exc:
@@ -984,9 +999,12 @@ def create_app(settings: Settings | None = None) -> Flask:
             for m in [part.strip()]
             if m
         ]
+        provider_id = slugify(name)
         error = None
         if not name:
             error = "Введите название провайдера"
+        elif any(p.id == provider_id for p in providers()):
+            error = "Провайдер с таким идентификатором уже существует"
         elif not base_url.startswith(("http://", "https://")):
             error = "base_url должен начинаться с http:// или https://"
         elif not models:
@@ -1000,7 +1018,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 error=error,
             ), 400
         provider = Provider(
-            id=slugify(name),
+            id=provider_id,
             name=name,
             base_url=base_url,
             models=tuple(models),
@@ -1088,11 +1106,20 @@ def create_app(settings: Settings | None = None) -> Flask:
         key_file = request.form.get("api_key_file", "").strip()
         api_key = None
         if key_file:
+            allowed = {item.file for item in upstream_keys()}
+            if key_file not in allowed:
+                flash("Выберите upstream-ключ из реестра")
+                return redirect(url_for("access_page", _anchor="providers"))
+            if Path(key_file).name != key_file:
+                flash("Некорректное имя файла ключа")
+                return redirect(url_for("access_page", _anchor="providers"))
             key_path = settings.secrets_dir / key_file
             try:
+                if key_path.resolve().parent != settings.secrets_dir.resolve():
+                    raise OSError
                 api_key = key_path.read_text(encoding="utf-8").strip()
             except OSError:
-                flash(f"Не удалось прочитать ключ {key_file}")
+                flash("Не удалось прочитать ключ")
                 return redirect(url_for("access_page", _anchor="providers"))
         try:
             models = fetch_models(provider.base_url, api_key)

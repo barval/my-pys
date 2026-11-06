@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Новый запасной' if index is none else 'Запасной' }} — {{ route.name }} — {{ config.WEBUI_TITLE }}{% endblock %}
 {% block head %}
+{% if not advanced %}
 <script>
 const providerModels = {
 {% for provider in providers %}
@@ -8,21 +9,24 @@ const providerModels = {
 {% endfor %}
 };
 function updateFallbackModels() {
-  const pid = document.getElementById('provider_id').value;
-  const select = document.getElementById('model');
-  const current = select.dataset.current;
-  select.innerHTML = '';
+  const providerSelect = document.getElementById('provider_id');
+  const modelSelect = document.getElementById('model');
+  if (!providerSelect || !modelSelect) return;
+  const pid = providerSelect.value;
+  const current = modelSelect.dataset.current;
+  modelSelect.innerHTML = '';
   const models = providerModels[pid] || [];
   models.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m;
     opt.textContent = m;
     if (m === current) opt.selected = true;
-    select.appendChild(opt);
+    modelSelect.appendChild(opt);
   });
 }
 document.addEventListener('DOMContentLoaded', updateFallbackModels);
 </script>
+{% endif %}
 {% endblock %}
 {% block content %}
 <div class="page-head">
@@ -91,7 +95,7 @@ document.addEventListener('DOMContentLoaded', updateFallbackModels);
     </label>
   </div>
   <input type="hidden" name="history" value="{{ fallback.get('history', 'client') }}">
-  <input type="hidden" name="timeout" value="{{ request.form.get('timeout', request.form.get('timeout_seconds', fallback.get('timeout_seconds', 180))) }}">
+  <input type="hidden" name="timeout_seconds" value="{{ request.form.get('timeout_seconds', fallback.get('timeout_seconds', 180)) }}">
   {% endif %}
   <div class="form-actions">
     <button class="btn btn-success" type="submit">Сохранить</button>

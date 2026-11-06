@@ -1042,6 +1042,87 @@ def test_create_profile_rejects_invalid_color(client, login, csrf, settings):
     assert not (settings.speakers_dir / "speaker-z.env").exists()
 
 
+def test_access_page_lists_upstream_keys(client, app, login, csrf, settings):
+    login()
+    client.post(
+        "/keys/upstream",
+        data={"file": "orca-token-free", "value": "orca-secret"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    body = client.get("/access").get_data(as_text=True)
+    assert "orca-token-free" in body
+    assert "orca-secret" not in body
+
+
+def test_provider_probe_rejects_arbitrary_file(client, app, login, csrf, settings, monkeypatch):
+    from webui.providers import Provider, save_providers
+    login()
+    save_providers(settings.state_dir / "providers.json",
+                   [Provider("flai", "FLAI", "http://10.0.0.2:5000/v1", ("m",))])
+    (settings.secrets_dir / "secret-file").write_text("leaked-secret", encoding="utf-8")
+    captured = {}
+    def capture(base_url, api_key, **kwargs):
+        captured["key"] = api_key
+        return []
+    monkeypatch.setattr("webui.app.fetch_models", capture)
+    response = client.post(
+        "/access/providers/flai/probe",
+        data={"api_key_file": "secret-file"},
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert captured.get("key") is None
+
+
+def test_simple_fallback_preserves_timeout(client, app, login, csrf, settings):
+    from webui.providers import Provider, save_providers
+    login()
+    save_providers(settings.state_dir / "providers.json",
+                   [Provider("fb", "Fallback", "http://10.0.0.3:5000/v1", ("fallback-model",))])
+    write_router_config(settings.router_config)
+    response = client.post(
+        "/router/routes/speaker-a/fallback/new",
+        headers={"X-CSRF-Token": csrf(client)},
+        data={
+            "provider_id": "fb", "model": "fallback-model",
+            "api_key_file": "fallback-token-speaker-a",
+            "timeout_seconds": "77", "history": "client",
+        },
+    )
+    assert response.status_code == 302
+    saved = json.loads(settings.router_config.read_text(encoding="utf-8"))["routes"][0]
+    assert saved["fallbacks"][0]["timeout_seconds"] == 77
+
+
+def test_provider_create_rejects_duplicate_slug(client, login, csrf, settings):
+    from webui.providers import load_providers
+    login()
+    response = client.post(
+        "/access/providers/new",
+        headers={"X-CSRF-Token": csrf(client)},
+        data={"name": "Alpha", "base_url": "http://10.0.0.2:5000/v1", "models": "m1"},
+    )
+    assert response.status_code == 302
+    response = client.post(
+        "/access/providers/new",
+        headers={"X-CSRF-Token": csrf(client)},
+        data={"name": "Alpha", "base_url": "http://10.0.0.3:5000/v1", "models": "m2"},
+    )
+    assert response.status_code == 400
+    providers = load_providers(settings.state_dir / "providers.json", [])
+    assert len(providers) == 1
+    assert providers[0].base_url == "http://10.0.0.2:5000/v1"
+
+
+def test_route_list_has_write_key_button(client, app, login, csrf, settings):
+    login()
+    write_router_config(settings.router_config)
+    body = client.get("/access").get_data(as_text=True)
+    assert 'action="/access/routes/speaker-a/write-key"' in body
+    assert "Записать ключ в колонку" in body
+
+
 def test_access_page_has_three_sections(client, login):
     login()
     body = client.get("/access").get_data(as_text=True)
@@ -1075,7 +1156,10 @@ def test_route_from_provider_renders_token_once(client, app, login, csrf, settin
 
 def test_simple_route_form_hides_technical_fields_and_preserves_them(
         client, app, login, csrf, settings):
+    from webui.providers import Provider, save_providers
     login()
+    save_providers(settings.state_dir / "providers.json",
+                   [Provider("local", "Local", "http://127.0.0.1:5000/v1", ("flai-chat", "new-model"))])
     write_router_config(settings.router_config)
     raw = json.loads(settings.router_config.read_text(encoding="utf-8"))
     raw["routes"][0]["session"]["idle_minutes"] = 45
@@ -1090,15 +1174,23 @@ def test_simple_route_form_hides_technical_fields_and_preserves_them(
     }]
     settings.router_config.write_text(json.dumps(raw), encoding="utf-8")
     body = client.get("/access/routes/speaker-a").get_data(as_text=True)
-    assert "timeout_seconds" not in body
+    assert "Таймаут" not in body
     assert "token_file" not in body
-    client.post("/router/routes/speaker-a", headers={"X-CSRF-Token": csrf(client)}, data={
-        "base_url": "http://10.0.0.2:5000/v1", "model": "flai-chat",
-        "api_key_file": "flai-token-speaker-a",
-        "timeout_seconds": "99", "history": "client",
-    })
+    assert 'type="hidden" name="timeout_seconds"' in body
+    response = client.post(
+        "/router/routes/speaker-a",
+        headers={"X-CSRF-Token": csrf(client)},
+        data={
+            "provider_id": "local", "model": "new-model",
+            "api_key_file": "flai-token-speaker-a",
+            "timeout_seconds": "99", "history": "client",
+        },
+    )
+    assert response.status_code == 302
     saved = json.loads(settings.router_config.read_text(encoding="utf-8"))["routes"][0]
     assert saved["session"]["idle_minutes"] == 45
     assert saved["primary"]["timeout_seconds"] == 99
     assert saved["primary"]["history"] == "client"
+    assert saved["primary"]["model"] == "new-model"
+    assert saved["primary"]["api_key_file"] == "flai-token-speaker-a"
     assert saved["fallbacks"][0]["model"] == "fallback-model"
