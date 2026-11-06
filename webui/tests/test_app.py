@@ -13,7 +13,7 @@ def test_healthz_is_public(tmp_path):
     client = app.test_client()
     payload = client.get("/healthz").get_json()
     assert payload["status"] == "ok"
-    assert payload["version"] == "2.0.0"
+    assert payload["version"] == "2.1.0"
 
 
 def test_speaker_page_shows_full_identifiers(client, login):
