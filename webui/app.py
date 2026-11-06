@@ -80,9 +80,12 @@ MAX_FALLBACKS = 9
 SETUP_ACTIONS = {4: "adb", 5: "root", 7: "bridge", 8: "check"}
 
 
-def json_for_pre(value) -> str:
-    """JSON для <pre>: кавычки остаются как есть, HTML-спецсимволы экранируются."""
+def json_for_pre(value, secrets_dir=None) -> str:
+    """JSON для <pre>: секреты редактируются, кавычки остаются как есть,
+    HTML-спецсимволы экранируются."""
     text = json.dumps(value, ensure_ascii=False, indent=2)
+    if secrets_dir is not None:
+        text = redact(text, secrets_dir)
     return (
         text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     )
@@ -1490,15 +1493,15 @@ def create_app(settings: Settings | None = None) -> Flask:
         confirm = request.form.get("confirm", "")
         if passphrase != confirm:
             flash("Пароли архива не совпадают")
-            return redirect(url_for("backup_page"))
+            return redirect("/more#backup")
         try:
             path = create_backup(settings, scope, passphrase)
         except BackupError as exc:
             flash(str(exc))
-            return redirect(url_for("backup_page"))
+            return redirect("/more#backup")
         audit("backup.create", scope, detail=path.name)
         flash(f"Архив создан: {path.name}")
-        return redirect(url_for("backup_page"))
+        return redirect("/more#backup")
 
     @app.post("/backup/inspect")
     def backup_inspect():
@@ -1508,7 +1511,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             manifest = inspect_backup(settings, name, passphrase)
         except BackupError as exc:
             flash(str(exc))
-            return redirect(url_for("backup_page"))
+            return redirect("/more#backup")
         return render_template(
             "backup.html",
             backups=list_backups(settings),
@@ -1572,7 +1575,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         finally:
             if temp_path is not None:
                 temp_path.unlink(missing_ok=True)
-        return redirect(url_for("backup_page"))
+        return redirect("/more#backup")
 
     @app.get("/password")
     def password_page():
@@ -1656,7 +1659,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             view="routes",
             title="Сырой JSON маршрутов",
             subtitle="Полный файл маршрутов без правок",
-            route_json=json_for_pre(router_config()),
+            route_json=json_for_pre(router_config(), settings.secrets_dir),
         )
 
     @app.get("/advanced/bridge")

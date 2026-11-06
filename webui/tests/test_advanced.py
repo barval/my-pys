@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 
 def test_more_page_has_sections(client, login):
     login()
@@ -45,6 +47,24 @@ def test_advanced_shows_raw_route_json(client, login, csrf, settings):
     assert '"token_file"' in body
     assert "router-token-speaker-a" in body
     assert "sk-router-test" not in body
+
+
+def test_advanced_routes_redacts_inline_api_key(client, login, csrf, settings):
+    from webui.tests.test_app import write_router_config
+
+    write_router_config(settings.router_config)
+    config = json.loads(settings.router_config.read_text(encoding="utf-8"))
+    config["routes"][0]["primary"]["api_key"] = "sk-inline-secret-0123456789"
+    settings.router_config.write_text(
+        json.dumps(config), encoding="utf-8"
+    )
+    login()
+    client.post(
+        "/mode", data={"mode": "advanced"}, headers={"X-CSRF-Token": csrf(client)}
+    )
+    body = client.get("/advanced/routes").get_data(as_text=True)
+    assert "sk-inline-secret-0123456789" not in body
+    assert "***" in body
 
 
 def test_advanced_bridge_policy_is_read_only(client, login, csrf):
