@@ -96,6 +96,22 @@ class FakeRunner:
         self.commands.append((action, target, argv, env))
         return SimpleNamespace(id="job-2")
 
+    def list(self, limit=200):
+        from types import SimpleNamespace
+        result = []
+        for action, profile in self.actions[:limit]:
+            job = SimpleNamespace(
+                action=action,
+                target=profile.name if hasattr(profile, "name") else str(profile),
+                status="running",
+                exit_code=0,
+                finished_at="2026-01-01T00:00:00+00:00",
+                started_at="2026-01-01T00:00:00+00:00",
+                created_at="2026-01-01T00:00:00+00:00",
+            )
+            result.append(job)
+        return result
+
 
 def write_router_config(path, name="speaker-a"):
     secrets = path.parent
@@ -581,7 +597,7 @@ def test_home_shows_offline_status(client, app, login):
         {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", False)},
     )
     body = client.get("/").get_data(as_text=True)
-    assert "не в сети" in body
+    assert "недоступна" in body
     assert 'class="status bad"' in body
 
 
@@ -590,6 +606,37 @@ def test_home_shows_unknown_status_when_no_record(client, login):
     body = client.get("/").get_data(as_text=True)
     assert "не проверялась" in body
     assert 'class="status unknown"' in body
+
+
+def test_probe_creates_status_jobs(client, app, login, csrf):
+    """POST /speakers/probe submits status jobs for all profiles."""
+    login()
+    app.extensions["jobs"] = FakeRunner()
+    response = client.post(
+        "/speakers/probe",
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 303
+    assert response.headers["Location"].endswith("/?probe=1")
+    assert app.extensions["jobs"].actions == [
+        ("status", profile) for profile in app.extensions["profiles"].values()
+    ]
+
+
+def test_probe_page_auto_refresh_with_running_jobs(client, app, login, csrf, monkeypatch):
+    """Page ?probe=1 shows refresh meta and notice when status jobs are running."""
+    from webui.jobs import JobRunner
+    from types import SimpleNamespace
+
+    login()
+    # Mock a runner with one running status job
+    runner = FakeRunner()
+    runner.actions = [("status", SimpleNamespace(name="speaker-a"))]
+    app.extensions["jobs"] = runner
+
+    body = client.get("/?probe=1").get_data(as_text=True)
+    assert 'http-equiv="refresh"' in body
+    assert "Идёт опрос колонок — страница обновится сама." in body
 
 
 def test_speaker_page_shows_cached_status(client, app, login):

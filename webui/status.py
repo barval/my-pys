@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
-ACTION_FIELDS = {"resolve": "online", "status": "bridge", "check": "llm"}
+ACTION_FIELDS = {"resolve": ("online",), "status": ("online", "bridge"), "check": ("llm",)}
 
 
 @dataclass(frozen=True)
@@ -88,14 +88,15 @@ def sync_from_jobs(path: Path, jobs: Iterable) -> dict[str, SpeakerStatus]:
         target = getattr(job, "target", None)
         finished_at = getattr(job, "finished_at", None)
         exit_code = getattr(job, "exit_code", None)
-        field = ACTION_FIELDS[action]
+        fields = ACTION_FIELDS[action]
         current = statuses.get(target)
         if current is None or finished_at > current.at:
-            values = {field: exit_code == 0, "at": finished_at}
+            values = {field: exit_code == 0 for field in fields}
+            values["at"] = finished_at
             if current is not None:
-                values.setdefault("online", current.online)
-                values.setdefault("bridge", current.bridge)
-                values.setdefault("llm", current.llm)
+                for field in ("online", "bridge", "llm"):
+                    if field not in values:
+                        values.setdefault(field, getattr(current, field))
             statuses[target] = SpeakerStatus(**values)
             changed = True
     if changed:

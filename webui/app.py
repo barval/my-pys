@@ -419,11 +419,20 @@ def create_app(settings: Settings | None = None) -> Flask:
                      card["model"])
                 ).casefold()
             ]
+        runner = app.extensions["jobs"]
+        jobs_list = runner.list(limit=200) if hasattr(runner, "list") else []
+        jobs_running = any(
+            getattr(job, "status", None) in ("queued", "running")
+            for job in jobs_list
+            if getattr(job, "action", None) == "status"
+        )
         return render_template(
             "speakers.html",
             cards=cards,
             query=query,
             statuses=speaker_statuses(),
+            probe=request.args.get("probe"),
+            jobs_running=jobs_running,
         )
 
     @app.get("/speakers")
@@ -666,6 +675,15 @@ def create_app(settings: Settings | None = None) -> Flask:
         reload_profiles()
         audit("speaker.delete", name, detail=str(dest))
         return redirect(url_for("speakers_page"), code=303)
+
+    @app.post("/speakers/probe")
+    def speakers_probe():
+        profiles = app.extensions["profiles"]
+        runner = app.extensions["jobs"]
+        for profile in profiles.values():
+            runner.submit("status", profile)
+        audit("speaker.probe", "all", detail=f"{len(profiles)}")
+        return redirect(url_for("speakers_page", probe=1), code=303)
 
     @app.post("/speakers/<name>/appearance")
     def speaker_appearance(name: str):

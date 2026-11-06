@@ -16,7 +16,8 @@ def test_sync_sorts_jobs_newest_first(tmp_path):
         job("status", "speaker-a", 1, "2026-11-06T10:01:00+00:00"),
         job("resolve", "speaker-a", 0, "2026-11-06T10:00:00+00:00"),
     ])
-    assert result["speaker-a"].online is True
+    # status maps to ("online", "bridge"), so failed status overwrites resolve
+    assert result["speaker-a"].online is False
     assert result["speaker-a"].bridge is False
     assert result["speaker-a"].at == "2026-11-06T10:01:00+00:00"
 
@@ -27,7 +28,8 @@ def test_sync_maps_actions_to_fields(tmp_path):
         job("resolve", "speaker-a", 0, "2026-11-06T10:00:00+00:00"),
         job("status", "speaker-a", 1, "2026-11-06T10:01:00+00:00"),
     ])
-    assert result["speaker-a"].online is True
+    # status maps to ("online", "bridge"), failed status overwrites resolve
+    assert result["speaker-a"].online is False
     assert result["speaker-a"].bridge is False
     assert result["speaker-a"].at == "2026-11-06T10:01:00+00:00"
 
@@ -49,6 +51,50 @@ def test_save_and_load_round_trip(tmp_path):
     save_status(path, {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", True)})
     assert load_status(path)["speaker-a"].online is True
     assert oct(path.stat().st_mode & 0o777) == "0o600"
+
+
+def test_sync_from_status_job_success_sets_online_and_bridge(tmp_path):
+    """Successful status job sets both online=True and bridge=True."""
+    from webui.status import SpeakerStatus
+    path = tmp_path / "speaker-status.json"
+    result = sync_from_jobs(path, [
+        job("status", "speaker-a", 0, "2026-11-06T10:01:00+00:00"),
+    ])
+    assert result["speaker-a"].online is True
+    assert result["speaker-a"].bridge is True
+
+
+def test_sync_from_status_job_failure_sets_online_and_bridge_false(tmp_path):
+    """Failed status job sets both online=False and bridge=False."""
+    from webui.status import SpeakerStatus
+    path = tmp_path / "speaker-status.json"
+    result = sync_from_jobs(path, [
+        job("status", "speaker-a", 1, "2026-11-06T10:01:00+00:00"),
+    ])
+    assert result["speaker-a"].online is False
+    assert result["speaker-a"].bridge is False
+
+
+def test_sync_from_resolve_keeps_online_only(tmp_path):
+    """resolve action keeps mapping to online only."""
+    from webui.status import SpeakerStatus
+    path = tmp_path / "speaker-status.json"
+    result = sync_from_jobs(path, [
+        job("resolve", "speaker-a", 0, "2026-11-06T10:01:00+00:00"),
+    ])
+    assert result["speaker-a"].online is True
+    assert result["speaker-a"].bridge is None
+
+
+def test_sync_from_check_keeps_llm_only(tmp_path):
+    """check action keeps mapping to llm only."""
+    from webui.status import SpeakerStatus
+    path = tmp_path / "speaker-status.json"
+    result = sync_from_jobs(path, [
+        job("check", "speaker-a", 0, "2026-11-06T10:01:00+00:00"),
+    ])
+    assert result["speaker-a"].llm is True
+    assert result["speaker-a"].online is None
 
 
 def test_load_status_skips_invalid_records(tmp_path):

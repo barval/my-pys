@@ -3,14 +3,25 @@
 {% block content %}
 <div class="page-head">
   <h1>Колонки</h1>
-  <a class="btn btn-primary" href="/speakers/new">Добавить колонку</a>
 </div>
 
-<form class="search-row" method="get" action="/">
-  <input type="search" name="q" value="{{ query }}" placeholder="Поиск по имени, комнате, MAC, ID или модели" aria-label="Поиск колонок">
-  <button class="btn" type="submit">Найти</button>
-  {% if query %}<a class="btn btn-ghost" href="/">Сбросить</a>{% endif %}
+<form class="speaker-toolbar" method="get" action="/">
+  <div class="search-wrapper">
+    <input type="search" name="q" value="{{ query }}" placeholder="Поиск по имени, комнате, MAC, ID или модели" aria-label="Поиск колонок">
+  </div>
+  <div class="toolbar-right">
+    <a class="btn btn-primary" href="/speakers/new">Добавить колонку</a>
+    <form method="post" action="/speakers/probe">
+      {{ csrf_token() }}
+      <button class="btn btn-warning" type="submit">Опросить колонки</button>
+    </form>
+  </div>
 </form>
+
+{% if probe and jobs_running %}
+<meta http-equiv="refresh" content="3">
+<div class="probe-notice">Идёт опрос колонок — страница обновится сама.</div>
+{% endif %}
 
 {% if cards %}
 <div class="speaker-grid">
@@ -29,7 +40,7 @@
         <p class="muted small">{{ card.model }}</p>
         <p class="status-line small">
           {% if status %}
-            {% if status.online is true %}<span class="status-text ok">онлайн</span>{% elif status.online is false %}<span class="status-text bad">не в сети</span>{% endif %}
+            {% if status.online is true %}<span class="status-text ok">онлайн</span>{% elif status.online is false %}<span class="status-text bad">недоступна</span>{% endif %}
             {% if status.bridge is false %}<span class="status-text bad">Bridge не отвечает</span>{% endif %}
             {% if status.llm is false %}<span class="status-text bad">LLM не отвечает</span>{% endif %}
           {% else %}
