@@ -518,9 +518,9 @@ def test_speaker_appearance_updates_color_and_model(client, app, login, csrf):
 
 def test_speakers_page_has_logout_and_tabs(client, login):
     login()
-    body = client.get("/speakers").get_data(as_text=True)
+    body = client.get("/").get_data(as_text=True)
     assert "Выйти" in body
-    assert "admin-tabs" in body
+    assert "topbar" in body
     assert "Администратор" in body
 
 
@@ -528,7 +528,44 @@ def test_login_redirects_authenticated_user(client, login):
     login()
     response = client.get("/login")
     assert response.status_code == 302
-    assert response.headers["Location"].endswith("/speakers")
+    assert response.headers["Location"].endswith("/")
+
+
+def test_home_lists_speaker_cards(client, login):
+    login()
+    body = client.get("/").get_data(as_text=True)
+    assert "speaker-a" in body
+    assert "Комната A" in body
+    assert 'href="/access"' in body
+    assert 'href="/test"' in body
+    assert 'href="/more"' in body
+
+
+def test_legacy_speakers_url_redirects(client, login):
+    login()
+    response = client.get("/speakers")
+    assert response.status_code == 301
+    assert response.headers["Location"].endswith("/")
+
+
+def test_home_search_filters_cards(client, login):
+    login()
+    assert "speaker-a" in client.get("/?q=02:00").get_data(as_text=True)
+    assert "speaker-a" not in client.get("/?q=zzz").get_data(as_text=True)
+
+
+def test_mode_switch_sets_cookie(client, login, csrf):
+    login()
+    response = client.post(
+        "/mode", data={"mode": "advanced"}, headers={"X-CSRF-Token": csrf(client)}
+    )
+    assert response.status_code == 303
+    assert response.headers["Set-Cookie"].startswith("ui_mode=advanced")
+
+
+def test_advanced_nav_is_hidden_in_simple_mode(client, login):
+    login()
+    assert 'href="/advanced"' not in client.get("/").get_data(as_text=True)
 
 
 def test_create_route_generates_token(client, app, login, csrf):
@@ -602,7 +639,7 @@ def test_project_title_in_login_and_admin(client, login):
     login_page = client.get("/login").get_data(as_text=True)
     assert "Моя Яндекс Станция" in login_page
     login()
-    admin_page = client.get("/speakers").get_data(as_text=True)
+    admin_page = client.get("/").get_data(as_text=True)
     assert "Колонки — Моя Яндекс Станция" in admin_page
     assert "Моя Яндекс Станция" in admin_page
 

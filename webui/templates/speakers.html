@@ -2,57 +2,42 @@
 {% block title %}Колонки — {{ config.WEBUI_TITLE }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div>
-    <h1>Колонки</h1>
-    <div class="sub">Профили из <code>local/speakers/</code> · {{ cards | length }}</div>
-  </div>
+  <h1>Колонки</h1>
+  <a class="btn btn-primary" href="/speakers/new">Добавить колонку</a>
 </div>
 
+<form class="search-row" method="get" action="/">
+  <input type="search" name="q" value="{{ query }}" placeholder="Поиск по имени, комнате, MAC, ID или модели" aria-label="Поиск колонок">
+  <button class="btn" type="submit">Найти</button>
+  {% if query %}<a class="btn btn-ghost" href="/">Сбросить</a>{% endif %}
+</form>
+
 {% if cards %}
-<div class="table-wrap">
-  <table class="speakers-table">
-    <thead>
-      <tr>
-        <th></th>
-        <th>Название</th>
-        <th>Модель</th>
-        <th>IP</th>
-        <th>MAC</th>
-        <th>Device ID</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for card in cards %}
-      <tr>
-        <td class="icon-cell">
-          {% with color=card.color, color_name=card.color_name, icon_id=card.profile.name, model=card.model %}{% include "_speaker_icon.html" %}{% endwith %}
-        </td>
-        <td>
-          <a href="/speakers/{{ card.profile.name }}"><strong>{{ card.profile.name }}</strong></a>
-          <div class="muted small">{{ card.profile.room or card.profile.platform }} · {{ card.color_name }}</div>
-        </td>
-        <td>{{ card.model }}</td>
-        <td class="mono">{{ card.profile.ip or "—" }}</td>
-        <td class="mono">
-          <div class="copy-row">
-            <span>{{ card.profile.mac }}</span>
-            <button class="copy" type="button" data-copy="{{ card.profile.mac }}">Копировать</button>
-          </div>
-        </td>
-        <td class="mono">
-          <div class="copy-row">
-            <span>{{ card.profile.device_id }}</span>
-            <button class="copy" type="button" data-copy="{{ card.profile.device_id }}">Копировать</button>
-          </div>
-        </td>
-        <td><a class="btn btn-ghost btn-sm" href="/speakers/{{ card.profile.name }}">Открыть</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="speaker-grid">
+  {% for card in cards %}
+  <article class="speaker-card">
+    <div class="status"></div>
+    <div class="speaker-card-body">
+      <div class="speaker-card-icon">
+        {% with color=card.color, color_name=card.color_name, icon_id=card.profile.name, model=card.model %}{% include "_speaker_icon.html" %}{% endwith %}
+      </div>
+      <div class="speaker-card-info">
+        <h2>{{ card.profile.name }}</h2>
+        <p class="muted">{{ card.profile.room or card.profile.platform }}</p>
+        <p class="muted small">{{ card.model }}</p>
+      </div>
+    </div>
+    <div class="speaker-card-actions">
+      <a class="btn btn-ghost" href="/test#voice">Проверить голосом</a>
+      <a class="btn" href="/speakers/{{ card.profile.name }}/setup">Настроить</a>
+    </div>
+  </article>
+  {% endfor %}
 </div>
 {% else %}
-<div class="empty">Профили не найдены. Добавьте файлы в <code>local/speakers/</code>.</div>
+<div class="empty">
+  <p>Колонок пока нет.</p>
+  <a class="btn btn-primary" href="/speakers/new">Добавить колонку</a>
+</div>
 {% endif %}
 {% endblock %}

@@ -10,12 +10,30 @@
   {% block head %}{% endblock %}
 </head>
 <body>
-<header class="site-header">
-  <a class="brand" href="/speakers">
+<header class="topbar">
+  <a class="brand" href="/">
     <span class="brand-mark">◉</span>
     <span>{{ config.WEBUI_TITLE }}</span>
   </a>
+  <nav class="nav">
+    <a class="{% if request.path == '/' %}active{% endif %}" href="/">Колонки</a>
+    <a class="{% if request.path.startswith('/access') %}active{% endif %}" href="/access">Модели</a>
+    <a class="{% if request.path.startswith('/test') %}active{% endif %}" href="/test">Проверка</a>
+    <a class="{% if request.path.startswith('/more') %}active{% endif %}" href="/more">Ещё</a>
+    {% if advanced %}
+    <a class="{% if request.path.startswith('/advanced') %}active{% endif %}" href="/advanced">Продвинутое</a>
+    {% endif %}
+  </nav>
   <div class="header-actions">
+    <form class="mode-switch" method="post" action="/mode">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ request.full_path }}">
+      {% if advanced %}
+      <button class="btn btn-sm" type="submit" name="mode" value="simple">Простой</button>
+      {% else %}
+      <button class="btn btn-sm" type="submit" name="mode" value="advanced">Продвинутый</button>
+      {% endif %}
+    </form>
     <span class="user-label">Администратор</span>
     <span class="muted version">v{{ config.WEBUI_VERSION }}</span>
     <form method="post" action="/logout">
@@ -25,19 +43,8 @@
   </div>
 </header>
 
-<div class="admin-container">
-  <h1 class="admin-panel-title">Панель управления</h1>
-  <div class="admin-tabs">
-    <a class="admin-tab {% if request.path.startswith('/speakers') %}active{% endif %}" href="/speakers">Колонки</a>
-    <a class="admin-tab {% if request.path.startswith('/firmware') %}active{% endif %}" href="/firmware">Прошивка</a>
-    <a class="admin-tab {% if request.path.startswith('/router') %}active{% endif %}" href="/router">LLM-роутер</a>
-    <a class="admin-tab {% if request.path.startswith('/keys') %}active{% endif %}" href="/keys">Ключи</a>
-    <a class="admin-tab {% if request.path.startswith('/backup') %}active{% endif %}" href="/backup">Бэкапы</a>
-    <a class="admin-tab {% if request.path.startswith('/audit') %}active{% endif %}" href="/audit">Аудит</a>
-    <a class="admin-tab {% if request.path.startswith('/password') %}active{% endif %}" href="/password">Пароль</a>
-  </div>
-
-  <main class="admin-panel">
+<div class="page">
+  <main>
     {% with messages = get_flashed_messages() %}
       {% if messages %}
       <div class="flashes">

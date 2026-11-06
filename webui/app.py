@@ -58,6 +58,7 @@ from .keys import (
 from .profiles import load_profiles, parse_env
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
+from .ui_mode import ADVANCED, COOKIE_NAME, SIMPLE, current_mode
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 _ROUTER_ACTIONS = {"router-start", "router-stop", "router-restart"}
@@ -306,13 +307,45 @@ def create_app(settings: Settings | None = None) -> Flask:
             response.headers["Cache-Control"] = "no-store"
         return response
 
+    @app.context_processor
+    def ui_context():
+        mode = current_mode(request.cookies.get(COOKIE_NAME))
+        return {"ui_mode": mode, "advanced": mode == ADVANCED}
+
     @app.get("/")
-    def index():
-        return redirect(url_for("speakers_page"))
+    def speakers_page():
+        query = request.args.get("q", "").strip()
+        cards = speaker_cards()
+        if query:
+            needle = query.casefold()
+            cards = [
+                card for card in cards
+                if needle in " ".join(
+                    (card["profile"].name, card["profile"].room,
+                     card["profile"].mac, card["profile"].device_id,
+                     card["model"])
+                ).casefold()
+            ]
+        return render_template("speakers.html", cards=cards, query=query)
 
     @app.get("/speakers")
-    def speakers_page():
-        return render_template("speakers.html", cards=speaker_cards())
+    def legacy_speakers():
+        return redirect(url_for("speakers_page"), code=301)
+
+    @app.post("/mode")
+    def mode_switch():
+        mode = request.form.get("mode", "")
+        if mode not in (SIMPLE, ADVANCED):
+            abort(400)
+        target = request.form.get("next", "")
+        if not target.startswith("/") or target.startswith("//"):
+            target = url_for("speakers_page")
+        response = redirect(target, code=303)
+        response.set_cookie(
+            COOKIE_NAME, mode, max_age=31536000, samesite="Strict", httponly=True
+        )
+        audit("ui.mode", mode)
+        return response
 
     @app.get("/speakers/<name>")
     def speaker_page(name: str):
