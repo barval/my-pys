@@ -209,7 +209,7 @@ def test_rotated_token_is_shown_once(client, app, login, csrf):
         follow_redirects=True,
     )
     assert "sk-router-" in response.get_data(as_text=True)
-    assert "sk-router-" not in client.get("/keys").get_data(as_text=True)
+    assert "sk-router-" not in client.get("/access").get_data(as_text=True)
 
 
 def test_rotation_writes_new_token_to_speaker(
@@ -246,7 +246,7 @@ def test_upstream_key_is_not_rendered(client, app, login, csrf):
         data={"value": "flai-very-secret"},
         headers={"X-CSRF-Token": csrf(client)},
     )
-    assert "flai-very-secret" not in client.get("/keys").get_data(as_text=True)
+    assert "flai-very-secret" not in client.get("/access").get_data(as_text=True)
     assert "flai-very-secret" not in client.get("/audit").get_data(as_text=True)
 
 
@@ -293,7 +293,7 @@ def test_used_upstream_key_cannot_be_deleted(client, app, login, csrf):
         follow_redirects=True,
     )
     assert path.exists()
-    assert "flai-token-speaker-a" in client.get("/keys").get_data(as_text=True)
+    assert "flai-token-speaker-a" in client.get("/access").get_data(as_text=True)
 
 
 def test_audit_page_lists_login(client, login):
@@ -863,7 +863,7 @@ def test_router_probe_shows_colored_upstream_status(client, app, login, monkeypa
     monkeypatch.setattr(
         "urllib.request.urlopen", lambda *args, **kwargs: Response(ok_payload)
     )
-    body = client.get("/router?probe=1").get_data(as_text=True)
+    body = client.get("/access?probe=1").get_data(as_text=True)
     assert "health-ok" in body
     assert "ok · HTTP 200" in body
 
@@ -881,7 +881,7 @@ def test_router_probe_shows_colored_upstream_status(client, app, login, monkeypa
     monkeypatch.setattr(
         "urllib.request.urlopen", lambda *args, **kwargs: Response(error_payload)
     )
-    body = client.get("/router?probe=1").get_data(as_text=True)
+    body = client.get("/access?probe=1").get_data(as_text=True)
     assert "health-err" in body
     assert "недоступен" in body
 
@@ -953,7 +953,7 @@ def test_reorder_returns_to_the_route_anchor(client, app, login, csrf):
     assert response.status_code == 302
     assert response.headers["Location"].endswith("#route-speaker-a")
 
-    body = client.get("/router").get_data(as_text=True)
+    body = client.get("/access").get_data(as_text=True)
     assert 'id="route-speaker-a"' in body
     assert 'id="route-speaker-a-fallback-0"' in body
 
@@ -1040,3 +1040,65 @@ def test_create_profile_rejects_invalid_color(client, login, csrf, settings):
     })
     assert response.status_code == 400
     assert not (settings.speakers_dir / "speaker-z.env").exists()
+
+
+def test_access_page_has_three_sections(client, login):
+    login()
+    body = client.get("/access").get_data(as_text=True)
+    for anchor in ('id="providers"', 'id="keys"', 'id="routes"'):
+        assert anchor in body
+
+
+def test_legacy_router_and_keys_redirect(client, login):
+    login()
+    assert client.get("/router").status_code == 301
+    assert client.get("/keys").status_code == 301
+
+
+def test_route_from_provider_renders_token_once(client, app, login, csrf, settings):
+    from webui.providers import Provider, save_providers
+    login()
+    save_providers(settings.state_dir / "providers.json",
+                   [Provider("flai", "FLAI", "http://10.0.0.2:5000/v1", ("flai-chat",))])
+    response = client.post("/router/routes/new", headers={"X-CSRF-Token": csrf(client)}, data={
+        "name": "speaker-a", "provider_id": "flai", "model": "flai-chat",
+        "api_key_file": "flai-token-speaker-a",
+    })
+    body = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "sk-router-" in body
+    config = json.loads(settings.router_config.read_text(encoding="utf-8"))
+    primary = config["routes"][0]["primary"]
+    assert primary["base_url"] == "http://10.0.0.2:5000/v1"
+    assert "sk-router-" not in client.get("/access").get_data(as_text=True)
+
+
+def test_simple_route_form_hides_technical_fields_and_preserves_them(
+        client, app, login, csrf, settings):
+    login()
+    write_router_config(settings.router_config)
+    raw = json.loads(settings.router_config.read_text(encoding="utf-8"))
+    raw["routes"][0]["session"]["idle_minutes"] = 45
+    raw["routes"][0]["primary"]["timeout_seconds"] = 99
+    raw["routes"][0]["primary"]["history"] = "client"
+    raw["routes"][0]["fallbacks"] = [{
+        "base_url": "http://10.0.0.3:5000/v1",
+        "api_key_file": "fallback-token-speaker-a",
+        "model": "fallback-model",
+        "history": "client",
+        "timeout_seconds": 60,
+    }]
+    settings.router_config.write_text(json.dumps(raw), encoding="utf-8")
+    body = client.get("/access/routes/speaker-a").get_data(as_text=True)
+    assert "timeout_seconds" not in body
+    assert "token_file" not in body
+    client.post("/router/routes/speaker-a", headers={"X-CSRF-Token": csrf(client)}, data={
+        "base_url": "http://10.0.0.2:5000/v1", "model": "flai-chat",
+        "api_key_file": "flai-token-speaker-a",
+        "timeout_seconds": "99", "history": "client",
+    })
+    saved = json.loads(settings.router_config.read_text(encoding="utf-8"))["routes"][0]
+    assert saved["session"]["idle_minutes"] == 45
+    assert saved["primary"]["timeout_seconds"] == 99
+    assert saved["primary"]["history"] == "client"
+    assert saved["fallbacks"][0]["model"] == "fallback-model"

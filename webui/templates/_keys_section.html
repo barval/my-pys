@@ -1,0 +1,107 @@
+<section class="card" id="keys" style="margin-bottom:1.2rem">
+  <h2>Ключи</h2>
+
+  {% if items %}
+  <h3>Промежуточные токены</h3>
+  <p class="muted small">Один токен на маршрут. Колонка ходит с ним в LLM-роутер, а роутер по нему выбирает маршрут.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Маршрут</th><th>Файл токена</th><th>Статус</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td><strong>{{ item.route }}</strong></td>
+          <td class="mono">{{ item.router_token_file or "—" }}</td>
+          <td>
+            <span class="badge badge-{{ 'ok' if item.router_token else 'muted' }}">
+              {{ "настроен" if item.router_token else "нет" }}
+            </span>
+          </td>
+          <td>
+            <form method="post" action="/keys/router/{{ item.route }}/rotate" class="inline"
+                  onsubmit="return confirm('Старый токен перестанет работать. После смены запишите новый токен в колонку. Продолжить?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-warning btn-sm" type="submit">Сменить токен</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Сначала добавьте маршруты в конфиг роутера.</div>
+  {% endif %}
+
+  <h3 style="margin-top:1.4rem">Upstream-ключи</h3>
+  <p class="muted small">Ключи провайдеров. Один ключ можно использовать в нескольких маршрутах.</p>
+
+  {% if upstream_keys %}
+  <div class="table-wrap">
+    <table class="keys-table">
+      <thead>
+        <tr><th>Файл</th><th>Статус</th><th>Используется</th><th>Ключ</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for key in upstream_keys %}
+        <tr>
+          <td class="mono">{{ key.file }}</td>
+          <td>
+            <span class="badge badge-{{ 'ok' if key.exists else 'muted' }}">
+              {{ "настроен" if key.exists else "нет" }}
+            </span>
+          </td>
+          <td>{{ key.used_by | join(", ") if key.used_by else "—" }}</td>
+          <td>
+            <form method="post" action="/keys/upstream/{{ key.file }}" class="key-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="password" name="value" required autocomplete="off" placeholder="Ключ"
+                     onfocus="this.type='text'" onblur="this.type='password'">
+              <button class="btn btn-success btn-sm" type="submit">Сохранить</button>
+            </form>
+          </td>
+          <td>
+            {% if key.used_by %}
+            <span class="muted small">используется</span>
+            {% else %}
+            <form method="post" action="/keys/upstream/{{ key.file }}/delete"
+                  onsubmit="return confirm('Удалить ключ {{ key.file }}?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-danger btn-sm" type="submit">Удалить</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Ключей пока нет.</div>
+  {% endif %}
+
+  <h4 style="margin-top:1.2rem">Добавить ключ</h4>
+  <form method="post" action="/keys/upstream" class="card" style="padding:1rem">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <label>Название
+        <input name="label" placeholder="Orca free">
+      </label>
+      <label>Файл
+        <input name="file" required pattern="[a-z0-9][a-z0-9-]{0,63}"
+               placeholder="orca-token-2">
+      </label>
+      <label>Ключ
+        <input type="password" name="value" required autocomplete="off" placeholder="Ключ"
+               onfocus="this.type='text'" onblur="this.type='password'">
+      </label>
+    </div>
+    <p class="muted small">Файл — имя без каталогов; ключ сохранится в
+      <code>secrets/&lt;файл&gt;</code> с правами <code>0600</code>.</p>
+    <div class="form-actions">
+      <button class="btn btn-success" type="submit">Добавить ключ</button>
+    </div>
+  </form>
+</section>

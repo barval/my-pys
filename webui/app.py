@@ -58,6 +58,15 @@ from .keys import (
 )
 from .profiles import load_profiles, parse_env
 from .profile_writer import archive_profile, validate_profile, write_profile
+from .providers import (
+    Provider,
+    delete_provider,
+    fetch_models,
+    load_providers,
+    save_providers,
+    slugify,
+    upsert_provider,
+)
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
 from .status import sync_from_jobs
@@ -84,7 +93,7 @@ def _upstream_from_form(form, *, prefix: str = "", default_history: str = "serve
     history = form.get(f"{prefix}history", default_history).strip()
     try:
         timeout_seconds = float(
-            form.get(f"{prefix}timeout_seconds", "180") or "180"
+            form.get(f"{prefix}timeout_seconds") or form.get(f"{prefix}timeout") or "180"
         )
     except ValueError as exc:
         raise ValueError("timeout_seconds должен быть числом") from exc
@@ -132,6 +141,35 @@ def _route_from_form(
         "session": session,
         "primary": primary,
         "fallbacks": fallbacks,
+    }
+
+
+def _upstream_from_provider(
+    form, providers: list[Provider], *, default_history: str = "server"
+) -> dict:
+    provider_id = form.get("provider_id", "").strip()
+    provider = next((p for p in providers if p.id == provider_id), None)
+    if provider is None:
+        raise ValueError("выберите провайдера")
+    model = form.get("model", "").strip()
+    if not model or model not in provider.models:
+        raise ValueError("выберите модель из списка провайдера")
+    api_key_file = form.get("api_key_file", "").strip()
+    if api_key_file and Path(api_key_file).name != api_key_file:
+        raise ValueError("api_key_file должен быть именем файла без каталогов")
+    history = form.get("history", default_history).strip()
+    if history not in ("server", "client"):
+        raise ValueError("history должен быть server или client")
+    try:
+        timeout_seconds = float(form.get("timeout_seconds", "180") or "180")
+    except ValueError as exc:
+        raise ValueError("timeout_seconds должен быть числом") from exc
+    return {
+        "base_url": provider.base_url,
+        "api_key_file": api_key_file,
+        "model": model,
+        "history": history,
+        "timeout_seconds": timeout_seconds,
     }
 
 
@@ -264,6 +302,27 @@ def create_app(settings: Settings | None = None) -> Flask:
             return read_config(settings.router_config)
         except (OSError, ValueError):
             return {"routes": []}
+
+    def normalized_routes() -> list[dict]:
+        result = []
+        for route in router_config().get("routes", []):
+            item = dict(route)
+            item["fallbacks"] = route_fallbacks(route)
+            item.pop("fallback", None)
+            result.append(item)
+        return result
+
+    registry_path = settings.state_dir / "upstream-keys.json"
+
+    def upstream_keys():
+        return upstream_key_list(
+            registry_path, settings.secrets_dir, normalized_routes()
+        )
+
+    providers_path = settings.state_dir / "providers.json"
+
+    def providers() -> list[Provider]:
+        return load_providers(providers_path, normalized_routes())
 
     def health(probe: bool = False) -> tuple[dict, int]:
         url = settings.router_health_url
@@ -517,22 +576,6 @@ def create_app(settings: Settings | None = None) -> Flask:
         text, offset = app.extensions["jobs"].tail(job_id, 0)
         return render_template("job_log.html", job=job, text=text, offset=offset)
 
-    def normalized_routes() -> list[dict]:
-        result = []
-        for route in router_config().get("routes", []):
-            item = dict(route)
-            item["fallbacks"] = route_fallbacks(route)
-            item.pop("fallback", None)
-            result.append(item)
-        return result
-
-    registry_path = settings.state_dir / "upstream-keys.json"
-
-    def upstream_keys():
-        return upstream_key_list(
-            registry_path, settings.secrets_dir, normalized_routes()
-        )
-
     @app.get("/firmware")
     def firmware_page():
         return render_template(
@@ -555,8 +598,8 @@ def create_app(settings: Settings | None = None) -> Flask:
         audit(f"firmware.{action}", "host", detail=f"job={job.id}")
         return redirect(url_for("job_page", job_id=job.id), code=303)
 
-    @app.get("/router")
-    def router_page():
+    @app.get("/access")
+    def access_page():
         probe = request.args.get("probe", "").lower() in ("1", "true", "yes")
         payload, status = health(probe=probe)
         probe_results = (
@@ -565,7 +608,9 @@ def create_app(settings: Settings | None = None) -> Flask:
             else {}
         )
         return render_template(
-            "router.html",
+            "access.html",
+            providers=providers(),
+            items=key_inventory(settings.secrets_dir, normalized_routes()),
             routes=normalized_routes(),
             probe_requested=probe,
             probe_results=probe_results,
@@ -573,7 +618,6 @@ def create_app(settings: Settings | None = None) -> Flask:
             fallback_count=sum(
                 len(route["fallbacks"]) for route in normalized_routes()
             ),
-            new_token=session.pop("new_route_token", None),
             health=payload,
             health_status=status,
             actions={
@@ -583,15 +627,47 @@ def create_app(settings: Settings | None = None) -> Flask:
             },
         )
 
+    @app.get("/router")
+    def legacy_router():
+        return redirect(url_for("access_page") + "#routes", code=301)
+
+    @app.get("/keys")
+    def legacy_keys():
+        return redirect(url_for("access_page") + "#keys", code=301)
+
     @app.get("/router/health")
     def router_health():
         payload, status = health()
         return jsonify(payload), status
 
     @app.get("/router/routes/new")
+    @app.get("/access/routes/new")
     def route_new():
         return render_template(
-            "route_new.html", error=None, upstream_keys=upstream_keys()
+            "route_new.html",
+            error=None,
+            upstream_keys=upstream_keys(),
+            providers=providers(),
+        )
+
+    def _render_secret(token: str, route_name: str, token_file: str):
+        profile = speaker_for_token_file(token_file)
+        if profile is None:
+            return render_template(
+                "secret.html",
+                token=token,
+                route_name=route_name,
+                profile=None,
+                note="Колонка с этим токеном не найдена — запишите токен вручную.",
+                job_id=None,
+            )
+        return render_template(
+            "secret.html",
+            token=token,
+            route_name=route_name,
+            profile=profile,
+            note=None,
+            job_id=None,
         )
 
     @app.post("/router/routes/new")
@@ -602,6 +678,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "route_new.html",
                 error="Имя: латиница, цифры и дефис",
                 upstream_keys=upstream_keys(),
+                providers=providers(),
             ), 400
         raw = router_config()
         if find_route(raw, name) is not None:
@@ -609,26 +686,46 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "route_new.html",
                 error="Маршрут уже существует",
                 upstream_keys=upstream_keys(),
+                providers=providers(),
             ), 400
         try:
             token = rotate_router_token(settings.secrets_dir, f"router-token-{name}")
-            route = _route_from_form(
-                request.form,
-                name,
-                {"primary": {}, "fallbacks": []},
-                token_file=f"router-token-{name}",
-            )
+            if request.form.get("provider_id", "").strip():
+                primary = _upstream_from_provider(
+                    request.form, providers(), default_history="server"
+                )
+                route = {
+                    "name": name,
+                    "token_file": f"router-token-{name}",
+                    "session": {
+                        "mode": "server",
+                        "user": "voice",
+                        "idle_minutes": 30,
+                        "cleanup_keep": 3,
+                    },
+                    "primary": primary,
+                    "fallbacks": [],
+                }
+            else:
+                route = _route_from_form(
+                    request.form,
+                    name,
+                    {"primary": {}, "fallbacks": []},
+                    token_file=f"router-token-{name}",
+                )
             save_config(settings.router_config, upsert_route(raw, route))
         except (ValueError, ConfigError, OSError) as exc:
             return render_template(
-                "route_new.html", error=str(exc), upstream_keys=upstream_keys()
+                "route_new.html",
+                error=str(exc),
+                upstream_keys=upstream_keys(),
+                providers=providers(),
             ), 400
-        session["new_route_token"] = token
         audit("router.create", name)
-        flash(f"Маршрут {name} создан")
-        return redirect(url_for("router_page"))
+        return _render_secret(token, name, f"router-token-{name}")
 
     @app.get("/router/routes/<name>")
+    @app.get("/access/routes/<name>")
     def route_edit(name: str):
         raw = router_config()
         route = find_route(raw, name)
@@ -642,6 +739,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             route=route,
             error=None,
             upstream_keys=upstream_keys(),
+            providers=providers(),
         )
 
     @app.post("/router/routes/<name>")
@@ -661,10 +759,16 @@ def create_app(settings: Settings | None = None) -> Flask:
                     route=existing or {"name": name},
                     error=str(exc),
                     upstream_keys=upstream_keys(),
+                    providers=providers(),
                 ),
                 400,
             )
-        return redirect(url_for("router_page"))
+        return redirect(url_for("access_page", _anchor="routes"))
+
+    def _fallback_from_form(form, providers: list[Provider]) -> dict:
+        if form.get("provider_id", "").strip():
+            return _upstream_from_provider(form, providers, default_history="client")
+        return _upstream_from_form(form, default_history="client")
 
     @app.get("/router/routes/<name>/fallback/new")
     def fallback_new(name: str):
@@ -674,7 +778,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             abort(404)
         if len(route_fallbacks(route)) >= MAX_FALLBACKS:
             flash(f"Достигнут лимит {MAX_FALLBACKS} запасных маршрутов")
-            return redirect(url_for("router_page"))
+            return redirect(url_for("access_page", _anchor="routes"))
         return render_template(
             "route_fallback.html",
             route=route,
@@ -682,6 +786,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             index=None,
             error=None,
             upstream_keys=upstream_keys(),
+            providers=providers(),
         )
 
     @app.post("/router/routes/<name>/fallback/new")
@@ -692,11 +797,9 @@ def create_app(settings: Settings | None = None) -> Flask:
             abort(404)
         if len(route_fallbacks(route)) >= MAX_FALLBACKS:
             flash(f"Достигнут лимит {MAX_FALLBACKS} запасных маршрутов")
-            return redirect(url_for("router_page"))
+            return redirect(url_for("access_page", _anchor="routes"))
         try:
-            fallback = _upstream_from_form(
-                request.form, default_history="client"
-            )
+            fallback = _fallback_from_form(request.form, providers())
             fallbacks = route_fallbacks(route) + [fallback]
             updated = dict(route)
             updated["fallbacks"] = fallbacks
@@ -711,8 +814,9 @@ def create_app(settings: Settings | None = None) -> Flask:
                 index=None,
                 error=str(exc),
                 upstream_keys=upstream_keys(),
+                providers=providers(),
             ), 400
-        return redirect(url_for("router_page"))
+        return redirect(url_for("access_page", _anchor="routes"))
 
     @app.get("/router/routes/<name>/fallback/<int:index>")
     def fallback_edit(name: str, index: int):
@@ -730,6 +834,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             index=index,
             error=None,
             upstream_keys=upstream_keys(),
+            providers=providers(),
         )
 
     @app.post("/router/routes/<name>/fallback/<int:index>")
@@ -742,9 +847,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         if index < 0 or index >= len(fallbacks):
             abort(404)
         try:
-            fallbacks[index] = _upstream_from_form(
-                request.form, default_history="client"
-            )
+            fallbacks[index] = _fallback_from_form(request.form, providers())
             updated = dict(route)
             updated["fallbacks"] = fallbacks
             updated.pop("fallback", None)
@@ -758,8 +861,9 @@ def create_app(settings: Settings | None = None) -> Flask:
                 index=index,
                 error=str(exc),
                 upstream_keys=upstream_keys(),
+                providers=providers(),
             ), 400
-        return redirect(url_for("router_page"))
+        return redirect(url_for("access_page", _anchor="routes"))
 
     @app.post("/router/routes/<name>/primary/move")
     def primary_move(name: str):
@@ -772,7 +876,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         fallbacks = route_fallbacks(route)
         anchor = f"route-{name}"
         if not fallbacks:
-            return redirect(url_for("router_page", _anchor=anchor))
+            return redirect(url_for("access_page", _anchor=anchor))
         primary = route.get("primary")
         fallbacks[0], primary = primary, fallbacks[0]
         updated = dict(route)
@@ -784,7 +888,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         except (ConfigError, OSError) as exc:
             return str(exc), 400
         audit("router.primary.move", name, detail="primary<->fallback1")
-        return redirect(url_for("router_page", _anchor=anchor))
+        return redirect(url_for("access_page", _anchor=anchor))
 
     @app.post("/router/routes/<name>/fallback/<int:index>/move")
     def fallback_move(name: str, index: int):
@@ -807,7 +911,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         else:
             target = index - 1 if direction == "up" else index + 1
             if target < 0 or target >= len(fallbacks):
-                return redirect(url_for("router_page", _anchor=anchor))
+                return redirect(url_for("access_page", _anchor=anchor))
             fallbacks[index], fallbacks[target] = fallbacks[target], fallbacks[index]
             anchor = f"route-{name}-fallback-{target}"
         updated["fallbacks"] = fallbacks
@@ -817,7 +921,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         except (ConfigError, OSError) as exc:
             return str(exc), 400
         audit("router.fallback.move", name, detail=f"{index} {direction}")
-        return redirect(url_for("router_page", _anchor=anchor))
+        return redirect(url_for("access_page", _anchor=anchor))
 
     @app.post("/router/routes/<name>/fallback/<int:index>/delete")
     def fallback_delete(name: str, index: int):
@@ -837,7 +941,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             audit("router.fallback.delete", name)
         except (ConfigError, OSError) as exc:
             return str(exc), 400
-        return redirect(url_for("router_page"))
+        return redirect(url_for("access_page", _anchor="routes"))
 
     @app.post("/router/routes/<name>/delete")
     def route_delete(name: str):
@@ -849,7 +953,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             abort(404)
         except (ConfigError, OSError) as exc:
             return str(exc), 400
-        return redirect(url_for("router_page"))
+        return redirect(url_for("access_page", _anchor="routes"))
 
     @app.post("/router/restart")
     def router_restart():
@@ -859,16 +963,160 @@ def create_app(settings: Settings | None = None) -> Flask:
     def router_action(action: str):
         return submit_host(action)
 
-    @app.get("/keys")
-    def keys_page():
+    @app.get("/access/providers/new")
+    def provider_new():
         return render_template(
-            "keys.html",
-            items=key_inventory(settings.secrets_dir, normalized_routes()),
-            upstream_keys=upstream_keys(),
-            new_token=session.pop("new_token", None),
-            new_token_note=session.pop("new_token_note", None),
-            new_token_job=session.pop("new_token_job", None),
+            "provider_form.html",
+            title="Новый провайдер",
+            action="/access/providers/new",
+            provider=None,
+            error=None,
         )
+
+    @app.post("/access/providers/new")
+    def provider_create():
+        name = request.form.get("name", "").strip()
+        base_url = request.form.get("base_url", "").strip()
+        models_text = request.form.get("models", "").strip()
+        models = [
+            m.strip()
+            for part in models_text.replace(",", "\n").splitlines()
+            for m in [part.strip()]
+            if m
+        ]
+        error = None
+        if not name:
+            error = "Введите название провайдера"
+        elif not base_url.startswith(("http://", "https://")):
+            error = "base_url должен начинаться с http:// или https://"
+        elif not models:
+            error = "Укажите хотя бы одну модель"
+        if error:
+            return render_template(
+                "provider_form.html",
+                title="Новый провайдер",
+                action="/access/providers/new",
+                provider=None,
+                error=error,
+            ), 400
+        provider = Provider(
+            id=slugify(name),
+            name=name,
+            base_url=base_url,
+            models=tuple(models),
+        )
+        upsert_provider(providers_path, provider)
+        audit("provider.create", provider.id)
+        flash(f"Провайдер {provider.name} сохранён")
+        return redirect(url_for("access_page", _anchor="providers"))
+
+    @app.get("/access/providers/<pid>/edit")
+    def provider_edit(pid: str):
+        provider = next((p for p in providers() if p.id == pid), None)
+        if provider is None:
+            abort(404)
+        return render_template(
+            "provider_form.html",
+            title="Изменить провайдера",
+            action=f"/access/providers/{pid}/edit",
+            provider=provider,
+            error=None,
+        )
+
+    @app.post("/access/providers/<pid>/edit")
+    def provider_save(pid: str):
+        provider = next((p for p in providers() if p.id == pid), None)
+        if provider is None:
+            abort(404)
+        name = request.form.get("name", "").strip()
+        base_url = request.form.get("base_url", "").strip()
+        models_text = request.form.get("models", "").strip()
+        models = [
+            m.strip()
+            for part in models_text.replace(",", "\n").splitlines()
+            for m in [part.strip()]
+            if m
+        ]
+        error = None
+        if not name:
+            error = "Введите название провайдера"
+        elif not base_url.startswith(("http://", "https://")):
+            error = "base_url должен начинаться с http:// или https://"
+        elif not models:
+            error = "Укажите хотя бы одну модель"
+        if error:
+            return render_template(
+                "provider_form.html",
+                title="Изменить провайдера",
+                action=f"/access/providers/{pid}/edit",
+                provider=provider,
+                error=error,
+            ), 400
+        upsert_provider(
+            providers_path,
+            Provider(
+                id=pid,
+                name=name,
+                base_url=base_url,
+                models=tuple(models),
+            ),
+        )
+        audit("provider.save", pid)
+        flash(f"Провайдер {name} сохранён")
+        return redirect(url_for("access_page", _anchor="providers"))
+
+    @app.post("/access/providers/<pid>/delete")
+    def provider_delete(pid: str):
+        provider = next((p for p in providers() if p.id == pid), None)
+        if provider is None:
+            abort(404)
+        for route in normalized_routes():
+            for upstream in [route.get("primary"), *(route.get("fallbacks") or [])]:
+                if isinstance(upstream, dict) and upstream.get("base_url") == provider.base_url:
+                    flash("Нельзя удалить провайдера, пока его base_url используется в маршруте")
+                    return redirect(url_for("access_page", _anchor="providers"))
+        delete_provider(providers_path, pid)
+        audit("provider.delete", pid)
+        flash("Провайдер удалён")
+        return redirect(url_for("access_page", _anchor="providers"))
+
+    @app.post("/access/providers/<pid>/probe")
+    def provider_probe(pid: str):
+        provider = next((p for p in providers() if p.id == pid), None)
+        if provider is None:
+            abort(404)
+        key_file = request.form.get("api_key_file", "").strip()
+        api_key = None
+        if key_file:
+            key_path = settings.secrets_dir / key_file
+            try:
+                api_key = key_path.read_text(encoding="utf-8").strip()
+            except OSError:
+                flash(f"Не удалось прочитать ключ {key_file}")
+                return redirect(url_for("access_page", _anchor="providers"))
+        try:
+            models = fetch_models(provider.base_url, api_key)
+            flash(f"Найдены модели: {', '.join(models) if models else 'список пуст'}")
+        except ValueError as exc:
+            flash(str(exc))
+        except Exception as exc:
+            flash(f"Ошибка проверки связи: {exc}")
+        return redirect(url_for("access_page", _anchor="providers"))
+
+    @app.post("/access/routes/<name>/write-key")
+    def route_write_key(name: str):
+        raw = router_config()
+        route = find_route(raw, name)
+        if route is None:
+            abort(404)
+        token_file = route.get("token_file", "")
+        profile = speaker_for_token_file(token_file) if token_file else None
+        if profile is None:
+            flash("Колонка для записи ключа не найдена")
+            return redirect(url_for("access_page", _anchor="routes"))
+        job = app.extensions["jobs"].submit("key", profile)
+        audit("route.write-key", name, detail=f"job={job.id}")
+        return redirect("/test", code=303)
 
     def speaker_for_token_file(token_file: str):
         """Колонка, у которой LLM_TOKEN_FILE указывает на этот файл."""
@@ -894,23 +1142,28 @@ def create_app(settings: Settings | None = None) -> Flask:
         token_file = item.get("token_file", "")
         if not token_file:
             abort(404)
-        session["new_token"] = rotate_router_token(
-            settings.secrets_dir, token_file
-        )
+        token = rotate_router_token(settings.secrets_dir, token_file)
         profile = speaker_for_token_file(token_file)
         if profile is None:
-            session["new_token_note"] = (
-                "Колонка с этим token_file не найдена — запишите токен вручную."
-            )
             audit("keys.rotate", route)
-        else:
-            job = app.extensions["jobs"].submit("key", profile)
-            session["new_token_note"] = (
-                f"Запись в колонку {profile.name} запущена."
+            return render_template(
+                "secret.html",
+                token=token,
+                route_name=route,
+                profile=None,
+                note="Колонка с этим token_file не найдена — запишите токен вручную.",
+                job_id=None,
             )
-            session["new_token_job"] = job.id
-            audit("keys.rotate", route, detail=f"job={job.id}")
-        return redirect(url_for("keys_page"))
+        job = app.extensions["jobs"].submit("key", profile)
+        audit("keys.rotate", route, detail=f"job={job.id}")
+        return render_template(
+            "secret.html",
+            token=token,
+            route_name=route,
+            profile=profile,
+            note=f"Запись в колонку {profile.name} запущена.",
+            job_id=job.id,
+        )
 
     @app.post("/keys/upstream")
     def keys_upstream_add():
@@ -924,10 +1177,10 @@ def create_app(settings: Settings | None = None) -> Flask:
             )
         except ValueError as exc:
             flash(str(exc))
-            return redirect(url_for("keys_page"))
+            return redirect(url_for("access_page", _anchor="keys"))
         audit("keys.upstream.add", key_file)
         flash(f"Ключ {key_file} добавлен")
-        return redirect(url_for("keys_page"))
+        return redirect(url_for("access_page", _anchor="keys"))
 
     @app.post("/keys/upstream/<key_file>")
     def keys_upstream_save(key_file: str):
@@ -942,7 +1195,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         except ValueError as exc:
             return str(exc), 400
         audit("keys.upstream", key_file)
-        return redirect(url_for("keys_page"))
+        return redirect(url_for("access_page", _anchor="keys"))
 
     @app.post("/keys/upstream/<key_file>/delete")
     def keys_upstream_delete(key_file: str):
@@ -955,10 +1208,10 @@ def create_app(settings: Settings | None = None) -> Flask:
             )
         except ValueError as exc:
             flash(str(exc))
-            return redirect(url_for("keys_page"))
+            return redirect(url_for("access_page", _anchor="keys"))
         audit("keys.upstream.delete", key_file)
         flash(f"Ключ {key_file} удалён")
-        return redirect(url_for("keys_page"))
+        return redirect(url_for("access_page", _anchor="keys"))
 
     @app.get("/backup")
     def backup_page():

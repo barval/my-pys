@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Модели и доступ — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Модели и доступ</h1>
+    <div class="sub">Провайдеры, ключи и маршруты</div>
+  </div>
+</div>
+
+<section class="card" id="providers" style="margin-bottom:1.2rem">
+  <h2>Провайдеры</h2>
+  <p class="muted small">Провайдер = базовый адрес + список моделей. Ключ выбирается уже в маршруте.</p>
+  {% if providers %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Имя</th><th>Base URL</th><th>Модели</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for provider in providers %}
+        <tr>
+          <td><strong>{{ provider.name }}</strong></td>
+          <td class="mono">{{ provider.base_url }}</td>
+          <td class="mono">{{ provider.models | join(", ") }}</td>
+          <td class="row-actions">
+            <a class="btn btn-sm btn-warning" href="/access/providers/{{ provider.id }}/edit">Изменить</a>
+            <form method="post" action="/access/providers/{{ provider.id }}/delete" class="inline"
+                  onsubmit="return confirm('Удалить провайдера {{ provider.name }}?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-danger" type="submit">Удалить</button>
+            </form>
+            <form method="post" action="/access/providers/{{ provider.id }}/probe" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label class="inline-select">
+                <select name="api_key_file">
+                  <option value="">— без ключа —</option>
+                  {% for key in upstream_keys %}
+                  <option value="{{ key.file }}">{{ key.file }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <button class="btn btn-sm" type="submit">Проверить связь</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Провайдеров пока нет. Добавьте первого.</div>
+  {% endif %}
+  <div class="form-actions" style="margin-top:1rem">
+    <a class="btn btn-success" href="/access/providers/new">Добавить провайдера</a>
+  </div>
+</section>
+
+{% include "_keys_section.html" %}
+
+{% include "_routes_section.html" %}
+{% endblock %}

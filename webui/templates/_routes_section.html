@@ -1,6 +1,3 @@
-{% extends "base.html" %}
-{% block title %}LLM-роутер — {{ config.WEBUI_TITLE }}{% endblock %}
-{% block content %}
 {% macro upstream_status(info) %}
   {% set state = info.get("state", "unknown") %}
   {% if state == "ok" %}
@@ -16,58 +13,48 @@
   {% endif %}
 {% endmacro %}
 
-<div class="page-head">
-  <div>
-    <h1>LLM-роутер</h1>
-    <div class="sub">Основные и запасные маршруты</div>
-  </div>
-  <div class="actions">
-    <a class="btn btn-warning" href="/router?probe=1"
-       title="GET /models у каждого upstream с его ключом">Проверить доступность</a>
-    <a class="btn btn-primary" href="/router/routes/new">Добавить маршрут</a>
-  </div>
-</div>
-
-{% if new_token %}
-<div class="flash">
-  <strong>Новый токен маршрута.</strong> Показывается один раз:
-  <div class="mono" style="margin:.5rem 0; word-break:break-all">{{ new_token }}</div>
-  <button class="copy" type="button" data-copy="{{ new_token }}">Копировать</button>
-</div>
-{% endif %}
-
-<div class="grid two">
-  <section class="card">
-    <h2>Управление</h2>
-    <div class="actions">
-      {% for action in actions.values() %}
-      <form method="post" action="/router/actions/{{ action.key }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn {{ 'btn-primary' if action.key == 'router-restart' else '' }}" type="submit">{{ action.label }}</button>
-      </form>
-      {% endfor %}
+<section class="card" id="routes">
+  <div class="page-head" style="margin:0 0 1rem">
+    <div>
+      <h2>Маршруты</h2>
     </div>
-    <p class="muted">Изменения конфига подхватываются автоматически.</p>
-  </section>
+    <div class="actions">
+      <a class="btn btn-warning" href="/access?probe=1#routes"
+         title="GET /models у каждого upstream с его ключом">Проверить доступность</a>
+      <a class="btn btn-primary" href="/access/routes/new">Добавить маршрут</a>
+    </div>
+  </div>
 
-  <section class="card">
-    <h2>Состояние</h2>
-    <dl class="meta">
-      <dt>Адрес</dt><dd class="mono">{{ config.WEBUI_ROUTER_DISPLAY_URL }}</dd>
-      <dt>GET /health</dt>
-      <dd>
-        <span class="health-{{ 'ok' if health.status == 'ok' else 'err' }}">
-          {{ health.status }} · HTTP {{ health_status }}
-        </span>
-      </dd>
-      <dt>Маршрутов</dt><dd>{{ routes | length }}</dd>
-      <dt>Запасных</dt><dd title="Всего по всем маршрутам; на один маршрут — до {{ max_fallbacks }}">{{ fallback_count }}</dd>
-    </dl>
-  </section>
-</div>
+  <div class="grid two" style="margin-bottom:1rem">
+    <section class="card">
+      <h3>Управление</h3>
+      <div class="actions">
+        {% for action in actions.values() %}
+        <form method="post" action="/router/actions/{{ action.key }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn {{ 'btn-primary' if action.key == 'router-restart' else '' }}" type="submit">{{ action.label }}</button>
+        </form>
+        {% endfor %}
+      </div>
+      <p class="muted">Изменения конфига подхватываются автоматически.</p>
+    </section>
 
-<section class="card" style="margin-top:1rem">
-  <h2>Маршруты</h2>
+    <section class="card">
+      <h3>Состояние</h3>
+      <dl class="meta">
+        <dt>Адрес</dt><dd class="mono">{{ config.WEBUI_ROUTER_DISPLAY_URL }}</dd>
+        <dt>GET /health</dt>
+        <dd>
+          <span class="health-{{ 'ok' if health.status == 'ok' else 'err' }}">
+            {{ health.status }} · HTTP {{ health_status }}
+          </span>
+        </dd>
+        <dt>Маршрутов</dt><dd>{{ routes | length }}</dd>
+        <dt>Запасных</dt><dd title="Всего по всем маршрутам; на один маршрут — до {{ max_fallbacks }}">{{ fallback_count }}</dd>
+      </dl>
+    </section>
+  </div>
+
   {% if routes %}
   <div class="table-wrap">
     <table>
@@ -112,7 +99,7 @@
             {% endif %}
           </td>
           <td class="row-actions">
-            <a class="btn btn-warning btn-sm" href="/router/routes/{{ route.name }}">Изменить</a>
+            <a class="btn btn-warning btn-sm" href="/access/routes/{{ route.name }}">Изменить</a>
             <form method="post" action="/router/routes/{{ route.name }}/delete" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-danger btn-sm" type="submit">Удалить</button>
@@ -178,4 +165,3 @@
   {% endif %}
   <p class="muted small">«Проверить доступность» делает GET /models к каждому upstream с его ключом. Таймаут — 3 секунды; это может занять несколько секунд. Колонка GET /models — проверка конкретного upstream, а GET /health в «Состоянии» — проверка самого llm-router.</p>
 </section>
-{% endblock %}
