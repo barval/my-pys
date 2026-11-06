@@ -14,6 +14,17 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-fill]");
+  if (!button) return;
+  const fields = { ip: "ip", mac: "mac", deviceId: "device_id", model: "model" };
+  Object.entries(fields).forEach(([key, name]) => {
+    const value = button.dataset[key];
+    const input = document.querySelector(`input[name="${name}"]`);
+    if (value && input) input.value = value;
+  });
+});
+
 document.querySelectorAll("[data-dialog-open]").forEach((button) => {
   const dialog = document.getElementById(button.getAttribute("data-dialog-open"));
   if (!dialog) return;

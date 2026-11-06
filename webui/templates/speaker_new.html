@@ -10,6 +10,39 @@
 
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
+<div class="card">
+  <h2>Найти колонку</h2>
+  <form method="get" action="/speakers/new" class="form-inline">
+    <input type="hidden" name="scan" value="1">
+    <label>Подсеть
+      <input name="subnet" value="{{ subnet }}" placeholder="192.168.1">
+    </label>
+    <button class="btn btn-primary" type="submit">Искать</button>
+  </form>
+  {% if devices is not none %}
+    {% if devices %}
+    <ul class="found">
+      {% for device in devices %}
+      <li>
+        {% if device.device_id %}
+        {{ device.ip }} — {{ device.model }} ({{ device.mac }})
+        <button type="button" class="btn" data-fill
+                data-ip="{{ device.ip }}"
+                data-mac="{{ device.mac }}"
+                data-device-id="{{ device.device_id }}"
+                data-model="{{ device.model }}">Это моя колонка</button>
+        {% else %}
+        {{ device.ip }} — ADB недоступен, заполните поля вручную
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">В подсети {{ subnet }} ничего не нашлось. Убедитесь, что колонка включена и подключена к этой сети, затем повторите поиск.</p>
+    {% endif %}
+  {% endif %}
+</div>
+
 <form method="post" action="/speakers/new" class="card">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="form-grid">
@@ -51,7 +84,7 @@
              placeholder="Яндекс Станция Лайт">
     </label>
   </div>
-  <p class="muted">Если вы не знаете IP, MAC и Device ID, используйте поиск колонки в локальной сети — он появится в следующем обновлении.</p>
+  <p class="muted">Если вы не знаете IP, MAC и Device ID, используйте поиск выше — он подставит значения автоматически.</p>
   <div class="form-actions">
     <button class="btn btn-success" type="submit">Создать</button>
   </div>

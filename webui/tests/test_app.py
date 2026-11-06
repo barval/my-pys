@@ -1043,6 +1043,48 @@ def test_create_profile_rejects_invalid_color(client, login, csrf, settings):
     assert not (settings.speakers_dir / "speaker-z.env").exists()
 
 
+def test_scan_lists_found_speaker(client, login, monkeypatch):
+    from webui.discovery import Discovered
+    login()
+    monkeypatch.setattr("webui.app.scan", lambda subnet: [Discovered(
+        "192.168.1.150", "02:00:00:00:00:99",
+        "EXAMPLE000000000000000000000099", "Яндекс Станция Лайт",
+        "yandexmicro-EXAMPLE000000000000000000000099")])
+    body = client.get("/speakers/new?scan=1").get_data(as_text=True)
+    assert "192.168.1.150" in body
+
+
+def test_speaker_new_without_scan_skips_discovery(client, login, monkeypatch):
+    login()
+
+    def boom(subnet):
+        raise AssertionError("scan не должен запускаться без ?scan=1")
+
+    monkeypatch.setattr("webui.app.scan", boom)
+    assert client.get("/speakers/new").status_code == 200
+
+
+def test_speaker_new_scan_shows_subnet_error(client, login, monkeypatch):
+    login()
+
+    def bad(subnet):
+        raise ValueError("Нужна приватная сеть не больше 254 адресов")
+
+    monkeypatch.setattr("webui.app.scan", bad)
+    body = client.get("/speakers/new?scan=1&subnet=10.0.0.0/16").get_data(as_text=True)
+    assert "Нужна приватная сеть" in body
+
+
+def test_scan_marks_hosts_without_adb(client, login, monkeypatch):
+    from webui.discovery import Discovered
+    login()
+    monkeypatch.setattr("webui.app.scan", lambda subnet: [Discovered(
+        "192.168.1.152", "", "", "", "")])
+    body = client.get("/speakers/new?scan=1").get_data(as_text=True)
+    assert "192.168.1.152 — ADB недоступен, заполните поля вручную" in body
+    assert "Это моя колонка" not in body
+
+
 def test_access_page_lists_upstream_keys(client, app, login, csrf, settings):
     login()
     client.post(

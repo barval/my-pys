@@ -47,6 +47,7 @@ from .backup import (
     resolve_backup,
     restore_backup,
 )
+from .discovery import scan
 from .jobs import JobRunner
 from .keys import (
     add_upstream_key,
@@ -426,9 +427,19 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/speakers/new")
     def speaker_new():
+        error = None
+        devices = None
+        subnet = request.args.get("subnet", "192.168.1").strip() or "192.168.1"
+        if request.args.get("scan") == "1":
+            try:
+                devices = scan(subnet)
+            except ValueError as exc:
+                error = str(exc)
         return render_template(
             "speaker_new.html",
-            error=None,
+            error=error,
+            devices=devices,
+            subnet=subnet,
             color_choices=COLOR_CHOICES,
         )
 
@@ -464,6 +475,8 @@ def create_app(settings: Settings | None = None) -> Flask:
             return render_template(
                 "speaker_new.html",
                 error=str(exc),
+                devices=None,
+                subnet=values["SPEAKER_SUBNET"] or "192.168.1",
                 color_choices=COLOR_CHOICES,
             ), 400
         reload_profiles()
