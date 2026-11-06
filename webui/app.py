@@ -391,6 +391,11 @@ def create_app(settings: Settings | None = None) -> Flask:
                 values["SPEAKER_MAC"],
                 values["SPEAKER_DEVICE_ID"],
             )
+            color = values["SPEAKER_COLOR"]
+            if color and color not in COLOR_MAP and not re.fullmatch(
+                r"#[0-9a-fA-F]{6}", color
+            ):
+                raise ValueError("недопустимый цвет")
             write_profile(settings.speakers_dir, values)
         except ValueError as exc:
             return render_template(
@@ -430,8 +435,12 @@ def create_app(settings: Settings | None = None) -> Flask:
             return "Введите имя колонки для подтверждения", 400
         raw = router_config()
         route = find_route(raw, name)
+        appearance = load_overrides(appearance_path).get(profile.device_id)
         try:
-            dest = archive_profile(settings, name, route=route)
+            dest = archive_profile(
+                settings, name, route=route,
+                appearance=appearance,
+            )
         except ValueError as exc:
             return str(exc), 400
         if route is not None:

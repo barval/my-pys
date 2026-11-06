@@ -994,3 +994,49 @@ def test_delete_profile_requires_name_confirm(client, login, csrf, settings):
     assert response.status_code == 303
     assert not (settings.speakers_dir / "speaker-a.env").exists()
     assert (settings.state_dir / "deleted-profiles").exists()
+
+
+def test_delete_profile_moves_appearance_to_trash(client, login, csrf, settings):
+    from webui.appearance import save_override
+
+    login()
+    app_settings = settings
+    appearance_path = app_settings.state_dir / "speaker-appearance.json"
+    save_override(appearance_path, "EXAMPLE000000000000000000000001", "green", "Custom Model")
+    response = client.post(
+        "/speakers/speaker-a/delete",
+        headers={"X-CSRF-Token": csrf(client)},
+        data={"confirm": "speaker-a"},
+    )
+    assert response.status_code == 303
+    trash = list((settings.state_dir / "deleted-profiles").glob("*"))
+    assert len(trash) == 1
+    appearance_json = trash[0] / "appearance.json"
+    assert appearance_json.is_file()
+    assert "green" in appearance_json.read_text(encoding="utf-8")
+
+
+def test_create_profile_rejects_injection_in_room(client, login, csrf, settings):
+    login()
+    response = client.post("/speakers/new", headers={"X-CSRF-Token": csrf(client)}, data={
+        "name": "speaker-z", "ip": "192.168.1.150", "subnet": "192.168.1",
+        "mac": "02:00:00:00:00:99",
+        "device_id": "EXAMPLE000000000000000000000099",
+        "room": "Комната\nZ", "color": "blue",
+        "model": "Яндекс Станция Лайт",
+    })
+    assert response.status_code == 400
+    assert not (settings.speakers_dir / "speaker-z.env").exists()
+
+
+def test_create_profile_rejects_invalid_color(client, login, csrf, settings):
+    login()
+    response = client.post("/speakers/new", headers={"X-CSRF-Token": csrf(client)}, data={
+        "name": "speaker-z", "ip": "192.168.1.150", "subnet": "192.168.1",
+        "mac": "02:00:00:00:00:99",
+        "device_id": "EXAMPLE000000000000000000000099",
+        "room": "Комната Z", "color": "not-a-color",
+        "model": "Яндекс Станция Лайт",
+    })
+    assert response.status_code == 400
+    assert not (settings.speakers_dir / "speaker-z.env").exists()

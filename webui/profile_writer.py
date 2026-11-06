@@ -8,9 +8,12 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 from .profiles import NAME_RE
+
+if TYPE_CHECKING:
+    from .settings import Settings
 
 _MAC_RE = re.compile(r"^[0-9a-f]{2}(:[0-9a-f]{2}){5}$")
 _DEVICE_ID_RE = re.compile(r"^[A-Za-z0-9._-]{4,64}$")
@@ -26,6 +29,11 @@ _WRITE_ORDER = (
     "SPEAKER_MODEL",
     "SPEAKER_PLATFORM",
 )
+
+
+def _check_value(key: str, value: str) -> None:
+    if "\n" in value or "\r" in value or "\0" in value:
+        raise ValueError(f"Недопустимые символы в поле {key}")
 
 
 def validate_profile(name: str, ip: str, subnet: str, mac: str, device_id: str) -> None:
@@ -76,10 +84,17 @@ def _atomic_write(path: Path, content: str) -> None:
         raise
 
 
+def _atomic_write_json(path: Path, data: dict) -> None:
+    content = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+    _atomic_write(path, content)
+
+
 def write_profile(directory: Path, values: dict[str, str]) -> Path:
     name = values.get("SPEAKER_NAME", "").strip()
     if not name:
         raise ValueError("Имя обязательно")
+    if not NAME_RE.fullmatch(name):
+        raise ValueError("Имя профиля некорректно")
 
     directory = Path(directory)
     path = directory / f"{name}.env"
@@ -90,6 +105,7 @@ def write_profile(directory: Path, values: dict[str, str]) -> Path:
         if key == "SPEAKER_PLATFORM" and not value:
             value = "yandexmicro"
         if value:
+            _check_value(key, value)
             ordered[key] = value
 
     lines = [f"{key}={value}\n" for key, value in ordered.items()]
@@ -101,6 +117,9 @@ def merge_profile_env(path: Path, values: dict[str, str]) -> None:
     path = Path(path)
     original = path.read_text(encoding="utf-8") if path.exists() else ""
     lines = original.splitlines(keepends=True)
+
+    for key, value in values.items():
+        _check_value(key, value)
 
     seen: set[str] = set()
     result: list[str] = []
@@ -123,7 +142,9 @@ def merge_profile_env(path: Path, values: dict[str, str]) -> None:
     _atomic_write(path, "".join(result))
 
 
-def archive_profile(settings: Any, name: str, *, route: dict | None) -> Path:
+def archive_profile(
+    settings: Settings, name: str, *, route: dict | None, appearance: dict | None = None
+) -> Path:
     if not NAME_RE.fullmatch(name):
         raise ValueError("Имя профиля некорректно")
 
@@ -138,11 +159,7 @@ def archive_profile(settings: Any, name: str, *, route: dict | None) -> Path:
         shutil.move(str(profile_path), str(target))
 
     if route is not None:
-        router_path = dest / "router.json"
-        router_path.write_text(
-            json.dumps({"routes": [route]}, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        _atomic_write_json(dest / "router.json", {"routes": [route]})
 
         token_file = route.get("token_file", "")
         if token_file:
@@ -157,5 +174,8 @@ def archive_profile(settings: Any, name: str, *, route: dict | None) -> Path:
         target = dest / "webui-state" / "setup" / f"{name}.json"
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(setup_path), str(target))
+
+    if appearance is not None:
+        _atomic_write_json(dest / "appearance.json", appearance)
 
     return dest
