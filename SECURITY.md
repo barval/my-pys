@@ -2,8 +2,8 @@
 
 ## Что считается секретом
 
-- Upstream-ключи LLM: файлы из `api_key_file` маршрутов, обычно
-  `secrets/upstream-token-*`.
+- Upstream-ключи LLM: файлы из `api_key_file` маршрутов, с любыми
+  именами (`secrets/flai-token-*`, `secrets/openrouter-token-*` и т.п.).
 - Промежуточные токены роутера (`secrets/router-token-*`).
 - Приватный SSH-ключ колонки (`secrets/speaker_ed25519`).
 - Пароль панели (`secrets/webui-admin.hash`) и ключ сессий

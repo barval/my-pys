@@ -54,6 +54,7 @@ docs/
   03-runbook.md               точные команды и порядок действий
   04-risks.md                 риски, ограничения и откат
   05-troubleshooting.md       диагностика типовых ошибок
+  06-flai-all-cameras-api-bug.md  баг FLAI с камерами (исторический)
   07-webui.md                 веб-панель: Docker, вход, разделы, бэкапы
 config/
   llm.env.example             пример переменных внешней LLM
@@ -278,8 +279,9 @@ Bridge подключается к локальному LLM-роутеру, а �
 | `local/speakers/speaker-c.env` | `192.168.1.102` | `EXAMPLE...003` |
 | `local/speakers/speaker-d.env` | `192.168.1.103` | `EXAMPLE...004` |
 
-Имена и количество профилей произвольны: скрипты читают любой файл,
-переданный через `SPEAKER_ENV`.
+Имена профилей — латиница, цифры и дефис (до 64 символов), количество
+произвольно: `SPEAKER_ENV` указывает на любой такой файл. Обязательны
+`SPEAKER_DEVICE_ID` и `SPEAKER_MAC`, иначе панель не загрузит профиль.
 
 Для любой команды по конкретной колонке:
 
@@ -418,12 +420,13 @@ SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
 - `history=client`: уходит окно Bridge — 6 ходов, 12k символов, TTL 5 минут.
 - Сессия upstream одна на колонку. После 30 минут простоя начинается
   новая; автоматически остаются текущая и две предыдущие сессии.
+- Состояние сессий лежит в `router-state/router-state.json` (в бэкап не
+  входит).
 
 ### Краткость ответов
 
-Для голоса роутер обрезает ответы любой LLM до **3 предложений / 400
-символов** и убирает Markdown. Настройка — в начале
-`secrets/router-routes.json`:
+Блок `response` в начале `secrets/router-routes.json` задаёт лимиты для
+голоса:
 
 ```json
 "response": {
@@ -433,14 +436,18 @@ SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
 }
 ```
 
-Обрезаются только не-stream ответы (`stream: false`); Bridge использует
-именно такой режим.
+Эти лимиты применяются только к **не-stream** ответам (`stream: false`).
+Текущий Bridge работает в streaming-режиме (`QUASAR_STREAM_LLM=1`),
+поэтому ответ приходит потоком, а длину озвучки ограничивает сам Bridge:
+`QUASAR_SPEECH_MAX_CHARS` (по умолчанию ~500 символов на кусок) и
+`QUASAR_SPEECH_MAX_CHUNKS`. Первый кусок короче
+(`QUASAR_SPEECH_FIRST_CHARS`, ~40 символов), чтобы речь начиналась
+раньше.
 
-Новый Bridge `0.6.2-chunked` присылает заголовок
-`X-Quasar-Voice-Chunking: 1`. Для таких запросов роутер отдаёт до
-**3000 символов**, а Bridge сам режет ответ на куски по ~500 символов
-(до 6 кусков) и озвучивает их подряд. Старые Bridge без заголовка
-продолжают получать 3/400.
+Если streaming выключить, работает блок `response`, включая
+`response.chunked` (до 100 предложений / 3000 символов) — он
+включается заголовком `X-Quasar-Voice-Chunking: 1` от Bridge
+`0.6.2-chunked`.
 
 Собрать кастомный Bridge:
 
@@ -525,13 +532,17 @@ SPEAKER_ENV=local/speakers/speaker-b.env make status
 
 ```bash
 make router        # LLM-роутер
-make webui         # панель, router-control и stand-control
+make webui         # панель, router-control, stand-control и локальный TTS
 make webui-passwd  # пароль администратора
+make router-test   # тесты роутера
+make webui-test    # тесты панели
+make lint          # проверка синтаксиса скриптов
 ```
 
-`make webui` пересоздаёт контейнеры панели и sidecar’ов. `llm-router` и
-`lite-kit` в этот стек не входят: роутер запускается и пересобирается
-`make router`, а стенд — кнопкой на вкладке «Прошивка».
+`make webui` пересоздаёт контейнеры панели, sidecar’ов и локального TTS
+`tts` (он нужен кнопке «Сказать»). `llm-router` и `lite-kit` в этот стек
+не входят: роутер запускается и пересобирается `make router`, а стенд —
+кнопкой на вкладке «Прошивка».
 
 Если обновляли код роутера (например, появилась проверка доступности),
 после `git pull` выполните **и** `make router`, **и** `make webui`.
@@ -565,6 +576,9 @@ make webui-passwd
 
 Или в панели: раздел «Пароль». После смены текущая сессия завершается.
 Если пароль утерян, `make webui-passwd` задаёт новый.
+
+После пяти неудачных попыток входа с одного IP панель блокирует вход
+на 5 минут и пишет «Слишком много попыток. Подождите 5 минут».
 
 ### Доступ по сети
 

@@ -149,6 +149,31 @@ def test_restore_single_keeps_other_routes(tmp_path):
     assert len(restored["routes"]) == 2
 
 
+def test_speaker_backup_includes_arbitrary_key_names(tmp_path):
+    source = _make_root(tmp_path / "source")
+    (source.secrets_dir / "openrouter-token-speaker-a").write_text(
+        "or-value\n", encoding="utf-8"
+    )
+    raw = json.loads(source.router_config.read_text(encoding="utf-8"))
+    raw["routes"][0]["fallbacks"] = [
+        {
+            "base_url": "https://openrouter.ai/api/v1",
+            "api_key_file": "openrouter-token-speaker-a",
+            "model": "some-model",
+            "history": "client",
+        }
+    ]
+    source.router_config.write_text(json.dumps(raw) + "\n", encoding="utf-8")
+
+    archive = create_backup(source, "speaker:speaker-a", "correct horse")
+
+    target_root = tmp_path / "target"
+    target_root.mkdir()
+    target = _make_root(target_root)
+    restore_backup(target, archive, "correct horse", confirm="REPLACE")
+    assert (target_root / "secrets" / "openrouter-token-speaker-a").exists()
+
+
 def test_restore_requires_confirmation(tmp_path):
     settings = _make_root(tmp_path)
     archive = create_backup(settings, "all", "correct horse")

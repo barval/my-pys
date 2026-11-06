@@ -33,11 +33,11 @@ for arg in "$@"; do
 done
 
 if [[ ! -r "$TOKEN_FILE" ]]; then
-  echo "Нет ключа FLAI: $TOKEN_FILE" >&2
+  echo "Нет промежуточного ключа: $TOKEN_FILE" >&2
   exit 1
 fi
 TOKEN="$(<"$TOKEN_FILE")"
-[[ -n "$TOKEN" ]] || { echo "Ключ FLAI пустой" >&2; exit 1; }
+[[ -n "$TOKEN" ]] || { echo "Промежуточный ключ пустой" >&2; exit 1; }
 
 if [[ -n "${QUASAR_VERSION:-}" ]]; then
   VERSION="$QUASAR_VERSION"

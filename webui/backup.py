@@ -137,6 +137,32 @@ def _collect(settings: Settings, scope: str) -> tuple[list[tuple[str, Path]], st
         path = secrets_dir / f"{prefix}{name}"
         if path.is_file():
             files.append((f"secrets/{path.name}", path))
+
+    # Ключи с произвольными именами (например, openrouter-token-*) берём из
+    # самого маршрута, иначе бэкап одной колонки терял бы их.
+    seen = {archive_name for archive_name, _ in files}
+    fragment = _route_fragment(settings, name)
+    if fragment:
+        route = fragment["routes"][0]
+        candidates = [route.get("token_file")]
+        for upstream in [route.get("primary"), *(route.get("fallbacks") or [])]:
+            if isinstance(upstream, dict):
+                candidates.append(upstream.get("api_key_file"))
+        for candidate in candidates:
+            if not isinstance(candidate, str):
+                continue
+            candidate = candidate.strip()
+            if not candidate or Path(candidate).name != candidate:
+                continue
+            try:
+                validate_secret_name(candidate)
+            except ValueError:
+                continue
+            path = secrets_dir / candidate
+            archive_name = f"secrets/{candidate}"
+            if path.is_file() and archive_name not in seen:
+                files.append((archive_name, path))
+                seen.add(archive_name)
     return files, name
 
 
