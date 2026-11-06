@@ -114,7 +114,7 @@ def save_progress(path: Path, progress: Progress) -> None:
         raise
 
 
-def advance(progress: Progress, key: str, *, skipped: bool = False, job: str | None = None) -> Progress:
+def advance(progress: Progress, key: str, *, skipped: bool = False) -> Progress:
     if key not in _STEP_KEYS:
         return progress
     done = set(progress.done)
@@ -136,7 +136,7 @@ def advance(progress: Progress, key: str, *, skipped: bool = False, job: str | N
         step=next_step,
         done=tuple(sorted(done, key=lambda k: next(s.number for s in STEPS if s.key == k))),
         skipped=tuple(sorted(skipped_set, key=lambda k: next(s.number for s in STEPS if s.key == k))),
-        last_job=job if job is not None else progress.last_job,
+        last_job=progress.last_job,
         updated_at=_utc_now(),
     )
 

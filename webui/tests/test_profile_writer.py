@@ -102,3 +102,15 @@ def test_merge_profile_env_rejects_newline(tmp_path):
     path.write_text("SPEAKER_IP=192.168.1.1\n", encoding="utf-8")
     with pytest.raises(ValueError, match="Недопустимые символы"):
         merge_profile_env(path, {"SPEAKER_IP": "192.168.1.150\n1"})
+
+
+def test_archive_profile_distinct_directories(settings, make_profile):
+    """Two consecutive archives of the same profile must give distinct directories."""
+    from webui.profile_writer import archive_profile
+
+    make_profile("speaker-a")
+    route = None
+    target1 = archive_profile(settings, "speaker-a", route=route)
+    target2 = archive_profile(settings, "speaker-a", route=route)
+    assert target1 != target2
+    assert target1.name != target2.name

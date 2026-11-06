@@ -6,6 +6,8 @@ import os
 import re
 import shutil
 import tempfile
+import uuid
+
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -148,8 +150,8 @@ def archive_profile(
     if not NAME_RE.fullmatch(name):
         raise ValueError("Имя профиля некорректно")
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    dest = settings.state_dir / "deleted-profiles" / f"{timestamp}-{name}"
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+    dest = settings.state_dir / "deleted-profiles" / f"{timestamp}-{uuid.uuid4().hex[:6]}-{name}"
     dest.mkdir(parents=True, exist_ok=True)
 
     profile_path = settings.speakers_dir / f"{name}.env"

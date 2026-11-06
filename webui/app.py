@@ -226,10 +226,12 @@ def create_app(settings: Settings | None = None) -> Flask:
     appearance_path = settings.state_dir / "speaker-appearance.json"
     status_path = settings.state_dir / "speaker-status.json"
 
-    def speaker_statuses() -> dict:
+    def speaker_statuses(jobs: list | None = None) -> dict:
         runner = app.extensions["jobs"]
-        jobs = runner.list(limit=200) if hasattr(runner, "list") else []
-        return sync_from_jobs(status_path, jobs)
+        jobs_list = jobs if jobs is not None else (
+            runner.list(limit=200) if hasattr(runner, "list") else []
+        )
+        return sync_from_jobs(status_path, jobs_list)
 
     def reload_profiles() -> None:
         profiles.clear()
@@ -513,9 +515,14 @@ def create_app(settings: Settings | None = None) -> Flask:
         card = next(
             item for item in speaker_cards() if item["profile"].name == name
         )
+        runner = app.extensions["jobs"]
+        if hasattr(runner, "list"):
+            all_jobs = runner.list(limit=200)
+        else:
+            all_jobs = []
         jobs = [
             job
-            for job in app.extensions["jobs"].list(limit=100)
+            for job in all_jobs
             if job.target == profile.name
         ][:10]
         return render_template(
@@ -525,7 +532,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             color_choices=COLOR_CHOICES,
             actions=SPEAKER_ACTIONS.values(),
             jobs=jobs,
-            statuses=speaker_statuses(),
+            statuses=speaker_statuses(all_jobs),
         )
 
     @app.get("/speakers/<name>/setup")
@@ -998,10 +1005,15 @@ def create_app(settings: Settings | None = None) -> Flask:
                 primary = _upstream_from_provider(
                     request.form, providers(), default_history="server"
                 )
+                session = dict(existing.get("session") or {})
+                session.setdefault("mode", "server")
+                session.setdefault("user", "voice")
+                session.setdefault("idle_minutes", 30)
+                session.setdefault("cleanup_keep", 3)
                 route = {
                     "name": name,
                     "token_file": token_file,
-                    "session": dict(existing.get("session") or {}),
+                    "session": session,
                     "primary": primary,
                     "fallbacks": route_fallbacks(existing),
                 }

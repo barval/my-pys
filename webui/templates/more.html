@@ -79,7 +79,9 @@
   <div class="card">
     <div class="actions">
       <a class="btn" href="/setup/prepare">Подготовить хост</a>
+      {% if advanced %}
       <a class="btn" href="/advanced">Продвинутое</a>
+      {% endif %}
       <form method="post" action="/logout">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-danger" type="submit">Выйти</button>
