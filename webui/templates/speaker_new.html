@@ -15,10 +15,13 @@
   <form method="get" action="/speakers/new" class="form-inline">
     <input type="hidden" name="scan" value="1">
     <label>Подсеть
-      <input name="subnet" value="{{ subnet }}" placeholder="192.168.1">
+      <input name="subnet" value="{{ subnet }}" list="host-subnets" placeholder="192.168.1" class="subnet-field">
     </label>
     <button class="btn btn-primary" type="submit">Искать</button>
   </form>
+  <datalist id="host-subnets">
+    {% for item in subnets %}<option value="{{ item }}">{% endfor %}
+  </datalist>
   {% if devices is not none %}
     {% if devices %}
     <ul class="found">
@@ -56,7 +59,7 @@
     </label>
     <label>Подсеть
       <input name="subnet" value="{{ request.form.get('subnet', '192.168.1') }}" required
-             placeholder="192.168.1">
+             list="host-subnets" placeholder="192.168.1" class="subnet-field">
     </label>
     <label>MAC
       <input name="mac" value="{{ request.form.get('mac', '02:00:00:00:00:99') }}" required

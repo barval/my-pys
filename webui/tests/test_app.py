@@ -1329,3 +1329,19 @@ def test_provider_route_save_populates_session_defaults(
     assert saved["session"]["user"] == "voice"
     assert saved["session"]["idle_minutes"] == 30
     assert saved["session"]["cleanup_keep"] == 3
+
+
+def test_speaker_new_offers_host_subnets(client, app, login, settings):
+    login()
+    path = settings.state_dir / "host-subnets.json"
+    path.write_text('["192.168.1.0/24", "10.20.30.0/24"]', encoding="utf-8")
+    body = client.get("/speakers/new").get_data(as_text=True)
+    assert 'list="host-subnets"' in body
+    assert '<option value="192.168.1">' in body
+    assert '<option value="10.20.30">' in body
+
+
+def test_speaker_new_falls_back_to_profile_subnets(client, app, login, settings):
+    login()
+    body = client.get("/speakers/new").get_data(as_text=True)
+    assert '<option value="192.168.1">' in body

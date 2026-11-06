@@ -639,3 +639,5 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
 .advanced-link h2 { color: var(--primary); }
 .advanced-link p { margin: 0; }
 
+
+.subnet-field { max-width: 12rem; }

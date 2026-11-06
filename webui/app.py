@@ -70,6 +70,7 @@ from .providers import (
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
 from .status import sync_from_jobs
+from .subnets import fallback_prefixes, load_subnets, subnet_prefixes
 from .wizard import HOST_STEP, STEPS, advance, load_progress, save_progress, set_last_job, step_by_number
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
@@ -449,11 +450,15 @@ def create_app(settings: Settings | None = None) -> Flask:
                 devices = scan(subnet)
             except ValueError as exc:
                 error = str(exc)
+        subnets = subnet_prefixes(
+            load_subnets(settings.state_dir / "host-subnets.json")
+        ) or fallback_prefixes(profiles.values())
         return render_template(
             "speaker_new.html",
             error=error,
             devices=devices,
             subnet=subnet,
+            subnets=subnets,
             color_choices=COLOR_CHOICES,
         )
 
@@ -491,6 +496,9 @@ def create_app(settings: Settings | None = None) -> Flask:
                 error=str(exc),
                 devices=None,
                 subnet=values["SPEAKER_SUBNET"] or "192.168.1",
+                subnets=subnet_prefixes(
+                    load_subnets(settings.state_dir / "host-subnets.json")
+                ) or fallback_prefixes(profiles.values()),
                 color_choices=COLOR_CHOICES,
             ), 400
         reload_profiles()

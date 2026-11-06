@@ -96,6 +96,7 @@ router-test:
 
 webui:
 	@mkdir -p secrets local/speakers webui-state backups .cache vendor/lite-kit/firmware vendor/lite-kit/run vendor/lite-kit/log
+	-./scripts/host-subnets.sh
 	docker compose -f docker/docker-compose.webui.yml up -d --build --force-recreate
 
 webui-dev:
