@@ -39,3 +39,27 @@ def test_test_page_embeds_job_log(client, app, login):
     app.extensions["jobs"] = JobRunner()
     body = client.get("/test?job=job-9").get_data(as_text=True)
     assert "лог проверки" in body
+
+
+def test_job_log_endpoint_redacts_secret(client, app, login):
+    login()
+    secret = "flai-verysecrettokenvalue"
+    settings = app.config["WEBUI_SETTINGS"]
+    settings.secrets_dir.mkdir(parents=True, exist_ok=True)
+    (settings.secrets_dir / "flai-token-speaker-a").write_text(secret, encoding="utf-8")
+
+    class Runner:
+        def get(self, job_id):
+            return SimpleNamespace(
+                id="job-7", action="check", target="speaker-a",
+                status="succeeded", created_at="2026-11-06T10:00:00+00:00",
+                log_path=None,
+            )
+
+        def tail(self, job_id, offset):
+            return f"output {secret} done", 100
+
+    app.extensions["jobs"] = Runner()
+    body = client.get("/jobs/job-7/log").get_data(as_text=True)
+    assert secret not in body
+    assert "***" in body

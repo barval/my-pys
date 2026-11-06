@@ -706,6 +706,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         if job is None:
             abort(404)
         text, offset = app.extensions["jobs"].tail(job_id, 0)
+        text = redact(text, settings.secrets_dir)
         return render_template("_job_log.html", job=job, text=text, offset=offset)
 
     @app.get("/test")
