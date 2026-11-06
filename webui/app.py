@@ -31,6 +31,7 @@ from .appearance import (
     COLOR_MAP,
     canonical_color,
     load_overrides,
+    remove_override,
     resolve_color,
     resolve_color_name,
     resolve_model,
@@ -56,6 +57,7 @@ from .keys import (
     upstream_key_list,
 )
 from .profiles import load_profiles, parse_env
+from .profile_writer import archive_profile, validate_profile, write_profile
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
 from .status import sync_from_jobs
@@ -359,6 +361,47 @@ def create_app(settings: Settings | None = None) -> Flask:
         audit("ui.mode", mode)
         return response
 
+    @app.get("/speakers/new")
+    def speaker_new():
+        return render_template(
+            "speaker_new.html",
+            error=None,
+            color_choices=COLOR_CHOICES,
+        )
+
+    @app.post("/speakers/new")
+    def speaker_create():
+        form = request.form
+        name = form.get("name", "").strip()
+        values = {
+            "SPEAKER_NAME": name,
+            "SPEAKER_IP": form.get("ip", "").strip(),
+            "SPEAKER_SUBNET": form.get("subnet", "").strip(),
+            "SPEAKER_DEVICE_ID": form.get("device_id", "").strip(),
+            "SPEAKER_MAC": form.get("mac", "").strip().lower(),
+            "SPEAKER_ROOM": form.get("room", "").strip(),
+            "SPEAKER_COLOR": form.get("color", "").strip().lower(),
+            "SPEAKER_MODEL": form.get("model", "").strip(),
+        }
+        try:
+            validate_profile(
+                name,
+                values["SPEAKER_IP"],
+                values["SPEAKER_SUBNET"],
+                values["SPEAKER_MAC"],
+                values["SPEAKER_DEVICE_ID"],
+            )
+            write_profile(settings.speakers_dir, values)
+        except ValueError as exc:
+            return render_template(
+                "speaker_new.html",
+                error=str(exc),
+                color_choices=COLOR_CHOICES,
+            ), 400
+        reload_profiles()
+        audit("speaker.create", name)
+        return redirect(url_for("speaker_page", name=name), code=303)
+
     @app.get("/speakers/<name>")
     def speaker_page(name: str):
         profile = get_profile(name)
@@ -379,6 +422,27 @@ def create_app(settings: Settings | None = None) -> Flask:
             jobs=jobs,
             statuses=speaker_statuses(),
         )
+
+    @app.post("/speakers/<name>/delete")
+    def speaker_delete(name: str):
+        profile = get_profile(name)
+        if request.form.get("confirm", "").strip() != name:
+            return "Введите имя колонки для подтверждения", 400
+        raw = router_config()
+        route = find_route(raw, name)
+        try:
+            dest = archive_profile(settings, name, route=route)
+        except ValueError as exc:
+            return str(exc), 400
+        if route is not None:
+            try:
+                save_config(settings.router_config, delete_route(raw, name))
+            except (ConfigError, OSError) as exc:
+                return str(exc), 400
+        remove_override(appearance_path, profile.device_id)
+        reload_profiles()
+        audit("speaker.delete", name, detail=str(dest))
+        return redirect(url_for("speakers_page"), code=303)
 
     @app.post("/speakers/<name>/appearance")
     def speaker_appearance(name: str):

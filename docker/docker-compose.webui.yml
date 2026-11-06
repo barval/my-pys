@@ -32,6 +32,7 @@ services:
     volumes:
       - ..:/app:ro
       - ../secrets:/app/secrets:rw
+      - ../local/speakers:/app/local/speakers:rw
       - ../local:/app/local:ro
       - ../webui-state:/app/webui-state:rw
       - ../backups:/app/backups:rw

@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
 
 @dataclass(frozen=True)
@@ -46,7 +46,7 @@ def load_profiles(directory: Path) -> list[Profile]:
         if path.name == "example.env":
             continue
         name = path.stem
-        if not _NAME_RE.fullmatch(name):
+        if not NAME_RE.fullmatch(name):
             raise ValueError(f"invalid profile name: {path.name}")
         values = parse_env(path)
         device_id = values.get("SPEAKER_DEVICE_ID", "").strip()

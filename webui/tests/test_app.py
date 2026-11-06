@@ -956,3 +956,41 @@ def test_reorder_returns_to_the_route_anchor(client, app, login, csrf):
     body = client.get("/router").get_data(as_text=True)
     assert 'id="route-speaker-a"' in body
     assert 'id="route-speaker-a-fallback-0"' in body
+
+
+def test_create_profile_from_panel(client, login, csrf, settings):
+    login()
+    response = client.post("/speakers/new", headers={"X-CSRF-Token": csrf(client)}, data={
+        "name": "speaker-z", "ip": "192.168.1.150", "subnet": "192.168.1",
+        "mac": "02:00:00:00:00:99",
+        "device_id": "EXAMPLE000000000000000000000099",
+        "room": "Комната Z", "color": "blue",
+        "model": "Яндекс Станция Лайт",
+    })
+    assert response.status_code == 303
+    assert (settings.speakers_dir / "speaker-z.env").is_file()
+    assert client.get("/speakers/speaker-z").status_code == 200
+
+
+def test_create_profile_rejects_bad_name(client, login, csrf, settings):
+    login()
+    response = client.post("/speakers/new", headers={"X-CSRF-Token": csrf(client)},
+                           data={"name": "../evil", "ip": "192.168.1.150",
+                                 "subnet": "192.168.1", "mac": "02:00:00:00:00:99",
+                                 "device_id": "EXAMPLE000000000000000000000099"})
+    assert response.status_code == 400
+    assert not (settings.speakers_dir / "evil.env").exists()
+    assert not (settings.state_dir / "deleted-profiles").exists()
+
+
+def test_delete_profile_requires_name_confirm(client, login, csrf, settings):
+    login()
+    response = client.post("/speakers/speaker-a/delete", headers={"X-CSRF-Token": csrf(client)},
+                           data={"confirm": "wrong"})
+    assert response.status_code == 400
+    assert (settings.speakers_dir / "speaker-a.env").exists()
+    response = client.post("/speakers/speaker-a/delete", headers={"X-CSRF-Token": csrf(client)},
+                           data={"confirm": "speaker-a"})
+    assert response.status_code == 303
+    assert not (settings.speakers_dir / "speaker-a.env").exists()
+    assert (settings.state_dir / "deleted-profiles").exists()

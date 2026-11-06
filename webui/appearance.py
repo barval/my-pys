@@ -151,3 +151,30 @@ def save_override(
     except Exception:
         temp.unlink(missing_ok=True)
         raise
+
+
+def remove_override(path: Path, device_id: str) -> None:
+    path = Path(path)
+    data = load_overrides(path)
+    data.pop(device_id, None)
+    if not data:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        return
+    descriptor, temp_name = tempfile.mkstemp(
+        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
+    )
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(data, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temp, 0o600)
+        os.replace(temp, path)
+    except Exception:
+        temp.unlink(missing_ok=True)
+        raise
