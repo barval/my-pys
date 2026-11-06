@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Проверка — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block head %}
+{% if job and job.status not in ("succeeded", "failed", "cancelled", "interrupted") %}
+<meta http-equiv="refresh" content="2">
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Проверка</h1>
+</div>
+
+{% if job %}
+<section class="card" style="margin-bottom: 1rem">
+  <div class="card-head">
+    <h2>Задание {{ job.id }}</h2>
+    <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job.status }}</span>
+  </div>
+  {% include "_job_log.html" %}
+</section>
+{% endif %}
+
+<div class="grid cards">
+  <section class="card" id="voice">
+    <h2>Голос</h2>
+    <p class="muted small">Произнесите фразу на выбранной колонке. Синтез — локальный TTS, воспроизведение — на колонке.</p>
+    <form method="post" action="/test/say" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Колонка
+        <select name="speaker" required>
+          {% for card in cards %}
+          <option value="{{ card.profile.name }}">{{ card.profile.name }} — {{ card.profile.room or card.profile.platform }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Текст
+        <textarea name="text" rows="3" maxlength="500" required placeholder="Например: Приятного аппетита"></textarea>
+      </label>
+      <button class="btn btn-primary" type="submit">Произнести</button>
+    </form>
+  </section>
+
+  <section class="card" id="llm">
+    <h2>LLM</h2>
+    <p class="muted small">Проверяет ответ LLM через маршрут роутера. Если LLM не отвечает → проверьте маршрут в «Модели».</p>
+    <form method="post" action="/test/check" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Колонка
+        <select name="speaker" required>
+          {% for card in cards %}
+          <option value="{{ card.profile.name }}">{{ card.profile.name }} — {{ card.profile.room or card.profile.platform }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="btn btn-primary" type="submit">Проверить LLM</button>
+    </form>
+  </section>
+
+  <section class="card" id="bridge">
+    <h2>Bridge</h2>
+    <p class="muted small">Проверяет доступность Bridge на колонке. Если Bridge не отвечает → шаг 7 мастера.</p>
+    <form method="post" action="/test/bridge" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Колонка
+        <select name="speaker" required>
+          {% for card in cards %}
+          <option value="{{ card.profile.name }}">{{ card.profile.name }} — {{ card.profile.room or card.profile.platform }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="btn btn-primary" type="submit">Проверить Bridge</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

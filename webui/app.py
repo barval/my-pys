@@ -706,7 +706,64 @@ def create_app(settings: Settings | None = None) -> Flask:
         if job is None:
             abort(404)
         text, offset = app.extensions["jobs"].tail(job_id, 0)
-        return render_template("job_log.html", job=job, text=text, offset=offset)
+        return render_template("_job_log.html", job=job, text=text, offset=offset)
+
+    @app.get("/test")
+    def test_page():
+        job = None
+        text = ""
+        offset = 0
+        job_id = request.args.get("job", "").strip()
+        if job_id:
+            job = app.extensions["jobs"].get(job_id)
+            if job is None:
+                abort(404)
+            text, offset = app.extensions["jobs"].tail(job_id, 0)
+            text = redact(text, settings.secrets_dir)
+        return render_template(
+            "test.html",
+            cards=speaker_cards(),
+            job=job,
+            text=text,
+            offset=offset,
+        )
+
+    @app.post("/test/say")
+    def test_say():
+        profile = get_profile(request.form.get("speaker", "").strip())
+        text = (request.form.get("text") or "").strip()
+        if not text:
+            flash("Введите текст для озвучки")
+            return redirect(url_for("test_page", _anchor="voice"))
+        if len(text) > max_say_chars:
+            flash(f"Слишком длинный текст: до {max_say_chars} символов")
+            return redirect(url_for("test_page", _anchor="voice"))
+        job = app.extensions["jobs"].submit_command(
+            "say",
+            profile.name,
+            ["bash", "scripts/say-text.sh"],
+            {
+                "SPEAKER_ENV": str(profile.path),
+                "SPEAKER_TRUST_IP": "1",
+                "SAY_TEXT": text,
+            },
+        )
+        audit("test.say", profile.name, detail=f"job={job.id}")
+        return redirect(url_for("test_page", job=job.id, _anchor="voice"), code=303)
+
+    @app.post("/test/check")
+    def test_check():
+        profile = get_profile(request.form.get("speaker", "").strip())
+        job = app.extensions["jobs"].submit("check", profile)
+        audit("test.check", profile.name, detail=f"job={job.id}")
+        return redirect(url_for("test_page", job=job.id, _anchor="llm"), code=303)
+
+    @app.post("/test/bridge")
+    def test_bridge():
+        profile = get_profile(request.form.get("speaker", "").strip())
+        job = app.extensions["jobs"].submit("status", profile)
+        audit("test.bridge", profile.name, detail=f"job={job.id}")
+        return redirect(url_for("test_page", job=job.id, _anchor="bridge"), code=303)
 
     @app.get("/firmware")
     def firmware_page():
