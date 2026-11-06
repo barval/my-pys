@@ -499,18 +499,23 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
 .speaker-toolbar {
   display: flex;
   gap: .6rem;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   margin-bottom: 1.1rem;
 }
 .speaker-toolbar .search-wrapper {
-  flex: 1 1 22rem;
+  display: flex;
+  gap: .5rem;
+  flex: 0 1 22rem;
+  max-width: 22rem;
   margin-top: 0;
 }
 .speaker-toolbar .toolbar-right {
   display: flex;
-  gap: .6rem;
-  align-self: stretch;
+  flex-direction: column;
+  gap: .5rem;
+  margin-left: auto;
+  align-items: stretch;
 }
 .speaker-toolbar .btn { align-self: stretch; }
 

@@ -1,25 +1,27 @@
 {% extends "base.html" %}
 {% block title %}Колонки — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block head %}{% if probe and jobs_running %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>Колонки</h1>
 </div>
 
-<form class="speaker-toolbar" method="get" action="/">
-  <div class="search-wrapper">
+<div class="speaker-toolbar">
+  <form class="search-wrapper" method="get" action="/">
     <input type="search" name="q" value="{{ query }}" placeholder="Поиск по имени, комнате, MAC, ID или модели" aria-label="Поиск колонок">
-  </div>
+    <button class="btn" type="submit">Найти</button>
+    {% if query %}<a class="btn btn-ghost" href="/">Сбросить</a>{% endif %}
+  </form>
   <div class="toolbar-right">
     <a class="btn btn-primary" href="/speakers/new">Добавить колонку</a>
     <form method="post" action="/speakers/probe">
-      {{ csrf_token() }}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-warning" type="submit">Опросить колонки</button>
     </form>
   </div>
-</form>
+</div>
 
 {% if probe and jobs_running %}
-<meta http-equiv="refresh" content="3">
 <div class="probe-notice">Идёт опрос колонок — страница обновится сама.</div>
 {% endif %}
 
