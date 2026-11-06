@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Настройка {{ profile.name }} — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block content %}
+<div class="page-head speaker-head">
+  <div class="speaker-title">
+    {% with color=card.color, color_name=card.color_name, icon_id=profile.name, model=card.model %}{% include "_speaker_icon.html" %}{% endwith %}
+    <div>
+      <a class="back" href="/speakers/{{ profile.name }}">← {{ profile.name }}</a>
+      <h1>Мастер настройки</h1>
+      <div class="sub">{{ profile.room }} · {{ card.model }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="wizard">
+  <nav class="wizard-steps">
+    {% for step in steps %}
+    {% set is_done = step.key in progress.done %}
+    {% set is_skipped = step.key in progress.skipped %}
+    {% set is_current = current.number == step.number %}
+    <a class="wizard-step{% if is_current %} current{% endif %}{% if is_done %} done{% endif %}{% if is_skipped %} skipped{% endif %}"
+       href="/speakers/{{ profile.name }}/setup?step={{ step.number }}">
+      <span class="step-number">{{ step.number }}</span>
+      <span class="step-title">{{ step.title }}</span>
+      <span class="step-status">
+        {% if is_done %}сделано{% elif is_skipped %}пропущен{% elif is_current %}текущий{% endif %}
+      </span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  <section class="card wizard-card">
+    <h2>{{ current.number }}. {{ current.title }}</h2>
+    <p class="muted">Зачем: {{ current.hint }}</p>
+
+    {% if progress.last_job %}
+    <p class="muted small">Последнее задание: <a href="/jobs/{{ progress.last_job }}">/jobs/{{ progress.last_job }}</a></p>
+    {% endif %}
+
+    {% if current.number == 2 %}
+    <div class="instruction">
+      <p>Включите колонку и привяжите её в приложении «Дом с Алисой».</p>
+      <p class="muted small">После привязки колонка появится в локальной сети и можно будет переходить к поиску.</p>
+    </div>
+    {% elif current.number == 3 %}
+    <div class="instruction">
+      <p><a class="btn" href="/speakers/new?scan=1">Найти колонку</a></p>
+      <p class="muted small">Профиль уже создан — этот шаг можно пропустить, если IP и MAC известны.</p>
+    </div>
+    {% elif current.number == 5 %}
+    <div class="instruction">
+      <p>SSH и OTA настраиваются кнопкой ниже.</p>
+      <p class="muted small">Это действие подключится к колонке по SSH и отключит автоматические обновления.</p>
+    </div>
+    {% endif %}
+
+    <form method="post" action="/speakers/{{ profile.name }}/setup/{{ current.number }}" class="wizard-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      {% if current.number == 6 %}
+      <div class="form-row">
+        <label>Провайдер
+          <select name="provider_id" required>
+            <option value="">—</option>
+            {% for provider in providers %}
+            <option value="{{ provider.id }}">{{ provider.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Модель
+          <select name="model" required>
+            <option value="">—</option>
+            {% for provider in providers %}
+              {% for model in provider.models %}
+              <option value="{{ model }}">{{ model }}</option>
+              {% endfor %}
+            {% endfor %}
+          </select>
+        </label>
+        <label>Upstream-ключ
+          <select name="api_key_file" required>
+            <option value="">—</option>
+            {% for key in upstream_keys %}
+            <option value="{{ key.file }}">{{ key.label }} ({{ key.file }})</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <p class="muted small">Ключ хранится в файле; в маршрут записывается только его имя.</p>
+      {% endif %}
+
+      <div class="form-actions">
+        {% if current.number in (2, 3, 4, 5, 6, 7, 8) %}
+        <button class="btn" type="submit" name="op" value="skip">Пропустить</button>
+        {% endif %}
+
+        {% if current.number == 2 %}
+        <button class="btn btn-success" type="submit" name="op" value="done">Готово</button>
+        {% elif current.number == 3 %}
+        <button class="btn btn-success" type="submit" name="op" value="done">Профиль уже найден</button>
+        {% elif current.number == 4 %}
+        <button class="btn btn-primary" type="submit" name="op" value="run">Проверить ADB и root</button>
+        {% elif current.number == 5 %}
+        <button class="btn btn-primary" type="submit" name="op" value="run">Настроить SSH/OTA</button>
+        {% elif current.number == 6 %}
+        <button class="btn btn-primary" type="submit" name="op" value="run">Создать маршрут и записать ключ</button>
+        {% elif current.number == 7 %}
+        <button class="btn btn-primary" type="submit" name="op" value="run">Установить Bridge</button>
+        {% elif current.number == 8 %}
+        <button class="btn btn-primary" type="submit" name="op" value="run">Проверить LLM</button>
+        <a class="btn btn-success" href="/test#voice">Сказать фразу</a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

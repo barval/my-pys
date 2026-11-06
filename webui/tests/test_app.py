@@ -40,8 +40,10 @@ def test_unknown_speaker_returns_404(client, login):
     assert client.get("/speakers/nope").status_code == 404
 
 
-def test_speaker_page_has_say_dialog(client, login):
+def test_speaker_page_has_say_dialog(client, login, csrf):
     login()
+    client.post("/mode", data={"mode": "advanced", "next": "/"},
+                headers={"X-CSRF-Token": csrf(client)})
     body = client.get("/speakers/speaker-a").get_data(as_text=True)
     assert "Сказать" in body
     assert 'action="/speakers/speaker-a/say"' in body
@@ -710,15 +712,14 @@ def test_firmware_page_lists_files_and_actions(client, app, login):
     )
     fw_dir.mkdir(parents=True)
     (fw_dir / "test-firmware.zip").write_bytes(b"x")
-    body = client.get("/firmware").get_data(as_text=True)
+    response = client.get("/firmware", follow_redirects=True)
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
     assert "Прошивка" in body
     assert "Скачать прошивку" in body
     assert "test-firmware.zip" in body
-    assert "Найти колонку" in body
-    assert "Настроить SSH/OTA" in body
-    assert "Установить Bridge" in body
-    assert "10.0.0.2" in body
-    assert "http://10.0.0.2:5002/health" in body
+    assert "Запустить стенд" in body
+    assert "Подготовьте хост" in body
 
 
 def test_firmware_download_submits_host_job(client, app, login, csrf):

@@ -57,7 +57,7 @@ from .keys import (
     upstream_key_list,
 )
 from .profiles import load_profiles, parse_env
-from .profile_writer import archive_profile, validate_profile, write_profile
+from .profile_writer import archive_profile, merge_profile_env, validate_profile, write_profile
 from .providers import (
     Provider,
     delete_provider,
@@ -70,11 +70,13 @@ from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
 from .status import sync_from_jobs
 from .ui_mode import ADVANCED, COOKIE_NAME, SIMPLE, current_mode
+from .wizard import HOST_STEP, STEPS, advance, load_progress, save_progress, step_by_number
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 _ROUTER_ACTIONS = {"router-start", "router-stop", "router-restart"}
 _FIRMWARE_ACTIONS = {"firmware", "stand-start", "stand-stop", "stand-status"}
 MAX_FALLBACKS = 9
+SETUP_ACTIONS = {4: "adb", 5: "root", 7: "bridge", 8: "check"}
 
 
 def route_fallbacks(route: dict) -> list[dict]:
@@ -302,6 +304,9 @@ def create_app(settings: Settings | None = None) -> Flask:
         except (OSError, ValueError):
             return {"routes": []}
 
+    def progress_path(name: str) -> Path:
+        return settings.state_dir / "setup" / f"{name}.json"
+
     def normalized_routes() -> list[dict]:
         result = []
         for route in router_config().get("routes", []):
@@ -463,7 +468,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             ), 400
         reload_profiles()
         audit("speaker.create", name)
-        return redirect(url_for("speaker_page", name=name), code=303)
+        return redirect(url_for("speaker_setup", name=name, step=4), code=303)
 
     @app.get("/speakers/<name>")
     def speaker_page(name: str):
@@ -485,6 +490,130 @@ def create_app(settings: Settings | None = None) -> Flask:
             jobs=jobs,
             statuses=speaker_statuses(),
         )
+
+    @app.get("/speakers/<name>/setup")
+    def speaker_setup(name: str):
+        refresh_profiles()
+        profile = profiles.get(name)
+        if profile is None:
+            return redirect(url_for("speaker_new"), code=303)
+        progress = load_progress(progress_path(name))
+        step_number = progress.step
+        try:
+            query_step = int(request.args.get("step", progress.step))
+        except (TypeError, ValueError):
+            query_step = progress.step
+        if query_step in {s.number for s in STEPS}:
+            step_number = query_step
+        current = step_by_number(step_number)
+        if current is None:
+            current = step_by_number(progress.step) or STEPS[-1]
+        card = next(
+            item for item in speaker_cards() if item["profile"].name == name
+        )
+        return render_template(
+            "setup.html",
+            profile=profile,
+            card=card,
+            steps=STEPS,
+            host_step=HOST_STEP,
+            current=current,
+            progress=progress,
+            providers=providers(),
+            upstream_keys=upstream_keys(),
+            firmware_files=firmware_files(),
+        )
+
+    @app.post("/speakers/<name>/setup/<int:step>")
+    def speaker_setup_step(name: str, step: int):
+        refresh_profiles()
+        profile = profiles.get(name)
+        if profile is None:
+            return redirect(url_for("speaker_new"), code=303)
+        current = step_by_number(step)
+        if current is None:
+            abort(400)
+        progress = load_progress(progress_path(name))
+        op = request.form.get("op", "").strip()
+        if op in ("done", "skip"):
+            progress = advance(
+                progress, current.key, skipped=(op == "skip")
+            )
+            save_progress(progress_path(name), progress)
+            audit(f"setup.{op}", name)
+            return redirect(url_for("speaker_setup", name=name), code=303)
+        if op != "run":
+            abort(400)
+        if step == 6:
+            return _setup_route_step(name, profile, progress)
+        action = SETUP_ACTIONS.get(step)
+        if action is None:
+            abort(400)
+        job = app.extensions["jobs"].submit(action, profile)
+        progress = advance(progress, current.key, job=job.id)
+        save_progress(progress_path(name), progress)
+        audit("setup.run", name, detail=f"step={current.key} job={job.id}")
+        return redirect(url_for("job_page", job_id=job.id), code=303)
+
+    def _setup_route_step(name: str, profile, progress):
+        raw = router_config()
+        route = find_route(raw, name)
+        if route is None:
+            provider_id = request.form.get("provider_id", "").strip()
+            provider = next(
+                (p for p in providers() if p.id == provider_id), None
+            )
+            if provider is None:
+                flash("Сначала добавьте провайдера")
+                return redirect(url_for("access_page", _anchor="providers"))
+            model = request.form.get("model", "").strip()
+            if not model or model not in provider.models:
+                flash("Выберите модель из списка провайдера")
+                return redirect(url_for("speaker_setup", name=name, step=6))
+            api_key_file = request.form.get("api_key_file", "").strip()
+            if not api_key_file or Path(api_key_file).name != api_key_file:
+                flash("Выберите upstream-ключ")
+                return redirect(url_for("speaker_setup", name=name, step=6))
+            token_file = f"router-token-{name}"
+            token_path = settings.secrets_dir / token_file
+            if not token_path.exists():
+                rotate_router_token(settings.secrets_dir, token_file)
+            route = {
+                "name": name,
+                "token_file": token_file,
+                "session": {
+                    "mode": "server",
+                    "user": "voice",
+                    "idle_minutes": 30,
+                    "cleanup_keep": 3,
+                },
+                "primary": {
+                    "base_url": provider.base_url,
+                    "api_key_file": api_key_file,
+                    "model": model,
+                    "history": "server",
+                    "timeout_seconds": 180,
+                },
+                "fallbacks": [],
+            }
+            save_config(settings.router_config, upsert_route(raw, route))
+        token_file = route.get("token_file", f"router-token-{name}")
+        token_path = settings.secrets_dir / token_file
+        if not token_path.exists():
+            rotate_router_token(settings.secrets_dir, token_file)
+        merge_profile_env(
+            profile.path,
+            {
+                "LLM_BASE_URL": settings.router_display_url,
+                "LLM_MODEL": route["primary"]["model"],
+                "LLM_TOKEN_FILE": f"secrets/{token_file}",
+            },
+        )
+        job = app.extensions["jobs"].submit("key", profile)
+        progress = advance(progress, "route", job=job.id)
+        save_progress(progress_path(name), progress)
+        audit("setup.route", name, detail=f"job={job.id}")
+        return redirect(url_for("job_page", job_id=job.id), code=303)
 
     @app.post("/speakers/<name>/delete")
     def speaker_delete(name: str):
@@ -577,17 +706,31 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/firmware")
     def firmware_page():
+        return redirect(url_for("setup_prepare"), code=301)
+
+    @app.get("/setup/prepare")
+    def setup_prepare():
         return render_template(
-            "firmware.html",
-            cards=speaker_cards(),
+            "prepare.html",
+            host_step=HOST_STEP,
             firmware_files=firmware_files(),
-            speaker_actions=SPEAKER_ACTIONS.values(),
             host_actions={
                 key: value
                 for key, value in HOST_ACTIONS.items()
                 if key in _FIRMWARE_ACTIONS
             },
+            progress=load_progress(
+                settings.state_dir / "setup" / "_host.json", first_step=1
+            ),
         )
+
+    @app.post("/setup/prepare/actions/<action>")
+    def setup_prepare_action(action: str):
+        if action not in _FIRMWARE_ACTIONS:
+            abort(404)
+        job = app.extensions["jobs"].submit(action, None)
+        audit(f"setup.prepare.{action}", "host", detail=f"job={job.id}")
+        return redirect(url_for("job_page", job_id=job.id), code=303)
 
     @app.post("/firmware/actions/<action>")
     def firmware_action(action: str):

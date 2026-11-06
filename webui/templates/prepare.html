@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ host_step.title }} — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ host_step.number }}. {{ host_step.title }}</h1>
+</div>
+
+<section class="card">
+  <h2>Зачем</h2>
+  <p>{{ host_step.hint }}</p>
+  <p class="muted small">Не забудьте вернуть DNS роутера после прошивки, иначе доступ в интернет на колонке может не заработать.</p>
+</section>
+
+<section class="card" style="margin-top:1rem">
+  <h2>Прошивка</h2>
+  {% if firmware_files %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Файл</th><th>Размер</th><th>Изменён</th></tr></thead>
+      <tbody>
+        {% for file in firmware_files %}
+        <tr>
+          <td class="mono">{{ file.name }}</td>
+          <td>{{ file.size }}</td>
+          <td>{{ file.modified }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Файлы прошивки не найдены.</div>
+  {% endif %}
+
+  <div class="actions" style="margin-top:1rem">
+    {% for key, action in host_actions.items() %}
+    <form method="post" action="/setup/prepare/actions/{{ key }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" type="submit">{{ action.label }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card" style="margin-top:1rem">
+  <h2>Колонки</h2>
+  <p>Когда хост готов, <a href="/speakers/new">добавьте колонку</a> и запустите мастер настройки.</p>
+</section>
+{% endblock %}

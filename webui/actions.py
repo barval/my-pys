@@ -71,6 +71,13 @@ SPEAKER_ACTIONS: dict[str, ActionSpec] = {
         argv=("bash", "scripts/post-root-ssh.sh"),
         needs_profile=True,
     ),
+    "adb": ActionSpec(
+        key="adb",
+        label="Проверить ADB и root",
+        scope="speaker",
+        argv=("bash", "scripts/adb-root-check.sh"),
+        needs_profile=True,
+    ),
 }
 
 HOST_ACTIONS: dict[str, ActionSpec] = {

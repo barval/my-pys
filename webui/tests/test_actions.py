@@ -66,3 +66,10 @@ def test_stand_status_host_uses_docker_ps(tmp_path):
     argv, env = CommandBuilder(tmp_path).build("stand-status", None)
     assert argv[:2] == ["docker", "ps"]
     assert env == {}
+
+
+def test_adb_action_uses_root_check_script(tmp_path, make_profile):
+    profile = make_profile("speaker-a")
+    argv, env = CommandBuilder(tmp_path).build("adb", profile)
+    assert argv == ["bash", "scripts/adb-root-check.sh"]
+    assert env["SPEAKER_ENV"] == str(profile.path)

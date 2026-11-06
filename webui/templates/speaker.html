@@ -24,6 +24,11 @@
   </div>
 </div>
 
+<section class="card" style="margin-top:1rem">
+  <a class="btn btn-primary" href="/speakers/{{ profile.name }}/setup">Настроить</a>
+  <p class="muted small">Мастер проведёт по шагам: сброс, поиск, root, SSH, маршрут, Bridge и проверку голосом.</p>
+</section>
+
 <div class="grid two">
   <section class="card">
     <h2>Идентификаторы</h2>
@@ -81,8 +86,9 @@
   </form>
 </section>
 
+{% if advanced %}
 <section class="card" style="margin-top:1rem">
-  <h2>Действия</h2>
+  <h2>Продвинутые действия</h2>
   <div class="actions">
     {% for action in actions %}
     <form method="post" action="/speakers/{{ profile.name }}/actions/{{ action.key }}">
@@ -112,6 +118,7 @@
     </form>
   </dialog>
 </section>
+{% endif %}
 
 <section class="card" style="margin-top:1rem">
   <h2>Последние задания</h2>
