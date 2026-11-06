@@ -10,7 +10,7 @@ from webui.appearance import (
 
 
 def test_color_name_maps_to_hex():
-    assert color_hex("green", "EXAMPLE") == "#7fb069"
+    assert color_hex("green", "EXAMPLE") == "#22c1c3"
 
 
 def test_fallback_color_is_stable_for_device():
@@ -26,14 +26,14 @@ def test_override_wins_for_color_and_model(tmp_path, make_profile):
     save_override(path, profile.device_id, "purple", "Yandex Station Micro v1.2")
     overrides = load_overrides(path)
     item = overrides[profile.device_id]
-    assert resolve_color(profile, item) == "#8e6bbf"
+    assert resolve_color(profile, item) == "#7c3fd8"
     assert resolve_model(profile, item) == "Yandex Station Micro v1.2"
 
 
 def test_marketing_color_aliases():
     from webui.appearance import canonical_color, color_label
 
-    assert color_hex("cappuccino", "EXAMPLE") == "#d9c3a5"
+    assert color_hex("cappuccino", "EXAMPLE") == "#d9a86f"
     assert color_label("cappuccino") == "Капучино"
     assert canonical_color("ультравиолет") == "purple"
     assert canonical_color("mint") == "green"

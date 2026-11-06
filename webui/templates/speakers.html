@@ -26,7 +26,7 @@
       {% for card in cards %}
       <tr>
         <td class="icon-cell">
-          {% with color=card.color, color_name=card.color_name %}{% include "_speaker_icon.html" %}{% endwith %}
+          {% with color=card.color, color_name=card.color_name, icon_id=card.profile.name, model=card.model %}{% include "_speaker_icon.html" %}{% endwith %}
         </td>
         <td>
           <a href="/speakers/{{ card.profile.name }}"><strong>{{ card.profile.name }}</strong></a>

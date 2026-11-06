@@ -454,6 +454,7 @@ def test_speaker_page_shows_model_and_color(client, login):
     assert "Яндекс Станция Лайт" in body
     assert "Комната A" in body
     assert "speaker-icon" in body
+    assert 'viewBox="0 0 64 58"' in body
 
 
 def test_speaker_appearance_updates_color_and_model(client, app, login, csrf):
@@ -466,7 +467,7 @@ def test_speaker_appearance_updates_color_and_model(client, app, login, csrf):
     )
     assert response.status_code == 200
     body = response.get_data(as_text=True)
-    assert "#7fb069" in body
+    assert "#22c1c3" in body
     assert "Yandex Station Micro v1.2" in body
 
 

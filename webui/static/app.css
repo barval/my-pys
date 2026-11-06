@@ -399,15 +399,15 @@ pre {
 
 .speakers-table .icon-cell { width: 64px; }
 .speaker-icon {
-  width: 46px;
-  height: 68px;
+  width: 52px;
+  height: 47px;
   display: block;
   flex: 0 0 auto;
 }
 .speaker-head { margin-bottom: .4rem; }
 .speaker-title { display: flex; align-items: center; gap: 1rem; }
 .speaker-title h1 { margin: 0; }
-.speaker-title .speaker-icon { width: 54px; height: 80px; }
+.speaker-title .speaker-icon { width: 64px; height: 58px; }
 .small { font-size: .82rem; }
 
 @media (max-width: 820px) {

@@ -1,12 +1,64 @@
-<svg class="speaker-icon" viewBox="0 0 64 96" role="img" aria-label="Колонка {{ color_name }}">
-  <rect x="6" y="4" width="52" height="88" rx="18" fill="{{ color }}" stroke="rgba(0,0,0,.18)" stroke-width="1.5"/>
-  <rect x="14" y="16" width="36" height="54" rx="12" fill="rgba(255,255,255,.14)"/>
-  <circle cx="32" cy="11" r="3.2" fill="rgba(255,255,255,.7)"/>
-  <g fill="rgba(70,70,70,.35)">
-    <circle cx="23" cy="27" r="1.7"/><circle cx="32" cy="27" r="1.7"/><circle cx="41" cy="27" r="1.7"/>
-    <circle cx="23" cy="35" r="1.7"/><circle cx="32" cy="35" r="1.7"/><circle cx="41" cy="35" r="1.7"/>
-    <circle cx="23" cy="43" r="1.7"/><circle cx="32" cy="43" r="1.7"/><circle cx="41" cy="43" r="1.7"/>
-    <circle cx="23" cy="51" r="1.7"/><circle cx="32" cy="51" r="1.7"/><circle cx="41" cy="51" r="1.7"/>
+{% set gradient_id = "speaker-body-" ~ (icon_id | default('speaker') | replace(' ', '-')) %}
+<svg class="speaker-icon" viewBox="0 0 64 58" role="img" aria-label="{{ model | default('Яндекс Станция Лайт') }}, {{ color_name }}">
+  <defs>
+    <linearGradient id="{{ gradient_id }}" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#000" stop-opacity=".18"/>
+      <stop offset=".16" stop-color="#000" stop-opacity=".02"/>
+      <stop offset=".36" stop-color="#fff" stop-opacity=".12"/>
+      <stop offset=".62" stop-color="#fff" stop-opacity=".04"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".22"/>
+    </linearGradient>
+  </defs>
+
+  <ellipse cx="32" cy="54.5" rx="24" ry="3" fill="#000" fill-opacity=".14"/>
+
+  <path d="M5 14 A27 9.5 0 0 0 59 14 L59 44 A27 9.5 0 0 1 5 44 Z"
+        fill="{{ color }}" stroke="#000" stroke-opacity=".14" stroke-width=".8"/>
+  <path d="M5 14 A27 9.5 0 0 0 59 14 L59 44 A27 9.5 0 0 1 5 44 Z"
+        fill="url(#{{ gradient_id }})"/>
+
+  <ellipse cx="32" cy="14" rx="27" ry="9.5" fill="{{ color }}"
+           stroke="#000" stroke-opacity=".12" stroke-width=".8"/>
+  <ellipse cx="32" cy="13.2" rx="24" ry="8" fill="#fff" fill-opacity=".14"/>
+
+  <ellipse cx="32" cy="14" rx="21" ry="7.3" fill="none"
+           stroke="#fff" stroke-opacity=".20" stroke-width="1.8"
+           stroke-dasharray=".1 2.2" stroke-linecap="round"/>
+  <ellipse cx="32" cy="14" rx="21" ry="7.3" fill="none"
+           stroke="#000" stroke-opacity=".28" stroke-width="1.1"
+           stroke-dasharray=".1 2.2" stroke-linecap="round"/>
+
+  <path d="M32 8.8 C33.2 8.8 33.9 9.3 34.5 10.1 L36.5 13 C37.3 14.1 36.7 15.3 35.4 15.3 L28.6 15.3 C27.3 15.3 26.7 14.1 27.5 13 L29.5 10.1 C30.1 9.3 30.8 8.8 32 8.8 Z"
+        fill="#fff" fill-opacity=".22"/>
+  <path d="M32 9.3 C33 9.3 33.6 9.7 34.1 10.4 L36 13.1 C36.6 14 36.2 15 35.2 15 L28.8 15 C27.8 15 27.4 14 28 13.1 L29.9 10.4 C30.4 9.7 31 9.3 32 9.3 Z"
+        fill="#fff" stroke="#000" stroke-opacity=".12" stroke-width=".5"/>
+
+  <g stroke-linecap="round" fill="none">
+    <g stroke="#fff" stroke-opacity=".22" stroke-width="2">
+      <path d="M17.5 14.6 H23"/>
+      <path d="M42.5 14.6 H48 M45.25 11.85 V17.35"/>
+      <path d="M29.6 18.4 V21.6 M34.4 18.4 V21.6"/>
+    </g>
+    <g stroke="#000" stroke-opacity=".30" stroke-width="1">
+      <path d="M17.5 14.6 H23"/>
+      <path d="M42.5 14.6 H48 M45.25 11.85 V17.35"/>
+      <path d="M29.6 18.4 V21.6 M34.4 18.4 V21.6"/>
+    </g>
   </g>
-  <rect x="20" y="78" width="24" height="3" rx="1.5" fill="rgba(70,70,70,.3)"/>
+
+  <path d="M5 38 A27 9.5 0 0 0 59 38 L59 44 A27 9.5 0 0 1 5 44 Z"
+        fill="#2b2b2b" stroke="#000" stroke-opacity=".25" stroke-width=".8"/>
+  <g stroke="#fff" stroke-opacity=".16" stroke-width="1.1" stroke-linecap="round">
+    <path d="M10 41.5 V45.5"/>
+    <path d="M17 43.5 V48"/>
+    <path d="M24 45.5 V50.5"/>
+    <path d="M32 47.5 V53.5"/>
+    <path d="M40 45.5 V50.5"/>
+    <path d="M47 43.5 V48"/>
+    <path d="M54 41.5 V45.5"/>
+  </g>
+
+  <rect x="28" y="43.8" width="8" height="6.4" rx="1" fill="#1f1f1f"/>
+  <text x="32" y="49.1" text-anchor="middle" font-family="Arial, sans-serif"
+        font-size="5.2" font-weight="700" fill="#fff" fill-opacity=".85">Я</text>
 </svg>

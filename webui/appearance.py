@@ -10,12 +10,12 @@ from pathlib import Path
 from .profiles import Profile
 
 COLOR_CHOICES = (
-    ("beige", "Капучино", "#d9c3a5"),
-    ("green", "Мята", "#7fb069"),
-    ("pink", "Фламинго", "#ef8fb3"),
-    ("red", "Чили", "#d9534f"),
-    ("purple", "Ультрафиолет", "#8e6bbf"),
-    ("yellow", "Лимон", "#e6c229"),
+    ("beige", "Капучино", "#d9a86f"),
+    ("green", "Мята", "#22c1c3"),
+    ("pink", "Фламинго", "#e63a86"),
+    ("red", "Чили", "#e0353c"),
+    ("purple", "Ультрафиолет", "#7c3fd8"),
+    ("yellow", "Лимон", "#e3c63a"),
     ("blue", "Голубой", "#4a90e2"),
     ("gray", "Серый", "#9aa0a6"),
     ("black", "Чёрный", "#2f2f2f"),
