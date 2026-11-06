@@ -1268,3 +1268,32 @@ def test_simple_route_form_hides_technical_fields_and_preserves_them(
     assert saved["primary"]["model"] == "new-model"
     assert saved["primary"]["api_key_file"] == "flai-token-speaker-a"
     assert saved["fallbacks"][0]["model"] == "fallback-model"
+
+
+def test_provider_route_save_populates_session_defaults(
+        client, app, login, csrf, settings):
+    """Provider branch of route_save sets session defaults on legacy empty session."""
+    from webui.providers import Provider, save_providers
+    login()
+    save_providers(settings.state_dir / "providers.json",
+                   [Provider("local", "Local", "http://127.0.0.1:5000/v1", ("flai-chat",))])
+    write_router_config(settings.router_config)
+    raw = json.loads(settings.router_config.read_text(encoding="utf-8"))
+    # Legacy route with empty session (no defaults set)
+    raw["routes"][0]["session"] = {}
+    raw["routes"][0]["primary"]["model"] = "flai-chat"
+    settings.router_config.write_text(json.dumps(raw), encoding="utf-8")
+    response = client.post(
+        "/router/routes/speaker-a",
+        headers={"X-CSRF-Token": csrf(client)},
+        data={
+            "provider_id": "local", "model": "flai-chat",
+            "api_key_file": "flai-token-speaker-a",
+        },
+    )
+    assert response.status_code == 302
+    saved = json.loads(settings.router_config.read_text(encoding="utf-8"))["routes"][0]
+    assert saved["session"]["mode"] == "server"
+    assert saved["session"]["user"] == "voice"
+    assert saved["session"]["idle_minutes"] == 30
+    assert saved["session"]["cleanup_keep"] == 3
