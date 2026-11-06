@@ -63,6 +63,7 @@ Quasar Bridge (на колонке, 127.0.0.1:8443)
 | Web UI | `127.0.0.1:8080` в Docker | колонки, прошивка, маршруты, ключи, бэкапы, аудит |
 | `router-control` | внутренняя сеть `control` | узкий sidecar: только перезапуск `llm-router` |
 | `stand-control` | внутренняя сеть `control` | узкий sidecar: только start/stop/status `lite-kit` |
+| Локальный TTS `tts` | порт `8083` внутри compose | Piper: текст в WAV для кнопки «Сказать», наружу не публикуется |
 | Роутер TP-Link | `192.168.1.1` | DHCP/DNS на время root |
 
 ## Этап root

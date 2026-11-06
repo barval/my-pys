@@ -1,0 +1,26 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir piper-tts==1.2.0
+
+# Russian Piper voice. Override the build arg to ship another voice.
+ARG TTS_VOICE_PATH=ru/ru_RU/irina/medium
+ARG TTS_VOICE_NAME=ru_RU-irina-medium
+RUN mkdir -p /voices \
+    && curl -fsSL -o /voices/model.onnx \
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/${TTS_VOICE_PATH}/${TTS_VOICE_NAME}.onnx" \
+    && curl -fsSL -o /voices/model.onnx.json \
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/${TTS_VOICE_PATH}/${TTS_VOICE_NAME}.onnx.json"
+
+COPY scripts/tts_server.py /app/tts_server.py
+
+EXPOSE 8083
+CMD ["python", "/app/tts_server.py"]

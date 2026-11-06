@@ -14,6 +14,17 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+document.querySelectorAll("[data-dialog-open]").forEach((button) => {
+  const dialog = document.getElementById(button.getAttribute("data-dialog-open"));
+  if (!dialog) return;
+  button.addEventListener("click", () => dialog.showModal());
+});
+
+document.querySelectorAll("dialog [data-dialog-close]").forEach((button) => {
+  const dialog = button.closest("dialog");
+  if (dialog) button.addEventListener("click", () => dialog.close());
+});
+
 document.querySelectorAll("[data-reveal]").forEach((checkbox) => {
   const target = document.querySelector(checkbox.getAttribute("data-reveal"));
   if (!target) return;

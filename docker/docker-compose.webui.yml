@@ -24,6 +24,7 @@ services:
       WEBUI_ROUTER_HEALTH_URL: http://host.docker.internal:5002/health
       WEBUI_STAND_CONTROL: sidecar
       WEBUI_STAND_URL: http://stand-control:8082
+      SAY_TTS_URL: http://tts:8083/say
       HOME: /tmp
       ANDROID_USER_HOME: /tmp/.android
     extra_hosts:
@@ -51,6 +52,31 @@ services:
     depends_on:
       - router-control
       - stand-control
+      - tts
+
+  tts:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.tts
+    image: my-pys-tts:local
+    container_name: my-pys-tts
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8083/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - default
 
   router-control:
     build:

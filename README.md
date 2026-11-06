@@ -98,7 +98,8 @@ docker/
   lite-kit.Dockerfile         контейнер со стендом (dnsmasq + Python)
   docker-compose.lite-kit.yml
   docker-compose.router.yml   контейнер llm-router на 5002
-  docker-compose.webui.yml    webui + router-control + stand-control
+  docker-compose.webui.yml    webui + router-control + stand-control + tts
+  Dockerfile.tts              локальный Piper TTS для кнопки «Сказать»
 vendor/
   lite-kit/                   снапшот krevetkqqq/lite-kit
   quasar-bridge/              снапшот skrashevich/quasar-bridge v0.6.2
@@ -580,7 +581,8 @@ WEBUI_BIND=0.0.0.0 make webui
 ### Разделы
 
 - **Колонки** — профили с полными MAC/device ID, моделью и цветной
-  иконкой; статус, проверка LLM, ключ, routing, Bridge, SSH/OTA.
+  иконкой; статус, проверка LLM, ключ, routing, Bridge, SSH/OTA и кнопка
+  «Сказать»: введённый текст озвучивается колонкой.
 - **Прошивка** — скачивание образа, список файлов, запуск/остановка
   `lite-kit`, поиск колонки и действия после root.
 - **LLM-роутер** — создание маршрута, отдельные строки для основного и

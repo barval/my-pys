@@ -356,6 +356,31 @@ def create_app(settings: Settings | None = None) -> Flask:
         audit(f"speaker.{action}", profile.name, detail=f"job={job.id}")
         return redirect(url_for("job_page", job_id=job.id), code=303)
 
+    max_say_chars = 500
+
+    @app.post("/speakers/<name>/say")
+    def speaker_say(name: str):
+        profile = get_profile(name)
+        text = (request.form.get("text") or "").strip()
+        if not text:
+            flash("Введите текст для озвучки")
+            return redirect(url_for("speaker_page", name=name))
+        if len(text) > max_say_chars:
+            flash(f"Слишком длинный текст: до {max_say_chars} символов")
+            return redirect(url_for("speaker_page", name=name))
+        job = app.extensions["jobs"].submit_command(
+            "say",
+            profile.name,
+            ["bash", "scripts/say-text.sh"],
+            {
+                "SPEAKER_ENV": str(profile.path),
+                "SPEAKER_TRUST_IP": "1",
+                "SAY_TEXT": text,
+            },
+        )
+        audit("speaker.say", profile.name, detail=f"job={job.id}")
+        return redirect(url_for("job_page", job_id=job.id), code=303)
+
     @app.get("/jobs/<job_id>")
     def job_page(job_id: str):
         job = app.extensions["jobs"].get(job_id)

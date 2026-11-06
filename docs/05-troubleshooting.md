@@ -44,6 +44,23 @@ make webui
 - Панель не стартует — `make webui-logs`, проверьте, что Docker и
   `HOST_REPO_PATH` доступны.
 
+## Кнопка «Сказать» молчит
+
+Проверьте сервис `tts` и лог задания:
+
+```bash
+docker compose -f docker/docker-compose.webui.yml ps tts
+docker compose -f docker/docker-compose.webui.yml logs tts
+docker exec my-pys-tts curl -fsS http://127.0.0.1:8083/healthz
+```
+
+- `tts` не запущен — выполните `make webui`.
+- В логе задания «TTS недоступен» — контейнер не поднялся; первый запуск
+  скачивает голосовую модель, нужен интернет.
+- `aplay: ... Device or resource busy` — колонка занята (играет музыка
+  или отвечает Алиса); повторите позже.
+- Задание успешно, но текста не слышно — проверьте громкость колонки.
+
 ## Задание висит «Выполняется…»
 
 Страница задания обновляется автоматически каждые 2 секунды, пока

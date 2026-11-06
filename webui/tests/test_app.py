@@ -40,15 +40,60 @@ def test_unknown_speaker_returns_404(client, login):
     assert client.get("/speakers/nope").status_code == 404
 
 
+def test_speaker_page_has_say_dialog(client, login):
+    login()
+    body = client.get("/speakers/speaker-a").get_data(as_text=True)
+    assert "Сказать" in body
+    assert 'action="/speakers/speaker-a/say"' in body
+
+
+def test_say_creates_job_with_text(client, app, login, csrf):
+    login()
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    response = client.post(
+        "/speakers/speaker-a/say",
+        data={"text": "Приятного аппетита"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 303
+    assert "/jobs/" in response.headers["Location"]
+    action, target, argv, env = runner.commands[0]
+    assert action == "say"
+    assert target == "speaker-a"
+    assert argv == ["bash", "scripts/say-text.sh"]
+    assert env["SAY_TEXT"] == "Приятного аппетита"
+    assert env["SPEAKER_TRUST_IP"] == "1"
+
+
+def test_say_rejects_empty_text(client, app, login, csrf):
+    login()
+    response = client.post(
+        "/speakers/speaker-a/say",
+        data={"text": "   "},
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "Введите текст" in response.get_data(as_text=True)
+
+
 class FakeRunner:
     def __init__(self):
         self.actions = []
+        self.commands = []
 
     def submit(self, action, profile):
         from types import SimpleNamespace
 
         self.actions.append((action, profile))
         return SimpleNamespace(id="job-1")
+
+    def submit_command(self, action, target, argv, env):
+        from types import SimpleNamespace
+
+        self.commands.append((action, target, argv, env))
+        return SimpleNamespace(id="job-2")
 
 
 def write_router_config(path, name="speaker-a"):

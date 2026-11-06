@@ -100,6 +100,15 @@ class JobRunner:
     def submit(self, action: str, profile: Profile | None) -> Job:
         argv, env = self.builder.build(action, profile)
         target = profile.name if profile else "host"
+        return self.submit_command(action, target, argv, env)
+
+    def submit_command(
+        self,
+        action: str,
+        target: str,
+        argv: list[str],
+        env: dict[str, str],
+    ) -> Job:
         job_id = uuid.uuid4().hex
         log_path = self.jobs_dir / f"{job_id}.log"
         log_path.write_text("", encoding="utf-8")
