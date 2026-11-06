@@ -3,13 +3,32 @@ from __future__ import annotations
 import json
 
 
-def test_more_page_has_sections(client, login):
+def test_more_page_has_sections_in_simple_mode(client, login, csrf):
+    """In simple mode, /advanced link is hidden."""
     login()
+    client.post(
+        "/mode", data={"mode": "simple"}, headers={"X-CSRF-Token": csrf(client)}
+    )
     body = client.get("/more").get_data(as_text=True)
     for anchor in ('id="mode"', 'id="backup"', 'id="audit"', 'id="password"'):
         assert anchor in body
-    for href in ("/setup/prepare", "/advanced", "/logout"):
-        assert href in body
+    assert "/setup/prepare" in body
+    assert "/logout" in body
+    assert 'href="/advanced"' not in body
+
+
+def test_more_page_has_sections_in_advanced_mode(client, login, csrf):
+    """In advanced mode, /advanced link is shown."""
+    login()
+    client.post(
+        "/mode", data={"mode": "advanced"}, headers={"X-CSRF-Token": csrf(client)}
+    )
+    body = client.get("/more").get_data(as_text=True)
+    for anchor in ('id="mode"', 'id="backup"', 'id="audit"', 'id="password"'):
+        assert anchor in body
+    assert "/setup/prepare" in body
+    assert "/logout" in body
+    assert 'href="/advanced"' in body
 
 
 def test_legacy_backup_audit_password_redirect_to_more(client, login):
