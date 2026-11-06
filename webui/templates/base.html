@@ -13,13 +13,13 @@
 <header class="topbar">
   <a class="brand" href="/">
     <span class="brand-mark">◉</span>
-    <span>{{ config.WEBUI_TITLE }}</span>
+    <span>{{ config.WEBUI_TITLE }} v{{ config.WEBUI_VERSION }}</span>
   </a>
   <nav class="nav">
     <a class="{% if request.path == '/' %}active{% endif %}" href="/">Колонки</a>
     <a class="{% if request.path.startswith('/access') %}active{% endif %}" href="/access">Модели</a>
     <a class="{% if request.path.startswith('/test') %}active{% endif %}" href="/test">Проверка</a>
-    <a class="{% if request.path.startswith('/more') %}active{% endif %}" href="/more">Ещё</a>
+    <a class="{% if request.path.startswith('/more') %}active{% endif %}" href="/more">Настройки</a>
     <a class="{% if request.path.startswith('/advanced') %}active{% endif %}" href="/advanced">Дополнительно</a>
   </nav>
   <div class="header-actions">

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Ещё — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block title %}Настройки — {{ config.WEBUI_TITLE }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <h1>Ещё</h1>
+    <h1>Настройки</h1>
     <div class="sub">Резервные копии, аудит и пароль</div>
   </div>
 </div>
@@ -43,7 +43,5 @@
   </div>
   {% include "_password_section.html" %}
 </section>
-
-<a class="btn" href="/setup/prepare">Подготовить хост</a>
 
 {% endblock %}

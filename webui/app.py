@@ -430,7 +430,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     def legacy_speakers():
         return redirect(url_for("speakers_page"), code=301)
 
-    @app.post("/speakers/<name>/delete")
+    @app.get("/speakers/new")
     def speaker_new():
         error = None
         devices = None
