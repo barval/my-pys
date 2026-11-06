@@ -61,7 +61,7 @@ def test_profile_reads_room(tmp_path):
         "SPEAKER_NAME=speaker-a\n"
         "SPEAKER_DEVICE_ID=EXAMPLE0001\n"
         "SPEAKER_MAC=02:00:00:00:00:01\n"
-        "SPEAKER_ROOM=Комната B\n",
+        "SPEAKER_ROOM=Комната A\n",
         encoding="utf-8",
     )
-    assert load_profiles(tmp_path)[0].room == "Комната B"
+    assert load_profiles(tmp_path)[0].room == "Комната A"
