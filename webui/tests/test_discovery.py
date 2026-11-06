@@ -61,3 +61,34 @@ def test_probe_host_without_adb_returns_bare_address():
 
     device = probe_host("192.168.1.152", runner=run)
     assert device == Discovered("192.168.1.152", "", "", "", "")
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        pytest.param(subprocess.TimeoutExpired(["adb"], 5), id="timeout"),
+        pytest.param(FileNotFoundError("adb"), id="missing-adb"),
+    ],
+)
+def test_probe_host_treats_runner_failure_as_host_without_adb(exc):
+    def run(argv):
+        raise exc
+
+    device = probe_host("192.168.1.152", runner=run)
+    assert device == Discovered("192.168.1.152", "", "", "", "")
+
+
+def test_scan_keeps_hosts_when_runner_fails():
+    def run(argv):
+        raise subprocess.TimeoutExpired(argv, 5)
+
+    devices = scan("192.168.1.0/30", runner=run)
+    assert devices == [
+        Discovered("192.168.1.1", "", "", "", ""),
+        Discovered("192.168.1.2", "", "", "", ""),
+    ]
+
+
+def test_parse_subnet_explains_bad_value_in_russian():
+    with pytest.raises(ValueError, match="Некорректная подсеть"):
+        parse_subnet("192.168.1.500")

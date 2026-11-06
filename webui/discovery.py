@@ -26,7 +26,10 @@ def parse_subnet(value: str) -> list[str]:
         raise ValueError("Укажите подсеть")
     if "/" not in value:
         value = f"{value}.0/24"
-    network = ipaddress.ip_network(value, strict=False)
+    try:
+        network = ipaddress.ip_network(value, strict=False)
+    except ValueError as exc:
+        raise ValueError(f"Некорректная подсеть: {value}") from exc
     if not network.is_private or network.num_addresses > 256:
         raise ValueError("Нужна приватная сеть не больше 254 адресов")
     return [str(ip) for ip in network.hosts()]
@@ -46,18 +49,23 @@ def _mac(text: str) -> str:
 
 
 def probe_host(ip: str, *, runner=_run, adb_port: int = 5555) -> Discovered | None:
-    if runner(["ping", "-c", "1", "-W", "1", ip]).returncode != 0:
-        return None
-    target = f"{ip}:{adb_port}"
-    if "connected" not in runner(["adb", "connect", target]).stdout:
+    try:
+        if runner(["ping", "-c", "1", "-W", "1", ip]).returncode != 0:
+            return None
+        target = f"{ip}:{adb_port}"
+        if "connected" not in runner(["adb", "connect", target]).stdout:
+            return Discovered(ip, "", "", "", "")
+        device_id = _adb(runner, target, "getprop", "ro.serialno")
+        if not device_id:
+            return Discovered(ip, "", "", "", "")
+        model = _adb(runner, target, "getprop", "ro.product.model")
+        mac = _mac(_adb(runner, target, "cat", "/sys/class/net/wlan0/address"))
+        if not mac:
+            mac = _mac(_adb(runner, target, "ip", "address", "show", "dev", "wlan0"))
+    except (subprocess.SubprocessError, OSError):
+        # Висящий adb (таймаут) или отсутствующие ping/adb на хосте панели:
+        # адрес считаем живым, но с недоступным ADB, а не роняем весь скан.
         return Discovered(ip, "", "", "", "")
-    device_id = _adb(runner, target, "getprop", "ro.serialno")
-    if not device_id:
-        return Discovered(ip, "", "", "", "")
-    model = _adb(runner, target, "getprop", "ro.product.model")
-    mac = _mac(_adb(runner, target, "cat", "/sys/class/net/wlan0/address"))
-    if not mac:
-        mac = _mac(_adb(runner, target, "ip", "address", "show", "dev", "wlan0"))
     return Discovered(ip, mac, device_id, model, f"yandexmicro-{device_id}")
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 
 import pytest
 
@@ -1083,6 +1084,34 @@ def test_scan_marks_hosts_without_adb(client, login, monkeypatch):
     body = client.get("/speakers/new?scan=1").get_data(as_text=True)
     assert "192.168.1.152 — ADB недоступен, заполните поля вручную" in body
     assert "Это моя колонка" not in body
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        pytest.param(subprocess.TimeoutExpired(["adb"], 5), id="timeout"),
+        pytest.param(FileNotFoundError("adb"), id="missing-adb"),
+    ],
+)
+def test_scan_page_survives_runner_failure(client, login, monkeypatch, exc):
+    from webui.discovery import scan as real_scan
+    login()
+
+    def boom(argv):
+        raise exc
+
+    monkeypatch.setattr("webui.app.scan", lambda subnet: real_scan(subnet, runner=boom))
+    response = client.get("/speakers/new?scan=1&subnet=192.168.1.0/30")
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "192.168.1.1 — ADB недоступен, заполните поля вручную" in body
+
+
+def test_scan_page_shows_russian_error_for_bad_subnet(client, login):
+    login()
+    response = client.get("/speakers/new?scan=1&subnet=192.168.1.500")
+    assert response.status_code == 200
+    assert "Некорректная подсеть" in response.get_data(as_text=True)
 
 
 def test_access_page_lists_upstream_keys(client, app, login, csrf, settings):
