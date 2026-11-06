@@ -181,6 +181,30 @@ def test_restore_requires_confirmation(tmp_path):
         restore_backup(settings, archive, "correct horse", confirm="yes")
 
 
+def test_all_backup_includes_panel_state(tmp_path):
+    settings = _make_root(tmp_path)
+    setup = settings.state_dir / "setup"
+    setup.mkdir(parents=True, exist_ok=True)
+    (settings.state_dir / "providers.json").write_text(
+        '{"providers": []}', encoding="utf-8"
+    )
+    (setup / "speaker-a.json").write_text('{"step": 3}', encoding="utf-8")
+    path = create_backup(settings, "all", "correct horse")
+    names = inspect_backup(settings, path.name, "correct horse")["files"]
+    assert "webui-state/providers.json" in names
+    assert "webui-state/setup/speaker-a.json" in names
+
+
+def test_speaker_backup_includes_setup_progress(tmp_path):
+    settings = _make_root(tmp_path)
+    setup = settings.state_dir / "setup"
+    setup.mkdir(parents=True, exist_ok=True)
+    (setup / "speaker-a.json").write_text('{"step": 3}', encoding="utf-8")
+    path = create_backup(settings, "speaker:speaker-a", "correct horse")
+    names = inspect_backup(settings, path.name, "correct horse")["files"]
+    assert "webui-state/setup/speaker-a.json" in names
+
+
 def test_backup_name_cannot_escape_directory(tmp_path):
     settings = _make_root(tmp_path)
     with pytest.raises(BackupError):

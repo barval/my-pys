@@ -70,7 +70,7 @@ from .providers import (
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
 from .status import sync_from_jobs
-from .ui_mode import ADVANCED, COOKIE_NAME, SIMPLE, current_mode
+from .ui_mode import ADVANCED, COOKIE_NAME, SIMPLE, current_mode, is_advanced
 from .wizard import HOST_STEP, STEPS, advance, load_progress, save_progress, set_last_job, step_by_number
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
@@ -78,6 +78,14 @@ _ROUTER_ACTIONS = {"router-start", "router-stop", "router-restart"}
 _FIRMWARE_ACTIONS = {"firmware", "stand-start", "stand-stop", "stand-status"}
 MAX_FALLBACKS = 9
 SETUP_ACTIONS = {4: "adb", 5: "root", 7: "bridge", 8: "check"}
+
+
+def json_for_pre(value) -> str:
+    """JSON для <pre>: кавычки остаются как есть, HTML-спецсимволы экранируются."""
+    text = json.dumps(value, ensure_ascii=False, indent=2)
+    return (
+        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    )
 
 
 def route_fallbacks(route: dict) -> list[dict]:
@@ -357,6 +365,19 @@ def create_app(settings: Settings | None = None) -> Flask:
             detail,
             secrets_dir=settings.secrets_dir,
         )
+
+    def audit_entries() -> list[dict]:
+        path = settings.state_dir / "audit.jsonl"
+        entries: list[dict] = []
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines()[-200:]:
+                try:
+                    entries.append(json.loads(line))
+                except ValueError:
+                    continue
+        except OSError:
+            entries = []
+        return list(reversed(entries))
 
     def allowed_router_actions() -> set[str]:
         if settings.router_control == "sidecar":
@@ -1460,12 +1481,7 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/backup")
     def backup_page():
-        return render_template(
-            "backup.html",
-            backups=list_backups(settings),
-            profiles=sorted(profiles.values(), key=lambda item: item.name),
-            inspection=None,
-        )
+        return redirect("/more#backup", code=301)
 
     @app.post("/backup/create")
     def backup_create():
@@ -1560,7 +1576,7 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/password")
     def password_page():
-        return render_template("password.html", error=None)
+        return redirect("/more#password", code=301)
 
     @app.post("/password")
     def password_change():
@@ -1593,16 +1609,74 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/audit")
     def audit_page():
-        path = settings.state_dir / "audit.jsonl"
-        entries = []
+        return redirect("/more#audit", code=301)
+
+    @app.get("/more")
+    def more_page():
+        return render_template(
+            "more.html",
+            backups=list_backups(settings),
+            profiles=sorted(profiles.values(), key=lambda item: item.name),
+            inspection=None,
+            entries=audit_entries(),
+        )
+
+    def require_advanced() -> None:
+        if not is_advanced(request.cookies.get(COOKIE_NAME)):
+            abort(404)
+
+    @app.get("/advanced")
+    def advanced_page():
+        require_advanced()
+        return render_template(
+            "advanced.html",
+            view="index",
+            title="Продвинутое",
+            subtitle="Технические экраны и обслуживание панели",
+        )
+
+    @app.get("/advanced/jobs")
+    def advanced_jobs():
+        require_advanced()
+        runner = app.extensions["jobs"]
+        jobs = runner.list(limit=200) if hasattr(runner, "list") else []
+        return render_template(
+            "advanced.html",
+            view="jobs",
+            title="Журнал заданий",
+            subtitle="Задания панели: действие, цель, статус и время",
+            jobs=jobs,
+        )
+
+    @app.get("/advanced/routes")
+    def advanced_routes():
+        require_advanced()
+        return render_template(
+            "advanced.html",
+            view="routes",
+            title="Сырой JSON маршрутов",
+            subtitle="Полный файл маршрутов без правок",
+            route_json=json_for_pre(router_config()),
+        )
+
+    @app.get("/advanced/bridge")
+    def advanced_bridge():
+        require_advanced()
+        policy_path = settings.root / "config" / "quasar-bridge-policy.json"
+        policy_json = None
         try:
-            for line in path.read_text(encoding="utf-8").splitlines()[-200:]:
-                try:
-                    entries.append(json.loads(line))
-                except ValueError:
-                    continue
-        except OSError:
-            entries = []
-        return render_template("audit.html", entries=list(reversed(entries)))
+            policy_json = json_for_pre(
+                json.loads(policy_path.read_text(encoding="utf-8"))
+            )
+        except (OSError, ValueError):
+            policy_json = None
+        return render_template(
+            "advanced.html",
+            view="bridge",
+            title="Политика Bridge",
+            subtitle="Файл config/quasar-bridge-policy.json только для чтения",
+            policy_json=policy_json,
+            profiles=sorted(profiles.values(), key=lambda item: item.name),
+        )
 
     return app

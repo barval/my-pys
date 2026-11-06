@@ -118,6 +118,12 @@ def _collect(settings: Settings, scope: str) -> tuple[list[tuple[str, Path]], st
             path = secrets_dir / name
             if path.is_file():
                 files.append((f"secrets/{name}", path))
+        providers_path = settings.state_dir / "providers.json"
+        if providers_path.is_file():
+            files.append(("webui-state/providers.json", providers_path))
+        for path in sorted((settings.state_dir / "setup").glob("*.json")):
+            if path.is_file():
+                files.append((f"webui-state/setup/{path.name}", path))
         return files, None
 
     if not scope.startswith("speaker:"):
@@ -128,6 +134,11 @@ def _collect(settings: Settings, scope: str) -> tuple[list[tuple[str, Path]], st
     if not profile.is_file():
         raise BackupError(f"профиль не найден: {profile.name}")
     files.append((f"local/speakers/{profile.name}", profile))
+    setup_progress = settings.state_dir / "setup" / f"{name}.json"
+    if setup_progress.is_file():
+        files.append(
+            (f"webui-state/setup/{setup_progress.name}", setup_progress)
+        )
     for prefix in (
         "router-token-",
         "flai-token-",
@@ -338,6 +349,8 @@ def _target(settings: Settings, name: str) -> Path:
         return settings.root / Path(*relative.parts)
     if relative.parts[:1] == ("secrets",):
         return settings.secrets_dir / Path(*relative.parts[1:])
+    if relative.parts[:1] == ("webui-state",):
+        return settings.state_dir / Path(*relative.parts[1:])
     raise BackupError(f"недопустимый путь в архиве: {name}")
 
 

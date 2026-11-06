@@ -1,0 +1,103 @@
+{% if inspection %}
+<div class="card" style="margin-bottom:1rem">
+  <div class="flash">
+    <strong>Проверка архива</strong><br>
+    Режим: {{ inspection.get("scope") }}
+    {% if inspection.get("speaker") %} · колонка {{ inspection.get("speaker") }}{% endif %}<br>
+    Создан: {{ inspection.get("created_at") }}<br>
+    Файлов: {{ inspection.get("files", []) | length }}
+  </div>
+</div>
+{% endif %}
+
+<div class="grid two">
+  <section class="card">
+    <h2>Создать архив</h2>
+    <form method="post" action="/backup/create" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Что сохранить
+        <select name="scope">
+          <option value="all">Вся конфигурация</option>
+          {% for profile in profiles %}
+          <option value="speaker:{{ profile.name }}">Колонка {{ profile.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Пароль архива
+        <input type="password" name="passphrase" minlength="8" required autocomplete="new-password">
+      </label>
+      <label>Повторите пароль
+        <input type="password" name="confirm" minlength="8" required autocomplete="new-password">
+      </label>
+      <button class="btn btn-success" type="submit">Создать</button>
+    </form>
+    <p class="muted">Пароль не сохраняется. Без него архив не открыть.</p>
+  </section>
+
+  <section class="card">
+    <h2>Восстановить</h2>
+    <form method="post" action="/backup/restore" enctype="multipart/form-data" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Архив на сервере
+        <select name="backup">
+          <option value="">— не выбран —</option>
+          {% for item in backups %}
+          <option value="{{ item.name }}">{{ item.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Или загрузить файл
+        <input type="file" name="archive" accept=".enc">
+      </label>
+      <label>Пароль архива
+        <input type="password" name="passphrase" required autocomplete="off">
+      </label>
+      <label>Введите REPLACE
+        <input type="text" name="confirm" required autocomplete="off" placeholder="REPLACE">
+      </label>
+      <button class="btn btn-danger" type="submit">Восстановить</button>
+    </form>
+    <p class="muted">Снапшот текущих файлов: <code>webui-state/restore-backups/</code>.</p>
+  </section>
+</div>
+
+<section class="card" style="margin-top:1rem">
+  <h2>Сохранённые архивы</h2>
+  {% if backups %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Файл</th><th>Размер</th><th>Изменён</th><th></th></tr></thead>
+      <tbody>
+        {% for item in backups %}
+        <tr>
+          <td class="mono">{{ item.name }}</td>
+          <td>{{ item.size }} Б</td>
+          <td class="mono">{{ item.modified }}</td>
+          <td><a class="btn btn-ghost btn-sm" href="/backup/download/{{ item.name }}">Скачать</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Архивов пока нет.</div>
+  {% endif %}
+</section>
+
+<section class="card" style="margin-top:1rem">
+  <h2>Проверить архив перед восстановлением</h2>
+  <form method="post" action="/backup/inspect" class="inspect-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Архив
+      <select name="backup" required>
+        {% for item in backups %}
+        <option value="{{ item.name }}">{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Пароль
+      <input type="password" name="passphrase" required autocomplete="off">
+    </label>
+    <button class="btn btn-warning" type="submit">Проверить</button>
+  </form>
+</section>

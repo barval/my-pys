@@ -8,28 +8,5 @@
   </div>
 </div>
 
-{% if entries %}
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr><th>Время</th><th>Действие</th><th>Цель</th><th>Результат</th><th>Детали</th></tr>
-    </thead>
-    <tbody>
-      {% for entry in entries %}
-      <tr>
-        <td class="mono">{{ entry.get("time", "") }}</td>
-        <td>{{ entry.get("action", "") }}</td>
-        <td>{{ entry.get("target", "") }}</td>
-        <td>
-          <span class="badge badge-{{ 'ok' if entry.get('result') == 'ok' else 'err' }}">{{ entry.get("result", "") }}</span>
-        </td>
-        <td class="muted">{{ entry.get("detail", "") }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% else %}
-<div class="empty">Записей нет.</div>
-{% endif %}
+{% include "_audit_section.html" %}
 {% endblock %}

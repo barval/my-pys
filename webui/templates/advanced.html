@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="/advanced">← Продвинутое</a>
+    <h1>{{ title }}</h1>
+    <div class="sub">{{ subtitle }}</div>
+  </div>
+</div>
+
+<nav class="more-nav" aria-label="Продвинутые экраны">
+  <a class="{% if view == 'index' %}active{% endif %}" href="/advanced">Обзор</a>
+  <a class="{% if view == 'routes' %}active{% endif %}" href="/advanced/routes">Маршруты</a>
+  <a class="{% if view == 'jobs' %}active{% endif %}" href="/advanced/jobs">Журнал заданий</a>
+  <a class="{% if view == 'bridge' %}active{% endif %}" href="/advanced/bridge">Политика Bridge</a>
+</nav>
+
+{% if view == "index" %}
+<div class="grid cards">
+  <a class="card advanced-link" href="/advanced/routes">
+    <h2>Сырой JSON маршрутов</h2>
+    <p class="muted">Полный файл <code>secrets/router-routes.json</code> без правок. Изменение — на экране «Модели».</p>
+  </a>
+  <a class="card advanced-link" href="/advanced/jobs">
+    <h2>Журнал заданий</h2>
+    <p class="muted">Только задания панели: действие, цель, статус и время. Логи контейнеров здесь не показываются.</p>
+  </a>
+  <a class="card advanced-link" href="/advanced/bridge">
+    <h2>Политика Bridge</h2>
+    <p class="muted">Содержимое <code>config/quasar-bridge-policy.json</code> только для чтения.</p>
+  </a>
+  <a class="card advanced-link" href="/access">
+    <h2>Модели и доступ</h2>
+    <p class="muted">Провайдеры, ключи и маршруты — обычный экран «Модели».</p>
+  </a>
+  <a class="card advanced-link" href="/setup/prepare">
+    <h2>Подготовка хоста</h2>
+    <p class="muted">Прошивка, запуск стенда и служебные действия хоста.</p>
+  </a>
+</div>
+<p class="muted">
+  Эти экраны показывают технические поля и сырые данные для обслуживания панели.
+  Если что-то непонятно, вернитесь на обычные экраны — они безопаснее.
+</p>
+
+{% elif view == "routes" %}
+<div class="card">
+  <div class="card-head">
+    <h2>Сырой JSON маршрутов</h2>
+    <a class="btn btn-sm" href="/access#routes">Изменить</a>
+  </div>
+  <p class="muted">
+    Показаны только имена файлов токенов, сами значения ключей здесь не выводятся.
+  </p>
+  <pre class="terminal">{{ route_json | safe }}</pre>
+</div>
+
+{% elif view == "jobs" %}
+<div class="card">
+  <h2>Журнал заданий</h2>
+  {% if jobs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Действие</th><th>Цель</th><th>Статус</th><th>Время</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr>
+          <td class="mono">{{ job.id }}</td>
+          <td>{{ job.action }}</td>
+          <td>{{ job.target }}</td>
+          <td>
+            <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job.status }}</span>
+          </td>
+          <td class="mono">{{ job.started_at or job.created_at }}</td>
+          <td><a class="btn btn-ghost btn-sm" href="/jobs/{{ job.id }}">Открыть</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Заданий пока нет. Они появятся, когда вы запустите действие на колонке или хосте.</div>
+  {% endif %}
+</div>
+
+{% elif view == "bridge" %}
+<div class="card">
+  <h2>Политика Bridge</h2>
+  {% if policy_json %}
+  <p class="muted">
+    Файл <code>config/quasar-bridge-policy.json</code> только для чтения.
+    Кнопка «Применить» на колонке запускает существующее действие routing.
+  </p>
+  <pre class="terminal">{{ policy_json | safe }}</pre>
+  {% else %}
+  <p class="error">
+    Файл политики не найден: создайте <code>config/quasar-bridge-policy.json</code>
+    с полями <code>default_route</code> и <code>rules</code>, затем примените routing на колонке.
+  </p>
+  {% endif %}
+</div>
+
+<section class="card" style="margin-top:1rem">
+  <h2>Применить политику к колонке</h2>
+  {% if profiles %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Колонка</th><th></th></tr></thead>
+      <tbody>
+        {% for profile in profiles %}
+        <tr>
+          <td class="mono">{{ profile.name }}</td>
+          <td>
+            <form method="post" action="/speakers/{{ profile.name }}/actions/routing">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm" type="submit">Применить</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">Колонок нет — сначала добавьте колонку на главном экране.</div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

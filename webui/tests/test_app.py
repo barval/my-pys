@@ -250,7 +250,9 @@ def test_upstream_key_is_not_rendered(client, app, login, csrf):
         headers={"X-CSRF-Token": csrf(client)},
     )
     assert "flai-very-secret" not in client.get("/access").get_data(as_text=True)
-    assert "flai-very-secret" not in client.get("/audit").get_data(as_text=True)
+    assert "flai-very-secret" not in client.get(
+        "/audit", follow_redirects=True
+    ).get_data(as_text=True)
 
 
 def test_upstream_key_can_be_added_from_keys_page(client, app, login, csrf):
@@ -301,7 +303,7 @@ def test_used_upstream_key_cannot_be_deleted(client, app, login, csrf):
 
 def test_audit_page_lists_login(client, login):
     login()
-    body = client.get("/audit").get_data(as_text=True)
+    body = client.get("/audit", follow_redirects=True).get_data(as_text=True)
     assert "auth.login" in body
 
 
