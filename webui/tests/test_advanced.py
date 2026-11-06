@@ -3,14 +3,16 @@ import json
 
 
 def test_more_page_has_sections(client, login, csrf):
-    """More page shows all sections; advanced link always present."""
+    """More page shows backup/audit/password; mode and short-cuts are gone."""
     login()
     body = client.get("/more").get_data(as_text=True)
     for anchor in ('id="backup"', 'id="audit"', 'id="password"'):
         assert anchor in body
-    assert "/setup/prepare" in body
+    for removed in ('id="mode"', 'id="actions"', "Режим интерфейса", "Переходы"):
+        assert removed not in body
     assert "/logout" in body
     assert 'href="/advanced"' in body
+    assert "Настройки" in body
 
 
 def test_legacy_backup_audit_password_redirect_to_more(client, login):
