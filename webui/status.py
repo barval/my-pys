@@ -18,6 +18,10 @@ class SpeakerStatus:
     llm: bool | None = None
 
 
+def _valid_optional_bool(value) -> bool:
+    return value is None or isinstance(value, bool)
+
+
 def load_status(path: Path) -> dict[str, SpeakerStatus]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -30,6 +34,8 @@ def load_status(path: Path) -> dict[str, SpeakerStatus]:
         if not isinstance(record, dict):
             continue
         if not isinstance(record.get("at"), str):
+            continue
+        if not all(_valid_optional_bool(record.get(field)) for field in ("online", "bridge", "llm")):
             continue
         try:
             result[name] = SpeakerStatus(
@@ -61,7 +67,7 @@ def save_status(path: Path, statuses: dict[str, SpeakerStatus]) -> None:
 
 def sync_from_jobs(path: Path, jobs: Iterable) -> dict[str, SpeakerStatus]:
     statuses = dict(load_status(path))
-    changed = False
+    relevant: list = []
     for job in jobs:
         action = getattr(job, "action", None)
         target = getattr(job, "target", None)
@@ -75,6 +81,13 @@ def sync_from_jobs(path: Path, jobs: Iterable) -> dict[str, SpeakerStatus]:
             continue
         if exit_code is None:
             continue
+        relevant.append(job)
+    changed = False
+    for job in sorted(relevant, key=lambda item: getattr(item, "finished_at")):
+        action = getattr(job, "action", None)
+        target = getattr(job, "target", None)
+        finished_at = getattr(job, "finished_at", None)
+        exit_code = getattr(job, "exit_code", None)
         field = ACTION_FIELDS[action]
         current = statuses.get(target)
         if current is None or finished_at > current.at:

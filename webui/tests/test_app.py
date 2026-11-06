@@ -556,7 +556,6 @@ def test_home_search_filters_cards(client, login):
 
 def test_home_shows_cached_status(client, app, login):
     from webui.status import save_status, SpeakerStatus
-    from webui.settings import load_settings
 
     login()
     settings = app.config["WEBUI_SETTINGS"]
@@ -565,6 +564,42 @@ def test_home_shows_cached_status(client, app, login):
         {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", True, False)},
     )
     body = client.get("/").get_data(as_text=True)
+    assert "онлайн" in body
+    assert "Bridge не отвечает" in body
+    assert 'class="status ok"' in body
+
+
+def test_home_shows_offline_status(client, app, login):
+    from webui.status import save_status, SpeakerStatus
+
+    login()
+    settings = app.config["WEBUI_SETTINGS"]
+    save_status(
+        settings.state_dir / "speaker-status.json",
+        {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", False)},
+    )
+    body = client.get("/").get_data(as_text=True)
+    assert "не в сети" in body
+    assert 'class="status bad"' in body
+
+
+def test_home_shows_unknown_status_when_no_record(client, login):
+    login()
+    body = client.get("/").get_data(as_text=True)
+    assert "не проверялась" in body
+    assert 'class="status unknown"' in body
+
+
+def test_speaker_page_shows_cached_status(client, app, login):
+    from webui.status import save_status, SpeakerStatus
+
+    login()
+    settings = app.config["WEBUI_SETTINGS"]
+    save_status(
+        settings.state_dir / "speaker-status.json",
+        {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", True, False)},
+    )
+    body = client.get("/speakers/speaker-a").get_data(as_text=True)
     assert "онлайн" in body
     assert "Bridge не отвечает" in body
     assert 'class="status ok"' in body
