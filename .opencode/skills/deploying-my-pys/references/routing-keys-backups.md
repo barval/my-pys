@@ -1,22 +1,26 @@
-# Routing, keys, backups, rollback
+# Маршруты, ключи, копии, откат
 
-## Routing policy
+## Политика маршрутизации
 
-The policy is `config/quasar-bridge-policy.json`. `default_route` is `llm`, so
-everything that is not matched by a Yandex rule goes to the LLM router; the
-classifier is not called. Rules: `speaker_playback`, `speaker_controls`,
+Политика — `config/quasar-bridge-policy.json`. `default_route` — `llm`,
+поэтому всё, что не совпало с правилом Яндекса, уходит в LLM-роутер;
+классификатор не вызывается. Правила: `speaker_playback`, `speaker_controls`,
 `yandex_intercom`, `home_devices`, `home_state`, `yandex_scenarios`,
-`yandex_weekday`, `yandex_services` — all to Yandex (or Home Assistant).
+`yandex_weekday`, `yandex_services` — все в Яндекс (или Home Assistant).
 
 ```bash
 export SPEAKER_ENV=local/speakers/speaker-a.env
 ./scripts/apply-bridge-routing.sh
 ```
 
-The script merges only `default_route` and `rules` into the speaker's
-`config.json`, runs `check`, `restart`, `status`, `check-backends`.
+Скрипт вливает в `config.json` колонки только `default_route` и `rules`,
+затем запускает `check`, `restart`, `status`, `check-backends`.
 
-Verify a route without executing it:
+В панели политика видна в «Продвинутое → Политика Bridge»
+(`/advanced/bridge`) только для чтения; кнопка «Применить» у колонки
+запускает тот же routing.
+
+Проверить маршрут без выполнения:
 
 ```bash
 ssh -i secrets/speaker_ed25519 -p 2222 root@"$(./scripts/resolve-speaker.sh)"
@@ -25,88 +29,99 @@ pkg=/data/opt/quasar-bridge/app
 "$pkg/bin/quasar-bridge" -config /data/opt/quasar-bridge/config.json -route "какая погода завтра"
 ```
 
-Who answered, from the Bridge log:
+Кто ответил — из лога Bridge:
 
 ```bash
 make routes   # tail native_route_decision
 ```
 
-`route=llm` — the external LLM; `route=yandex` — Alice; `source=rule` — a
-matched rule; `source=default` — `default_route`.
+`route=llm` — внешняя LLM; `route=yandex` — Алиса; `source=rule` —
+сработало правило; `source=default` — `default_route`.
 
-## Keys
+## Ключи
 
-Two levels, never mixed:
+Два уровня, которые нельзя смешивать:
 
 ```text
 speaker runtime.env
-  QUASAR_LLM_API_KEY=sk-router-...   intermediate token
+  QUASAR_LLM_API_KEY=sk-router-...   промежуточный токен
         │
-secrets/router-routes.json (route by token_file)
-  primary.api_key_file / fallbacks[].api_key_file   upstream keys
+secrets/router-routes.json (маршрут по token_file)
+  primary.api_key_file / fallbacks[].api_key_file   upstream-ключи
 ```
 
-- Intermediate tokens: one per route/speaker, files `secrets/router-token-<name>`.
-  Rotate from «Ключи» (it also rewrites the speaker) or `make key`.
-- Upstream keys: a shared list on «Ключи → Upstream-ключи»:
-  1. open «Ключи → Upstream-ключи» and add a key: a file name
-     (e.g. `openrouter-token-speaker-a`) and the value;
-  2. the value is written to `secrets/<file>` with mode `0600` — only the file
-     name is kept in the registry;
-  3. open «Маршруты», edit the route (or add a fallback), pick the new key in
-     the «Ключ» dropdown for the primary or a fallback, and save. The router
-     reloads `secrets/router-routes.json` itself.
+- Промежуточные токены: один на маршрут/колонку, файлы
+  `secrets/router-token-<имя>`. Ротация — «Модели → Ключи → Сменить токен»
+  (она же перезаписывает токен в колонку); `make key` только записывает
+  текущий токен в колонку.
+- Upstream-ключи: общий список в «Модели → Ключи → Upstream-ключи»:
+  1. откройте раздел и добавьте ключ: имя файла (например,
+     `openrouter-token-speaker-a`) и значение;
+  2. значение пишется в `secrets/<файл>` с режимом `0600`, в реестре
+     остаётся только имя файла;
+  3. откройте «Модели → Маршруты», измените маршрут (или добавьте
+     запасной), выберите новый ключ в списке «Ключ» для основного или
+     запасного upstream и сохраните. Роутер сам перечитывает
+     `secrets/router-routes.json`.
 
-  One key can be used by several routes; a used key cannot be deleted. Old
-  `api_key_file` names are imported into the list automatically.
+  Один ключ может использоваться несколькими маршрутами; используемый
+  ключ удалить нельзя. Старые имена `api_key_file` импортируются в список
+  автоматически.
 
-Changing an upstream provider or key requires no speaker changes. Changing an
-intermediate token requires `set-speaker-key.sh` or the «Записать ключ» action.
+Смена upstream-провайдера или ключа не требует трогать колонку. Смена
+промежуточного токена требует `set-speaker-key.sh` или действия «Записать
+ключ» / кнопки «Записать ключ в колонку».
 
-## Backups and restore
+Полный порядок на экране «Модели»: провайдер → ключ → маршрут → запись
+ключа в колонку. Сырой JSON маршрутов доступен в
+«Продвинутое → Маршруты» (`/advanced/routes`), значения секретов там
+замаскированы.
 
-Create from the web UI: «Бэкапы» → «Вся конфигурация» or a single speaker,
-enter a passphrase, and download the archive. The passphrase is not stored —
-keep it, you need it to restore. Archives are `.tar.gz.enc` (AES-GCM + PBKDF2)
-in `backups/config/`, mode `0600`. The single-speaker archive contains the
-profile, its route fragment, and the keys referenced by that route.
-`webui-session.key`, logs, `router-state`, and audit are excluded.
-«Проверить» shows the manifest without touching live config.
+## Копии и восстановление
 
-Restore always snapshots the current state under
-`webui-state/restore-backups/<timestamp>/`, then asks for `REPLACE`. A full
-restore replaces profiles, keys, and the router config; a single-speaker restore
-updates only that speaker.
+Создание в панели: «Ещё → Резервные копии» → «Вся конфигурация» или одна
+колонка, введите парольную фразу и скачайте архив. Фраза не сохраняется —
+держите её, без неё архив не открыть. Архивы `.tar.gz.enc` (AES-GCM +
+PBKDF2) лежат в `backups/config/` с режимом `0600`. Архив одной колонки
+содержит профиль, фрагмент её маршрута и ключи этого маршрута.
+`webui-session.key`, логи, `router-state` и аудит не включаются.
+«Проверить» показывает манифест, не трогая рабочую конфигурацию.
 
-## Rollback and recovery
+Восстановление всегда сначала делает снимок текущего состояния в
+`webui-state/restore-backups/<timestamp>/`, затем требует `REPLACE`. Полное
+восстановление заменяет профили, ключи и конфиг роутера; одной колонки —
+только её.
 
-Bridge endpoint rollback (order matters):
+## Откат и восстановление
+
+Откат endpoint Bridge (порядок важен):
 
 ```sh
 pkg=/data/opt/quasar-bridge/app
-sh "$pkg/control.sh" rollback && reboot      # Alice talks to Yandex again
-# verify voice, then:
-sh "$pkg/uninstall.sh"                        # refuses while endpoint-backup.json exists
+sh "$pkg/control.sh" rollback && reboot      # Алиса снова говорит с Яндексом
+# проверьте голос, затем:
+sh "$pkg/uninstall.sh"                        # откажется, пока есть endpoint-backup.json
 ```
 
-Root changes: `sh /data/opt/yandex-noupdate.sh restore && reboot` (OTA), remove
-`/etc/init.d/S99zdropbear` (SSH), or do the button reset.
+Правки root: `sh /data/opt/yandex-noupdate.sh restore && reboot` (OTA),
+удалить `/etc/init.d/S99zdropbear` (SSH) или сделать сброс кнопкой.
 
-If the speaker went mute: check `control.sh status` and `logs`; try
-`control.sh rollback`; if SSH/ADB are gone, do the button reset (clears `/data`)
-or reflash from the stand. Never cut power during a write.
+Если колонка замолчала: проверьте `control.sh status` и `logs`; попробуйте
+`control.sh rollback`; если SSH/ADB пропали — сброс кнопкой (очищает
+`/data`) или перепрошивка со стенда. Никогда не выключайте питание во время
+записи.
 
-## Say text on a speaker
+## Сказать фразу на колонке
 
-The web UI exposes it as «Действия → Сказать» (text up to 500 characters).
-The script must reach the internal `tts` service, so run it inside the `webui`
-container:
+В панели это «Проверка → Голос» (`/test#voice`, до 500 символов) или, в
+продвинутом режиме, действие «Сказать» на карточке колонки. Скрипту нужен
+внутренний сервис `tts`, поэтому запускайте его в контейнере `webui`:
 
 ```bash
 docker exec -e SPEAKER_ENV=local/speakers/speaker-a.env -e SPEAKER_TRUST_IP=1 \
   -e SAY_TEXT="Приятного аппетита" my-pys-webui bash scripts/say-text.sh
 ```
 
-Synthesises with the local Piper service (`tts`) and plays the WAV on the
-speaker with `aplay` (present in the tested firmware; check with `aplay -l`).
-Needs the `tts` container (`make webui`) and the SSH key.
+Синтез — локальный Piper (`tts`), воспроизведение WAV на колонке через
+`aplay` (есть в проверенной прошивке; проверьте `aplay -l`). Нужны
+контейнер `tts` (`make webui`) и SSH-ключ.

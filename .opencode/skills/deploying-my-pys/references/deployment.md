@@ -1,98 +1,156 @@
-# Host deployment
+# Развёртывание хоста
 
-## Prerequisites
+## Требования
 
-- Docker Engine with Compose on the host (examples use `192.168.1.2`).
+- Docker Engine с Compose на хосте (в примерах — `192.168.1.2`).
 - `curl`, `python3`, `sha256sum`, `dig` (`dnsutils`), `ss` (`iproute2`),
   `adb`, `ssh`, `ssh-keygen`.
-- Free TCP/UDP `53`, `80`, `443`, and TCP `5002` on the host.
-- Host and speakers on the same L2 network without client isolation.
-- For non-interactive Bridge installs: `python3-pexpect`.
+- Свободные TCP/UDP `53`, `80`, `443` и TCP `5002` на хосте.
+- Хост и колонки в одной L2-сети без изоляции клиентов.
+- Для неинтерактивной установки Bridge: `python3-pexpect`.
 
-Never install the project's services directly on the host — only Docker.
+Никогда не устанавливайте сервисы проекта прямо на хост — только Docker.
 
-## One-time host config
+## Разовая настройка хоста
 
-Host-level values live in `local/.env`; each speaker gets its own profile in
-`local/speakers/<name>.env`. Both are gitignored.
+Значения уровня хоста — в `local/.env`, у каждой колонки свой профиль в
+`local/speakers/<имя>.env`. Оба файла исключены из git.
 
 ```bash
 cp config/llm.env.example local/.env
-# add ROOT_STAND_IP=<host IP>, e.g. ROOT_STAND_IP=192.168.1.2
+# добавьте ROOT_STAND_IP=<IP хоста>, например ROOT_STAND_IP=192.168.1.2
 
 cp config/speaker.env.example local/speakers/speaker-a.env
-# fill SPEAKER_IP, SPEAKER_SUBNET, SPEAKER_DEVICE_ID, SPEAKER_MAC,
+# заполните SPEAKER_IP, SPEAKER_SUBNET, SPEAKER_DEVICE_ID, SPEAKER_MAC,
 # SPEAKER_ROOM, SPEAKER_COLOR, LLM_BASE_URL, LLM_TOKEN_FILE
 ```
 
-Replace `192.168.1.2` with your host IP everywhere below. Profile names are
-`[a-z0-9][a-z0-9-]{0,63}`; `SPEAKER_DEVICE_ID` and `SPEAKER_MAC` are required,
-and the profile must set `LLM_BASE_URL` and `LLM_TOKEN_FILE` (used by Bridge
-install and `set-speaker-key.sh`).
+Заменяйте `192.168.1.2` на IP вашего хоста везде ниже. Имена профилей —
+`[a-z0-9][a-z0-9-]{0,63}`; `SPEAKER_DEVICE_ID` и `SPEAKER_MAC` обязательны,
+а профиль должен задавать `LLM_BASE_URL` и `LLM_TOKEN_FILE` (их используют
+установка Bridge и `set-speaker-key.sh`).
 
-## LLM router
+Если панель доступна, профиль проще создать в ней: «Колонки → Добавить
+колонку» — она запишет этот же файл и откроет мастер.
+
+## LLM-роутер
 
 ```bash
-make router-init      # create intermediate tokens + secrets/router-routes.json
-make router           # build and start llm-router on 192.168.1.2:5002
+make router-init      # создать промежуточные токены и secrets/router-routes.json
+make router           # собрать и запустить llm-router на 192.168.1.2:5002
 make router-status    # GET /health
 make router-logs
 make router-stop
 ```
 
-`make router-init` creates routes and tokens for the names `speaker-a`…
-`speaker-d` only. For any other profile name, add the route from the web UI
-(«Маршруты»). `secrets/router-routes.json` maps each speaker token to a primary
-and up to nine fallback upstreams. The router listens on the LAN `:5002` so the
-speakers can reach it; do not forward that port to the internet.
+`make router-init` создаёт маршруты и токены только для имён `speaker-a`…
+`speaker-d`. Для любого другого имени добавьте маршрут в панели
+(«Модели»). `secrets/router-routes.json` сопоставляет токен колонки
+основному upstream и до девяти запасным. Роутер слушает LAN-порт `:5002`,
+чтобы колонки могли до него достучаться; не пробрасывайте порт в интернет.
 
-## Web UI stack
+## Стек веб-панели
 
 ```bash
-make webui            # build first: webui + tts + router-control + stand-control
-make webui-passwd     # then set the admin password (needs the built image)
+make webui            # сначала сборка: webui + tts + router-control + stand-control
+make webui-passwd     # затем пароль администратора (нужен собранный образ)
 curl -fsS http://127.0.0.1:8080/healthz
 make webui-logs
 make webui-stop
 ```
 
-The panel binds to `127.0.0.1:8080`. For a remote operator, tunnel it:
+Панель слушает `127.0.0.1:8080`. Для удалённого администратора
+пробросьте порт:
 
 ```bash
 ssh -N -L 8080:127.0.0.1:8080 user@host
 ```
 
-The stack runs four services:
+В стеке четыре сервиса:
 
-| Service | Role |
+| Сервис | Роль |
 |---|---|
-| `webui` | Flask panel, SSH/ADB/curl, profiles, routes, keys, backups |
-| `router-control` | narrow sidecar: restart `llm-router` only |
-| `stand-control` | narrow sidecar: start/stop/status `lite-kit` only |
-| `tts` | local Piper TTS for the «Сказать» action; port 8083 internal only |
+| `webui` | Flask-панель, SSH/ADB/curl, профили, маршруты, ключи, копии |
+| `router-control` | узкий sidecar: только перезапуск `llm-router` |
+| `stand-control` | узкий sidecar: только start/stop/status `lite-kit` |
+| `tts` | локальный Piper TTS для действия «Сказать»; порт 8083 только внутри |
 
-Only `webui` publishes a port (default `127.0.0.1:8080`). The first
-`make webui` downloads the Piper voice model into the image; later builds use
-the cache. Change the voice with
+Порт публикует только `webui` (по умолчанию `127.0.0.1:8080`). Первый
+`make webui` скачивает голосовую модель Piper в образ, дальше сборка идёт
+из кэша. Голос меняется build-аргументами:
 `--build-arg TTS_VOICE_PATH=ru/ru_RU/dmitri/medium --build-arg TTS_VOICE_NAME=ru_RU-dmitri-medium`.
 
-## Lifecycle and updates
+В контейнер смонтированы `secrets/`, `webui-state/`, `backups/`, `.cache/`,
+`vendor/lite-kit/firmware/` и `local/speakers/` на чтение-запись; остальной
+репозиторий и `local/` — только чтение. Добавлена только capability
+`NET_RAW`: она нужна `ping` и поиску колонок по сети.
+
+## Панель: два режима
+
+Панель работает в двух режимах; переключение — кнопка в шапке или блок
+«Режим» на `/more#mode`. Выбор хранится в cookie `ui_mode` год и переживает
+перезагрузку.
+
+| Режим | Экраны |
+|---|---|
+| Простой | `/` «Колонки», `/speakers/new`, мастер `/speakers/<имя>/setup`, `/setup/prepare`, `/access` «Модели», `/test` «Проверка», `/more` «Ещё» |
+| Продвинутый | то же плюс `/advanced`, `/advanced/jobs`, `/advanced/routes`, `/advanced/bridge` и технические действия на карточке колонки |
+
+В простом режиме продвинутые адреса отвечают `404` — это не ошибка
+развёртывания. Режим не заменяет пароль: вход нужен всегда.
+
+Порядок для новой колонки:
+
+1. `/setup/prepare` — прошивка и стенд.
+2. `/speakers/new` — поиск по сети или ручные поля.
+3. `/speakers/<имя>/setup` — шаги 2–8; шаг 6 создаёт маршрут и пишет ключ.
+4. `/test` — голос, LLM, Bridge.
+
+Старые адреса (`/speakers`, `/firmware`, `/router`, `/keys`, `/backup`,
+`/audit`, `/password`) отвечают `301` на новые экраны; старые POST
+сохранены.
+
+## Что делать, если мастер застрял на шаге N
+
+1. Откройте последнее задание: ссылка «Последнее задание» в мастере ведёт
+   на `/jobs/<id>`; лог обновляется до завершения.
+2. Все задания панели собраны в `/advanced/jobs` (нужен продвинутый
+   режим): действие, цель, статус, время и ссылка «Открыть».
+3. Проверьте шаг по таблице:
+
+| Шаг | Частая причина | Что делать |
+|---|---|---|
+| 2 | колонка не привязана, телефон с включённым Wi-Fi | повторите привязку в «Дом с Алисой», приложение перезапустите |
+| 3 | неверная подсеть или ADB ещё не поднялся | проверьте подсеть, повторите поиск, заполните поля вручную |
+| 4 | `uid=2000(shell)` или нет ADB | стенд не отдал прошивку: смотрите его логи, повторите шаг 2 |
+| 5 | нет `secrets/speaker_ed25519` или SSH-порт не `2222` | выполните шаг 4, проверьте `SPEAKER_SSH_PORT` |
+| 6 | нет провайдера или upstream-ключа | добавьте их на `/access` и вернитесь в мастер |
+| 7 | Bridge не скачан или нет `python3-pexpect` | `./scripts/fetch-quasar-bridge.sh`, пересоберите `webui` |
+| 8 | `401`, `503` или таймаут LLM | проверьте маршрут на `/access` и логи `make router-logs` |
+
+4. Шаг можно пропустить кнопкой «Пропустить» — прогресс сохранится в
+   `webui-state/setup/<имя>.json`; вернуться можно по
+   `/speakers/<имя>/setup?step=N`.
+5. Если задание висит: проверьте `WEBUI_JOB_TIMEOUT` (по умолчанию 600 с) и
+   `make webui-logs`. Перезапуск панели не теряет прогресс мастера.
+
+## Жизненный цикл и обновления
 
 ```bash
-make router         # rebuild/restart the router only
-make webui          # rebuild/restart the panel stack
+make router         # пересобрать/перезапустить только роутер
+make webui          # пересобрать/перезапустить стек панели
 make webui-stop
-make router-test    # router tests
-make webui-test     # web UI tests
-make lint           # bash -n for scripts
+make router-test    # тесты роутера
+make webui-test     # тесты веб-панели
+make lint           # bash -n для скриптов
 ```
 
-After `git pull`: rebuild the part that changed. The web UI mounts the repo
-read-only, but templates/CSS still need a container recreate (`make webui`)
-and a browser hard refresh (`Ctrl+Shift+R`).
+После `git pull` пересоберите изменившуюся часть. Репозиторий смонтирован
+в панель только для чтения, но шаблоны и CSS всё равно требуют пересоздания
+контейнера (`make webui`) и жёсткого обновления страницы (`Ctrl+Shift+R`).
 
-## Backups
+## Резервные копии
 
-Create an encrypted backup from the web UI («Бэкапы» → «Вся конфигурация» or a
-single speaker) before any destructive work. See
-`routing-keys-backups.md` for the restore and rollback procedure.
+Перед любыми разрушительными работами создайте шифрованную копию в панели:
+«Ещё → Резервные копии» → «Вся конфигурация» или одна колонка. Процедура
+восстановления и отката — в `routing-keys-backups.md`.

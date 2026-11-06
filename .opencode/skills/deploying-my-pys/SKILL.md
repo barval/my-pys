@@ -3,69 +3,98 @@ name: Deploying my-pys
 description: Use when deploying, flashing, rooting, or operating the my-pys project (My Personal Yandex Station) in this repository — host Docker stack, Yandex Station Lite speakers, Quasar Bridge, LLM router, routes, upstream keys, local TTS, backups, and rollback.
 ---
 
-# Deploying my-pys
+# Развёртывание my-pys
 
-## Overview
+## Обзор
 
-Run the whole project end to end: the Docker host stack (web UI, LLM router,
-local TTS, narrow control sidecars), rooted Yandex Station Lite speakers with
-Quasar Bridge, per-speaker routes and keys, and encrypted backups.
+Проект целиком: Docker-стек хоста (веб-панель, LLM-роутер, локальный TTS,
+узкие sidecar'ы управления), рутованные колонки Yandex Station Lite с
+Quasar Bridge, маршруты и ключи на колонку, шифрованные резервные копии.
 
-**Core principle: do one speaker at a time, verify after every phase, and never
-run a destructive step without its gate.** All examples here use synthetic data
-(`192.168.1.x`, `speaker-a`, `EXAMPLE...`). Never commit real IPs, MACs, device
-IDs, tokens, room names, or speaker names — only `local/`, `secrets/`,
-`backups/`, `webui-state/`, `router-state/` hold real values, and they are
-gitignored.
+**Главный принцип: одна колонка за раз, проверка после каждого этапа и
+никаких разрушительных шагов без подтверждения.** Все примеры — только
+синтетические (`192.168.1.x`, `speaker-a`, `EXAMPLE...`). Никогда не
+коммитьте реальные IP, MAC, device ID, токены, имена комнат и колонок: они
+живут только в `local/`, `secrets/`, `backups/`, `webui-state/`,
+`router-state/`, и эти каталоги исключены из git.
 
-## When to use
+## Когда использовать
 
-- First host deployment or adding a new speaker.
-- Re-flashing / re-rooting a speaker, installing or updating Quasar Bridge.
-- Changing routes, upstream keys, or the Bridge routing policy.
-- Backups, restore, rollback, or "the speaker went silent".
+- Первое развёртывание хоста или добавление новой колонки.
+- Перепрошивка, повторный root, установка или обновление Quasar Bridge.
+- Смена маршрутов, upstream-ключей или политики маршрутизации Bridge.
+- Резервные копии, восстановление, откат, «колонка замолчала».
 
-## Safety gates (do not skip)
+## Первичная настройка: сначала панель
 
-1. Identify the target by device ID/MAC, never by IP: `./scripts/resolve-speaker.sh`.
-2. Power off every other `yandexmicro` speaker while the root stand runs — the
-   stand with `run/downgrade` serves firmware and enables ADB to the whole LAN.
-3. Reserve MAC→IP in DHCP for all speakers.
-4. Save `local/`, `secrets/`, `backups/`; prefer an encrypted backup from the
-   web UI before touching anything.
-5. Never cut power during a firmware write.
-6. Do not uninstall Bridge until `control.sh rollback` + `reboot` + Alice works.
-7. Stop the stand and restore router DNS immediately after root.
-8. Keep `secrets/*` at `0600`. Do not expose `5000/5002/8080/53/80/443` to
-   the internet; the router and panel intentionally listen on the LAN.
+Новый маршрут — не ручной файл профиля, а мастер в веб-панели. Панель сама
+создаёт `local/speakers/<имя>.env`, маршрут и токен, пишет ключ в колонку и
+запускает задания с логом.
 
-## Workflow
+1. Поднимите стек: `make router`, `make webui`, `make webui-passwd` (см.
+   `references/deployment.md`).
+2. Откройте `http://127.0.0.1:8080` и войдите.
+3. «Ещё → Подготовить хост» (`/setup/prepare`): скачайте прошивку,
+   запустите стенд, после прошивки верните DNS роутера.
+4. «Колонки → Добавить колонку» (`/speakers/new`): найдите колонку по сети
+   (`?scan=1`) или заполните IP, MAC и device ID вручную.
+5. «Настроить» (`/speakers/<имя>/setup`): пройдите шаги 2–8 — привязка,
+   поиск, root/ADB, SSH/OTA, маршрут и ключ, Quasar Bridge, проверка
+   голосом.
+6. «Модели» (`/access`): если шаг 6 требует провайдера или ключа, добавьте
+   их там и вернитесь в мастер.
+7. «Проверка» (`/test`): голос, LLM и Bridge для выбранной колонки.
 
-1. Host stack → `references/deployment.md`
-2. Speaker root + Quasar Bridge → `references/speakers.md`
-3. Routes, keys, policy, backups, rollback → `references/routing-keys-backups.md`
+Ручные команды ниже остаются для диагностики, отладки и случаев, когда
+панель недоступна. Они делают то же самое, что кнопки мастера.
 
-## Quick reference
+## Правила безопасности (не пропускать)
 
-| Goal | Command |
+1. Определяйте цель по device ID/MAC, а не по IP:
+   `./scripts/resolve-speaker.sh`.
+2. Пока работает стенд с `run/downgrade`, выключите остальные колонки
+   `yandexmicro`: стенд раздаёт прошивку и включает ADB всей локальной сети.
+3. Закрепите MAC → IP в DHCP для всех колонок.
+4. Сохраните `local/`, `secrets/`, `backups/`; перед любыми изменениями
+   сделайте шифрованную копию в панели («Ещё → Резервные копии»).
+5. Не выключайте питание во время записи прошивки.
+6. Не удаляйте Bridge, пока `control.sh rollback` + `reboot` + голосовой
+   ответ Алисы не проверены.
+7. Сразу после root остановите стенд и верните DNS роутера.
+8. Держите `secrets/*` с правами `0600`. Не открывайте
+   `5000/5002/8080/53/80/443` в интернет: роутер и панель рассчитаны на
+   локальную сеть.
+
+## Порядок работы
+
+1. Стек хоста → `references/deployment.md`
+2. Root колонки и Quasar Bridge → `references/speakers.md`
+3. Маршруты, ключи, политика, копии и откат →
+   `references/routing-keys-backups.md`
+
+## Быстрый справочник
+
+| Задача | Команда |
 |---|---|
-| Panel stack (webui + tts + sidecars) | `make webui` |
-| LLM router (separate compose) | `make router`, `make router-status`, `make router-logs` |
-| Web UI password | `make webui-passwd` (after `make webui`) |
-| Find a speaker | `./scripts/resolve-speaker.sh` |
+| Стек панели (webui + tts + sidecar'ы) | `make webui` |
+| LLM-роутер (отдельный compose) | `make router`, `make router-status`, `make router-logs` |
+| Пароль веб-панели | `make webui-passwd` (после `make webui`) |
+| Найти колонку | `./scripts/resolve-speaker.sh` |
 | Root + SSH + OTA off | `SPEAKER_ENV=local/speakers/speaker-a.env ./scripts/post-root-ssh.sh` |
-| Install Bridge | `SPEAKER_ENV=... ./scripts/install-quasar-bridge.sh --non-interactive` |
-| Apply routing policy | `SPEAKER_ENV=... ./scripts/apply-bridge-routing.sh` |
-| Write router token to speaker | `SPEAKER_ENV=... ./scripts/set-speaker-key.sh` |
-| Verify one speaker | `SPEAKER_ENV=... make status` / `check-backends` / `routes` |
-| Say text on a speaker | `docker exec -e SPEAKER_ENV=... -e SAY_TEXT="..." my-pys-webui bash scripts/say-text.sh` |
+| Установить Bridge | `SPEAKER_ENV=... ./scripts/install-quasar-bridge.sh --non-interactive` |
+| Применить политику routing | `SPEAKER_ENV=... ./scripts/apply-bridge-routing.sh` |
+| Записать токен роутера в колонку | `SPEAKER_ENV=... ./scripts/set-speaker-key.sh` |
+| Проверить одну колонку | `SPEAKER_ENV=... make status` / `check-backends` / `routes` |
+| Сказать фразу на колонке | `docker exec -e SPEAKER_ENV=... -e SAY_TEXT="..." my-pys-webui bash scripts/say-text.sh` |
 
-## Common mistakes
+## Частые ошибки
 
-- Treating `SPEAKER_IP` as identity — it changes; device ID/MAC is the key.
-- Flashing or rooting two speakers at once.
-- Leaving the root stand up or forgetting to restore router DNS.
-- Editing `vendor/` snapshots instead of the project's own files.
-- Committing anything from `local/`, `secrets/`, `backups/`, `webui-state/`,
-  or `router-state/`.
-- Uninstalling Bridge before rollback (leaves the speaker mute).
+- Считать `SPEAKER_IP` идентификатором: IP меняется, ключ — device ID/MAC.
+- Прошивать или рутовать две колонки одновременно.
+- Оставить стенд запущенным или забыть вернуть DNS роутера.
+- Править снимки в `vendor/` вместо собственных файлов проекта.
+- Коммитить что-либо из `local/`, `secrets/`, `backups/`, `webui-state/`
+  или `router-state/`.
+- Удалять Bridge до rollback — колонка останется немой.
+- Заводить профиль и маршрут вручную при работающей панели: мастер сделает
+  это согласованно и оставит лог задания.
