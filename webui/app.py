@@ -114,6 +114,11 @@ def render_breadcrumbs(items) -> Markup:
     )
 
 
+def format_size(value: int) -> str:
+    """Размер в байтах с пробелами между разрядами."""
+    return f"{value:,}".replace(",", " ") + " байт"
+
+
 def json_for_pre(value, secrets_dir=None) -> str:
     """JSON для <pre>: секреты редактируются, кавычки остаются как есть,
     HTML-спецсимволы экранируются."""
@@ -357,6 +362,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 {
                     "name": path.name,
                     "size": stat.st_size,
+                    "size_text": format_size(stat.st_size),
                     "modified": datetime.fromtimestamp(
                         stat.st_mtime, tz=timezone.utc
                     ).isoformat(timespec="seconds"),

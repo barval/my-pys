@@ -21,7 +21,7 @@
         {% for file in firmware_files %}
         <tr>
           <td class="mono">{{ file.name }}</td>
-          <td>{{ file.size }}</td>
+          <td>{{ file.size_text }}</td>
           <td>{{ file.modified }}</td>
         </tr>
         {% endfor %}

@@ -1426,6 +1426,12 @@ def test_access_add_key_form_has_no_label_field(client, app, login):
     assert 'class="inline-row"' in body
 
 
+def test_format_firmware_size():
+    from webui.app import format_size
+
+    assert format_size(66814464) == "66 814 464 байт"
+
+
 def test_prepare_screen_headings_and_button_colours(client, app, login):
     login()
     body = client.get("/setup/prepare").get_data(as_text=True)
