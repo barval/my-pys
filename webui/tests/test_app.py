@@ -527,6 +527,7 @@ def test_start_page_shows_first_three_steps(client, login):
     assert "Добавить колонку в панель" in body
     assert 'href="/setup/prepare"' in body
     assert 'href="/speakers/new"' in body
+    assert "Дальше: добавить колонку" not in body
 
 
 def test_login_redirects_to_start_without_profiles(settings):
