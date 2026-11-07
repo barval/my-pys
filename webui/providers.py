@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -23,12 +24,13 @@ _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 
 def slugify(value: str) -> str:
-    value = str(value).lower().strip()
-    value = _SLUG_RE.sub("-", value)
+    original = str(value).strip().lower()
+    value = _SLUG_RE.sub("-", original)
     value = value.strip("-")
     value = re.sub(r"-+", "-", value)
     if not value:
-        return "provider"
+        digest = hashlib.sha1(original.encode("utf-8")).hexdigest()[:6]
+        return f"provider-{digest}"
     return value[:32].rstrip("-")
 
 

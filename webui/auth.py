@@ -123,6 +123,8 @@ def init_auth(app: Flask, settings: Settings) -> None:
     @app.before_request
     def guard():
         if request.method == "POST":
+            if not is_public(request.path) and session.get("user") != "admin":
+                return redirect(url_for("login"))
             expected = session.get("csrf")
             provided = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
             if not expected or not provided or not hmac.compare_digest(expected, provided):

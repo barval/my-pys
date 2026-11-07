@@ -237,7 +237,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         static_folder=str(settings.static_dir),
     )
     app.config["WEBUI_SETTINGS"] = settings
-    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+    app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
     app.config["WEBUI_TITLE"] = APP_TITLE

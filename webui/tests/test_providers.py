@@ -34,7 +34,7 @@ def test_upsert_and_delete(tmp_path):
 
 def test_slugify():
     assert slugify("My Provider!") == "my-provider"
-    assert slugify("  ") == "provider"
+    assert slugify("  ").startswith("provider-")
 
 
 def test_fetch_models_parses_openai_response():
