@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Маршрут {{ route.name }} — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block breadcrumbs %}{{ breadcrumbs([("Модели и доступ", "/access"), ("Маршруты", "/access#routes"), (route.name ~ " · основной", none)]) }}{% endblock %}
 {% set primary = route.get("primary", {}) %}
 {% block head %}
 <script>
@@ -30,7 +31,6 @@ document.addEventListener('DOMContentLoaded', updateEditModels);
 {% block content %}
 <div class="page-head">
   <div>
-    <a class="back" href="/access#routes">← Модели и доступ</a>
     <h1>{{ route.name }} · основной</h1>
   </div>
 </div>

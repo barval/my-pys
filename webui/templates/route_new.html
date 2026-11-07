@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Новый маршрут — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block breadcrumbs %}{{ breadcrumbs([("Модели и доступ", "/access"), ("Маршруты", "/access#routes"), ("Новый маршрут", none)]) }}{% endblock %}
 {% block head %}
 <script>
 const providerModels = {
@@ -27,7 +28,6 @@ document.addEventListener('DOMContentLoaded', updateModels);
 {% block content %}
 <div class="page-head">
   <div>
-    <a class="back" href="/access#routes">← Модели и доступ</a>
     <h1>Новый маршрут</h1>
   </div>
 </div>

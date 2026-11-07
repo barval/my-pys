@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Резервные копии — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block breadcrumbs %}{{ breadcrumbs([("Настройки", "/more"), ("Резервные копии", none)]) }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>

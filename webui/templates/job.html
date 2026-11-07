@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Задание {{ job.id }} — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block breadcrumbs %}
+{% if job_profile %}{{ breadcrumbs([("Колонки", "/"), (job_profile.name, "/speakers/" ~ job_profile.name), ("Задание", none)]) }}
+{% else %}{{ breadcrumbs([("Дополнительно", "/advanced"), ("Журнал заданий", "/advanced/jobs"), ("Задание", none)]) }}{% endif %}
+{% endblock %}
 {% block head %}
 {% if job.status not in ("succeeded", "failed", "cancelled", "interrupted") %}
 <meta http-equiv="refresh" content="2">
@@ -8,8 +12,6 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <a class="back" href="/speakers">← Колонки</a>
-    <a class="back" href="/advanced/jobs">← Журнал заданий</a>
     <h1>Задание</h1>
     <div class="mono">{{ job.id }}</div>
   </div>

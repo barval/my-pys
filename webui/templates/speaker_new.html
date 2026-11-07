@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Добавить колонку — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block breadcrumbs %}{{ breadcrumbs([("Колонки", "/"), ("Добавить колонку", none)]) }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <a class="back" href="/">← Все колонки</a>
     <h1>Добавить колонку</h1>
   </div>
 </div>

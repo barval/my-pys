@@ -8,6 +8,9 @@ def test_setup_page_lists_steps(client, login):
     body = client.get("/speakers/speaker-a/setup?step=7").get_data(as_text=True)
     assert "Quasar Bridge" in body
     assert "Маршрут и ключ" in body
+    assert 'class="breadcrumbs"' in body
+    assert 'href="/speakers/speaker-a"' in body
+    assert ">Настроить</span>" in body
 
 
 def test_run_step_submits_bridge_job(client, app, login, csrf):

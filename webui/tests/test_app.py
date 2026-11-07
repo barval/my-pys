@@ -559,6 +559,7 @@ def test_home_lists_speaker_cards(client, login):
     assert 'href="/access"' in body
     assert 'href="/test"' in body
     assert 'href="/more"' in body
+    assert 'class="breadcrumbs"' not in body
     assert body.index("Настроить") < body.index("Проверить голосом")
 
 
@@ -821,6 +822,7 @@ def test_running_job_page_auto_refreshes(client, app, login):
     assert 'http-equiv="refresh"' in body
     assert "working" in body
     assert "Статус стенда" in body
+    assert "Журнал заданий" in body
 
     job.status = "succeeded"
     body = client.get("/jobs/job-1").get_data(as_text=True)

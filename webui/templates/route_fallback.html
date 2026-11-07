@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Новый запасной' if index is none else 'Запасной' }} — {{ route.name }} — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block breadcrumbs %}{{ breadcrumbs([("Модели и доступ", "/access"), ("Маршруты", "/access#routes"), (route.name, "/access/routes/" ~ route.name), (('Новый запасной' if index is none else 'Запасной ' ~ (index + 1)), none)]) }}{% endblock %}
 {% set action = '/router/routes/' ~ route.name ~ '/fallback/new' if index is none else '/router/routes/' ~ route.name ~ '/fallback/' ~ index %}
 {% block head %}
 <script>
@@ -30,7 +31,6 @@ document.addEventListener('DOMContentLoaded', updateFallbackModels);
 {% block content %}
 <div class="page-head">
   <div>
-    <a class="back" href="/access#routes">← Модели и доступ</a>
     <h1>{{ route.name }} · {{ 'новый запасной' if index is none else 'запасной ' ~ (index + 1) }}</h1>
   </div>
 </div>

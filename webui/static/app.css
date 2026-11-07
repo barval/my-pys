@@ -127,7 +127,6 @@ p { margin: .4rem 0 .8rem; }
 }
 .page-head h1 { margin: 0; }
 .page-head .sub { color: var(--muted); font-size: .92rem; }
-.back { color: var(--muted); font-size: .9rem; }
 
 .grid { display: grid; gap: 1rem; }
 .grid.cards { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
@@ -538,6 +537,21 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
   .speaker-toolbar .search-wrapper { flex: 1 1 100%; margin-bottom: .6rem; }
   .speaker-toolbar .toolbar-right { width: 100%; justify-content: space-between; }
 }
+
+/* Хлебные крошки на вложенных страницах */
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .35rem;
+  margin-bottom: .45rem;
+  font-size: .88rem;
+  color: var(--muted);
+}
+.breadcrumbs a { color: var(--muted); }
+.breadcrumbs a:hover { color: var(--primary); }
+.breadcrumbs .breadcrumb-sep { color: var(--muted); }
+.breadcrumbs .breadcrumb-current { color: var(--text); font-weight: 600; }
 
 .speaker-grid {
   display: grid;

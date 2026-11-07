@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ host_step.title }} — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block breadcrumbs %}{{ breadcrumbs([("Дополнительно", "/advanced"), ("Подготовка хоста", none)]) }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>Подготовка хоста</h1>

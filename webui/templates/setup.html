@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Настройка {{ profile.name }} — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block breadcrumbs %}{{ breadcrumbs([("Колонки", "/"), (profile.name, "/speakers/" ~ profile.name), ("Настроить", none)]) }}{% endblock %}
 {% block content %}
 <div class="page-head speaker-head">
   <div class="speaker-title">
     {% with color=card.color, color_name=card.color_name, icon_id=profile.name, model=card.model %}{% include "_speaker_icon.html" %}{% endwith %}
     <div>
-      <a class="back" href="/speakers/{{ profile.name }}">← {{ profile.name }}</a>
       <h1>Мастер настройки</h1>
       <div class="sub">{{ profile.room }} · {{ card.model }}</div>
     </div>

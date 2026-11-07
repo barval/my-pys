@@ -23,6 +23,7 @@ from flask import (
     session,
     url_for,
 )
+from markupsafe import Markup, escape
 
 from router.llm_router import ConfigError
 
@@ -93,6 +94,24 @@ JOB_ACTION_LABELS = {
     **{key: spec.label for key, spec in HOST_ACTIONS.items()},
     "say": "Произнести",
 }
+
+
+def render_breadcrumbs(items) -> Markup:
+    """Цепочка разделов: последний элемент — текущая страница без ссылки."""
+    chunks = []
+    total = len(items)
+    for index, (label, href) in enumerate(items):
+        text = escape(str(label))
+        if href and index < total - 1:
+            chunks.append(f'<a href="{escape(href)}">{text}</a>')
+        else:
+            chunks.append(f'<span class="breadcrumb-current">{text}</span>')
+    separator = '<span class="breadcrumb-sep">←</span>'
+    return Markup(
+        '<nav class="breadcrumbs" aria-label="Навигация">'
+        + separator.join(chunks)
+        + "</nav>"
+    )
 
 
 def json_for_pre(value, secrets_dir=None) -> str:
@@ -232,6 +251,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.jinja_env.globals["job_action_label"] = (
         lambda action: JOB_ACTION_LABELS.get(action, action)
     )
+    app.jinja_env.globals["breadcrumbs"] = render_breadcrumbs
 
     profiles = {profile.name: profile for profile in load_profiles(settings.speakers_dir)}
     runner = JobRunner(
@@ -797,7 +817,14 @@ def create_app(settings: Settings | None = None) -> Flask:
             abort(404)
         text, offset = app.extensions["jobs"].tail(job_id, 0)
         text = redact(text, settings.secrets_dir)
-        return render_template("job.html", job=job, text=text, offset=offset)
+        refresh_profiles()
+        return render_template(
+            "job.html",
+            job=job,
+            text=text,
+            offset=offset,
+            job_profile=profiles.get(job.target),
+        )
 
     @app.get("/jobs/<job_id>/log")
     def job_log(job_id: str):

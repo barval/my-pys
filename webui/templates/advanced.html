@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}{{ title }} — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block breadcrumbs %}{% if view != "index" %}{{ breadcrumbs([("Дополнительно", "/advanced"), (title, none)]) }}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    {% if view != "index" %}<a class="back" href="/advanced">← Дополнительно</a>{% endif %}
     <h1>{{ title }}</h1>
     <div class="sub">{{ subtitle }}</div>
   </div>
