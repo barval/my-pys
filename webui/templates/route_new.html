@@ -61,8 +61,8 @@ document.addEventListener('DOMContentLoaded', updateModels);
     <label>История
       {% set history = request.form.get('history', 'server') %}
       <select name="history">
-        <option value="server"{% if history == 'server' %} selected{% endif %}>server</option>
-        <option value="client"{% if history == 'client' %} selected{% endif %}>client</option>
+        <option value="server"{% if history == 'server' %} selected{% endif %}>у провайдера (server)</option>
+        <option value="client"{% if history == 'client' %} selected{% endif %}>у колонки (client)</option>
       </select>
     </label>
     <label>Таймаут, секунд

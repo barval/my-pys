@@ -20,7 +20,7 @@
   <section class="card">
     <h2>Параметры</h2>
     <dl class="meta">
-      <dt>Действие</dt><dd>{{ job.action }}</dd>
+      <dt>Действие</dt><dd>{{ job_action_label(job.action) }}</dd>
       <dt>Цель</dt><dd>{{ job.target }}</dd>
       <dt>Код выхода</dt><dd>{{ job.exit_code if job.exit_code is not none else "—" }}</dd>
       <dt>Начато</dt><dd class="mono">{{ job.started_at or "—" }}</dd>

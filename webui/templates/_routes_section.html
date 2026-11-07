@@ -1,7 +1,7 @@
 {% macro upstream_status(info) %}
   {% set state = info.get("state", "unknown") %}
   {% if state == "ok" %}
-  <span class="health-ok">ok · HTTP {{ info.get("http", "") }}</span>
+  <span class="health-ok">доступен · HTTP {{ info.get("http", "") }}</span>
   {% elif state == "no_key" %}
   <span class="muted small">нет ключа</span>
   {% elif state == "unreachable" %}
@@ -46,7 +46,7 @@
         <dt>GET /health</dt>
         <dd>
           <span class="health-{{ 'ok' if health.status == 'ok' else 'err' }}">
-            {{ health.status }} · HTTP {{ health_status }}
+            {% if health.status == 'ok' %}работает{% elif health.status == 'unavailable' %}недоступен{% else %}{{ health.status }}{% endif %} · HTTP {{ health_status }}
           </span>
         </dd>
         <dt>Маршрутов</dt><dd>{{ routes | length }}</dd>

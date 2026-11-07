@@ -86,6 +86,11 @@ JOB_STATUS_LABELS = {
     "cancelled": "отменено",
     "interrupted": "прервано",
 }
+JOB_ACTION_LABELS = {
+    **{key: spec.label for key, spec in SPEAKER_ACTIONS.items()},
+    **{key: spec.label for key, spec in HOST_ACTIONS.items()},
+    "say": "Произнести",
+}
 
 
 def json_for_pre(value, secrets_dir=None) -> str:
@@ -217,6 +222,9 @@ def create_app(settings: Settings | None = None) -> Flask:
     init_auth(app, settings)
     app.jinja_env.globals["job_status_label"] = (
         lambda status: JOB_STATUS_LABELS.get(status, status)
+    )
+    app.jinja_env.globals["job_action_label"] = (
+        lambda action: JOB_ACTION_LABELS.get(action, action)
     )
 
     profiles = {profile.name: profile for profile in load_profiles(settings.speakers_dir)}

@@ -19,9 +19,9 @@ fi
 TOKEN="$(<"$TOKEN_FILE")"
 [[ -n "$TOKEN" ]] || { echo "Ключ пустой: $TOKEN_FILE" >&2; exit 1; }
 
-echo "LLM:   $BASE"
-echo "Model: $MODEL"
-echo "Key:   ${TOKEN:0:11}…"
+echo "LLM:    $BASE"
+echo "Модель: $MODEL"
+echo "Ключ:   ${TOKEN:0:11}…"
 
 models_code="$(curl -sS -o /tmp/flai-models.json -w '%{http_code}' --max-time 15 \
   -H "Authorization: Bearer $TOKEN" "$BASE/models" || true)"

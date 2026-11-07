@@ -798,6 +798,7 @@ def test_running_job_page_auto_refreshes(client, app, login):
     body = client.get("/jobs/job-1").get_data(as_text=True)
     assert 'http-equiv="refresh"' in body
     assert "working" in body
+    assert "Статус стенда" in body
 
     job.status = "succeeded"
     body = client.get("/jobs/job-1").get_data(as_text=True)
@@ -901,7 +902,8 @@ def test_router_probe_shows_colored_upstream_status(client, app, login, monkeypa
     )
     body = client.get("/access?probe=1").get_data(as_text=True)
     assert "health-ok" in body
-    assert "ok · HTTP 200" in body
+    assert "доступен · HTTP 200" in body
+    assert "работает · HTTP 200" in body
 
     error_payload = {
         "status": "ok",
@@ -1284,6 +1286,8 @@ def test_simple_route_form_hides_technical_fields_and_preserves_them(
     settings.router_config.write_text(json.dumps(raw), encoding="utf-8")
     body = client.get("/access/routes/speaker-a").get_data(as_text=True)
     assert "Таймаут" in body
+    assert "у провайдера (server)" in body
+    assert "у колонки (client)" in body
     assert "token_file" in body
     assert 'name="timeout_seconds"' in body
     response = client.post(

@@ -58,8 +58,8 @@ document.addEventListener('DOMContentLoaded', updateFallbackModels);
     <label>История
       {% set history = fallback.get('history', 'client') %}
       <select name="history">
-        <option value="client"{% if history == 'client' %} selected{% endif %}>client</option>
-        <option value="server"{% if history == 'server' %} selected{% endif %}>server</option>
+        <option value="client"{% if history == 'client' %} selected{% endif %}>у колонки (client)</option>
+        <option value="server"{% if history == 'server' %} selected{% endif %}>у провайдера (server)</option>
       </select>
     </label>
     <label>Таймаут, секунд
