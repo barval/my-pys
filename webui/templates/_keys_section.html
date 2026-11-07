@@ -85,7 +85,7 @@
   <h4 style="margin-top:1.2rem">Добавить ключ</h4>
   <form method="post" action="/keys/upstream" class="card" style="padding:1rem">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-grid">
+    <div class="key-add-row">
       <label>Файл
         <input name="file" required pattern="[a-z0-9][a-z0-9-]{0,63}">
       </label>
@@ -93,11 +93,9 @@
         <input type="password" name="value" required autocomplete="off"
                onfocus="this.type='text'" onblur="this.type='password'">
       </label>
+      <button class="btn btn-success" type="submit">Добавить ключ</button>
     </div>
     <p class="muted small">Файл — имя без каталогов; ключ сохранится в
       <code>secrets/&lt;файл&gt;</code> с правами <code>0600</code>.</p>
-    <div class="form-actions">
-      <button class="btn btn-success" type="submit">Добавить ключ</button>
-    </div>
   </form>
 </section>

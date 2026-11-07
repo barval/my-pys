@@ -1367,6 +1367,7 @@ def test_access_add_key_form_has_no_label_field(client, app, login):
     assert 'name="label"' not in body
     assert 'placeholder="Orca free"' not in body
     assert 'placeholder="orca-token-2"' not in body
+    assert 'class="key-add-row"' in body
 
 
 def test_prepare_screen_headings_and_button_colours(client, app, login):
