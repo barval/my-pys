@@ -13,6 +13,7 @@ def test_more_page_has_sections(client, login, csrf):
     assert "/logout" in body
     assert 'href="/advanced"' in body
     assert "Настройки" in body
+    assert "Последние 100 действий" in body
 
 
 def test_legacy_backup_audit_password_redirect_to_more(client, login):
