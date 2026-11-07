@@ -68,9 +68,11 @@ docker exec my-pys-tts curl -fsS http://127.0.0.1:8083/healthz
 
 - проверьте `docker logs my-pys-webui`;
 - откройте `webui-state/jobs/<id>.json` и `<id>.log`;
-- если задание `queued`, перед ним может быть другое задание на тот же
+- если задание «в очереди», перед ним может быть другое задание на тот же
   target (`speaker-a` или `host`);
-- перезапустите панель, если задание осталось `running` после падения.
+- перезапустите панель, если задание осталось «выполняется» после падения.
+  В JSON заданий при этом используются английские значения `queued` и
+  `running` — это внутренний формат, в интерфейсе они переведены.
 
 ## Стенд lite-kit не запускается из панели
 
@@ -249,13 +251,17 @@ ssh -vvv -i secrets/speaker_ed25519 -p 2222 root@$(./scripts/resolve-speaker.sh)
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' http://192.168.1.2:5000/v1/models \
-  -H "Authorization: Bearer $(cat secrets/upstream-token)"
+  -H "Authorization: Bearer $(cat secrets/upstream-token-speaker-a)"
 ```
+
+Подставьте файл из поля `api_key_file` нужного маршрута — стандартное имя
+`secrets/upstream-token-<имя>`, но панель разрешает и произвольное.
 
 - Upstream LLM не отвечает — проверьте `http://192.168.1.2:5000/health`.
 - Bridge смотрит не туда — в `/data/opt/quasar-bridge/runtime.env`
-  должно быть `QUASAR_LLM_BASE_URL="http://192.168.1.2:5000/v1"`,
-  затем `control.sh restart`.
+  должно быть `QUASAR_LLM_BASE_URL="http://192.168.1.2:5002/v1"`
+  (локальный LLM-роутер, а не upstream напрямую), затем
+  `control.sh restart`.
 - Для другой LLM проверьте `LLM_BASE_URL`, `LLM_MODEL` и ключ.
 
 ## Quasar Bridge: «Проверка нейросети не проходит»
@@ -270,7 +276,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://192.168.1.2:5000/v1/models \
 
 | Ошибка | Причина | Что делать |
 |---|---|---|
-| `HTTP 401` | Неверный/отозванный ключ | Создать новый ключ у провайдера и обновить его в «Ключи → Upstream-ключи» |
+| `HTTP 401` | Неверный/отозванный ключ | Создать новый ключ у провайдера и обновить его в «Модели и доступ → Ключи» |
 | `HTTP 400` | Неверное тело запроса | Проверить `llm_api` = `chat_completions`, модель `flai-chat` |
 | `HTTP 000` / timeout | LLM недоступна | Проверить `http://192.168.1.2:5000/health` и `./scripts/check-llm.sh` |
 | `LLM returned no answer` | Пустой ответ | Проверить upstream вручную, `check-backends` |

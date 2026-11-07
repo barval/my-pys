@@ -50,7 +50,7 @@ Upstream LLM (пример — FLAI, https://github.com/barval/flai):
 2. Создать новый.
 3. Заменить файл, указанный в `api_key_file` маршрута (например,
    `secrets/upstream-token-speaker-a`), или сделать это в панели →
-   «Ключи».
+   «Модели и доступ → Ключи».
 4. Перезапустить Bridge:
    `sh /data/opt/quasar-bridge/app/control.sh restart`.
 
@@ -63,7 +63,7 @@ SSH:
 
 ## Если утёк пароль панели
 
-1. Сменить пароль: `make webui-passwd` или экран «Пароль».
+1. Сменить пароль: `make webui-passwd` или «Настройки → Пароль».
 2. Удалить `secrets/webui-session.key` и перезапустить панель, чтобы
    завершить все сессии.
 3. Проверить `webui-state/audit.jsonl`.

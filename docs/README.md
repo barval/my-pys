@@ -16,7 +16,7 @@
 
 Связанные файлы:
 
-- [README.md](../README.md) — обзор и быстрый старт.
+- [README.md](../README.md) — обзор и два способа настройки: панель и CLI.
 - [.opencode/skills/deploying-my-pys/](../.opencode/skills/deploying-my-pys/SKILL.md)
   — навык для ИИ-агента: развёртывание, прошивка, маршруты, ключи, бэкапы.
 - [config/quasar-bridge-notes.md](../config/quasar-bridge-notes.md) —

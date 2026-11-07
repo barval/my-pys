@@ -20,7 +20,7 @@
 cp config/llm.env.example local/.env
 # добавьте ROOT_STAND_IP=<IP хоста>, например ROOT_STAND_IP=192.168.1.2
 
-cp config/speaker.env.example local/speakers/speaker-a.env
+cp config/speakers/example.env local/speakers/speaker-a.env
 # заполните SPEAKER_IP, SPEAKER_SUBNET, SPEAKER_DEVICE_ID, SPEAKER_MAC,
 # SPEAKER_ROOM, SPEAKER_COLOR, LLM_BASE_URL, LLM_TOKEN_FILE
 ```
@@ -45,7 +45,7 @@ make router-stop
 
 `make router-init` создаёт маршруты и токены только для имён `speaker-a`…
 `speaker-d`. Для любого другого имени добавьте маршрут в панели
-(«Модели»). `secrets/router-routes.json` сопоставляет токен колонки
+(«Модели и доступ»). `secrets/router-routes.json` сопоставляет токен колонки
 основному upstream и до девяти запасным. Роутер слушает LAN-порт `:5002`,
 чтобы колонки могли до него достучаться; не пробрасывайте порт в интернет.
 
@@ -87,10 +87,11 @@ ssh -N -L 8080:127.0.0.1:8080 user@host
 
 ## Панель: экраны
 
-Переключателя режимов нет: после входа доступны все экраны. Меню —
-«Колонки» (`/`), «Модели» (`/access`), «Проверка» (`/test`), «Настройки»
-(`/more`), «Дополнительно» (`/advanced`); справа — «Выйти». Технические
-действия на карточке колонки и технические поля форм видны всегда.
+После входа доступны все экраны. Меню —
+«Колонки» (`/`), «Модели и доступ» (`/access`), «Проверка» (`/test`),
+«Настройки» (`/more`), «Дополнительно» (`/advanced`); справа — «Выйти».
+Технические действия — на странице колонки, технические поля форм видны
+всегда.
 
 | Адрес | Экран |
 |---|---|
