@@ -64,7 +64,6 @@
           <th>Роль</th>
           <th>Base URL</th>
           <th>Модель</th>
-          <th>История</th>
           <th>Ключ</th>
           <th title="GET /models у конкретного upstream">GET /models</th>
           <th></th>
@@ -89,7 +88,6 @@
           <td><span class="badge badge-ok">основной</span></td>
           <td class="mono">{{ primary.get("base_url", "") }}</td>
           <td class="mono">{{ primary.get("model", "") }}</td>
-          <td>{{ primary.get("history", "") }}</td>
           <td class="mono">{{ primary.get("api_key_file", "—") }}</td>
           <td>
             {% if probe_requested %}
@@ -102,7 +100,7 @@
             <a class="btn btn-warning btn-sm" href="/access/routes/{{ route.name }}">Изменить</a>
             <form method="post" action="/access/routes/{{ route.name }}/write-key" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-success btn-sm" type="submit">Записать ключ в колонку</button>
+              <button class="btn btn-success btn-sm" type="submit">Ключ в колонку</button>
             </form>
             <form method="post" action="/router/routes/{{ route.name }}/delete" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -132,7 +130,6 @@
           <td><span class="badge badge-warn">запасной {{ loop.index }}</span></td>
           <td class="mono">{{ fallback.get("base_url", "") }}</td>
           <td class="mono">{{ fallback.get("model", "") }}</td>
-          <td>{{ fallback.get("history", "") }}</td>
           <td class="mono">{{ fallback.get("api_key_file", "—") }}</td>
           <td>
             {% set probe_fallbacks = probe_results.get(route.name, {}).get("fallbacks", []) %}

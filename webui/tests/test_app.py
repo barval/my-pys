@@ -1226,7 +1226,7 @@ def test_route_list_has_write_key_button(client, app, login, csrf, settings):
     write_router_config(settings.router_config)
     body = client.get("/access").get_data(as_text=True)
     assert 'action="/access/routes/speaker-a/write-key"' in body
-    assert "Записать ключ в колонку" in body
+    assert "Ключ в колонку" in body
 
 
 def test_access_page_has_three_sections(client, login):
