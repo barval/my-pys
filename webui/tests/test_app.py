@@ -401,6 +401,8 @@ def test_backup_page_has_restore_notice_and_no_password_fields(client, login):
     login()
     body = client.get("/more").get_data(as_text=True)
     assert "Восстановление заменит" in body
+    assert "ключи провайдеров" in body
+    assert "Храните его в защищённом месте." in body
     assert "restore-backups" in body
     assert "REPLACE" not in body
     assert "Пароль архива" not in body
