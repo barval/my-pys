@@ -84,7 +84,7 @@ Quasar Bridge, маршруты и ключи на колонку, шифров�
 | Найти колонку | `./scripts/resolve-speaker.sh` |
 | Root + SSH + OTA off | `SPEAKER_ENV=local/speakers/speaker-a.env ./scripts/post-root-ssh.sh` |
 | Установить Bridge | `SPEAKER_ENV=... ./scripts/install-quasar-bridge.sh --non-interactive` |
-| Применить политику routing | `SPEAKER_ENV=... ./scripts/apply-bridge-routing.sh` |
+| Применить политику маршрутизации | `SPEAKER_ENV=... ./scripts/apply-bridge-routing.sh` |
 | Записать токен роутера в колонку | `SPEAKER_ENV=... ./scripts/set-speaker-key.sh` |
 | Проверить одну колонку | `SPEAKER_ENV=... make status` / `check-backends` / `routes` |
 | Сказать фразу на колонке | `docker exec -e SPEAKER_ENV=... -e SAY_TEXT="..." my-pys-webui bash scripts/say-text.sh` |

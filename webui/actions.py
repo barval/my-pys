@@ -52,7 +52,7 @@ SPEAKER_ACTIONS: dict[str, ActionSpec] = {
     ),
     "routing": ActionSpec(
         key="routing",
-        label="Применить routing",
+        label="Применить маршрутизацию",
         scope="speaker",
         argv=("bash", "scripts/apply-bridge-routing.sh"),
         needs_profile=True,

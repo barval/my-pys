@@ -88,13 +88,13 @@
   {% if policy_json %}
   <p class="muted">
     Файл <code>config/quasar-bridge-policy.json</code> только для чтения.
-    Кнопка «Применить» на колонке запускает существующее действие routing.
+    Кнопка «Применить» на колонке запускает действие «Применить маршрутизацию».
   </p>
   <pre class="terminal">{{ policy_json | safe }}</pre>
   {% else %}
   <p class="error">
     Файл политики не найден: создайте <code>config/quasar-bridge-policy.json</code>
-    с полями <code>default_route</code> и <code>rules</code>, затем примените routing на колонке.
+    с полями <code>default_route</code> и <code>rules</code>, затем примените маршрутизацию на колонке.
   </p>
   {% endif %}
 </div>
