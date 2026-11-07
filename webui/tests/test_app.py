@@ -1438,6 +1438,8 @@ def test_prepare_screen_headings_and_button_colours(client, app, login):
     assert "Зачем" not in body
     assert "на этот хост." in body
     assert "(после прошивки колонок" not in body
+    assert "добавьте колонку" not in body
+    assert 'href="/start#step-2"' in body
     assert 'class="btn btn-primary" type="submit">Скачать прошивку' in body
     assert 'class="btn btn-success" type="submit">Запустить стенд' in body
     assert 'class="btn btn-danger" type="submit">Остановить стенд' in body
