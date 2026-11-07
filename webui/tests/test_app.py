@@ -1227,6 +1227,9 @@ def test_route_list_has_write_key_button(client, app, login, csrf, settings):
     body = client.get("/access").get_data(as_text=True)
     assert 'action="/access/routes/speaker-a/write-key"' in body
     assert "Ключ в колонку" in body
+    assert "Base URL / Модель" in body
+    assert "http://127.0.0.1:5000/v1<br>flai-chat" in body
+    assert "<th>Модель</th>" not in body
 
 
 def test_access_page_has_three_sections(client, login):

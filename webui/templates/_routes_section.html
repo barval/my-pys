@@ -62,8 +62,7 @@
         <tr>
           <th>Маршрут</th>
           <th>Роль</th>
-          <th>Base URL</th>
-          <th>Модель</th>
+          <th>Base URL / Модель</th>
           <th>Ключ</th>
           <th title="GET /models у конкретного upstream">GET /models</th>
           <th></th>
@@ -86,8 +85,7 @@
             {% endif %}
           </td>
           <td><span class="badge badge-ok">основной</span></td>
-          <td class="mono">{{ primary.get("base_url", "") }}</td>
-          <td class="mono">{{ primary.get("model", "") }}</td>
+          <td class="mono">{{ primary.get("base_url", "") }}<br>{{ primary.get("model", "") }}</td>
           <td class="mono">{{ primary.get("api_key_file", "—") }}</td>
           <td>
             {% if probe_requested %}
@@ -128,8 +126,7 @@
             </div>
           </td>
           <td><span class="badge badge-warn">запасной {{ loop.index }}</span></td>
-          <td class="mono">{{ fallback.get("base_url", "") }}</td>
-          <td class="mono">{{ fallback.get("model", "") }}</td>
+          <td class="mono">{{ fallback.get("base_url", "") }}<br>{{ fallback.get("model", "") }}</td>
           <td class="mono">{{ fallback.get("api_key_file", "—") }}</td>
           <td>
             {% set probe_fallbacks = probe_results.get(route.name, {}).get("fallbacks", []) %}
@@ -149,7 +146,7 @@
         </tr>
         {% endfor %}
         <tr class="add-row">
-          <td colspan="8">
+          <td colspan="6">
             {% if route.fallbacks | length >= max_fallbacks %}
             <span class="muted">Достигнут лимит: {{ max_fallbacks }} запасных маршрутов.</span>
             {% else %}
