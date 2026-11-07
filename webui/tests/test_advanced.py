@@ -8,7 +8,7 @@ def test_more_page_has_sections(client, login, csrf):
     body = client.get("/more").get_data(as_text=True)
     for anchor in ('id="backup"', 'id="audit"', 'id="password"'):
         assert anchor in body
-    for removed in ('id="mode"', 'id="actions"', "Режим интерфейса", "Переходы"):
+    for removed in ('id="mode"', 'id="actions"', "Режим интерфейса", "Переходы", "Шифрованные"):
         assert removed not in body
     assert "/logout" in body
     assert 'href="/advanced"' in body
