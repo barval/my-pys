@@ -752,7 +752,7 @@ def test_project_title_in_login_and_admin(client, login):
     login()
     admin_page = client.get("/").get_data(as_text=True)
     assert "Колонки — Моя персональная Яндекс Станция" in admin_page
-    assert "Моя персональная Яндекс Станция v2.1" in admin_page
+    assert "Моя персональная Яндекс Станция <small>v2.1</small>" in admin_page
 
 
 def test_firmware_page_requires_login(client):
