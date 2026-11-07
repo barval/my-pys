@@ -18,6 +18,12 @@ def test_setup_page_lists_steps(client, login):
     assert ">Настроить</span>" in body
 
 
+def test_setup_step3_opens_scan_page_without_wait(client, login):
+    login()
+    body = client.get("/speakers/speaker-a/setup?step=3").get_data(as_text=True)
+    assert 'href="/speakers/new?autoscan=1"' in body
+
+
 def test_run_step_submits_bridge_job(client, app, login, csrf):
     login()
     runner = FakeRunner()

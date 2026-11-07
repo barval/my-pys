@@ -537,6 +537,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             subnet=subnet,
             subnets=subnets,
             color_choices=COLOR_CHOICES,
+            autoscan=request.args.get("autoscan") == "1",
         )
 
     @app.post("/speakers/new")

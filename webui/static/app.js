@@ -26,6 +26,7 @@ document.querySelectorAll("[data-scan-form]").forEach((form) => {
       url.search = new URLSearchParams(new FormData(form)).toString();
       const response = await fetch(url, { credentials: "same-origin" });
       const html = await response.text();
+      window.history.replaceState(null, "", url);
       document.open();
       document.write(html);
       document.close();
@@ -56,4 +57,8 @@ document.querySelectorAll("[data-dialog-open]").forEach((button) => {
 document.querySelectorAll("dialog [data-dialog-close]").forEach((button) => {
   const dialog = button.closest("dialog");
   if (dialog) button.addEventListener("click", () => dialog.close());
+});
+
+document.querySelectorAll("[data-scan-form][data-autoscan='1']").forEach((form) => {
+  form.requestSubmit();
 });
