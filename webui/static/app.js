@@ -14,6 +14,28 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+document.querySelectorAll("[data-scan-form]").forEach((form) => {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const notice = document.getElementById(form.dataset.scanForm);
+    const button = form.querySelector('button[type="submit"]');
+    if (notice) notice.hidden = false;
+    if (button) button.disabled = true;
+    try {
+      const url = new URL(form.action, window.location.href);
+      url.search = new URLSearchParams(new FormData(form)).toString();
+      const response = await fetch(url, { credentials: "same-origin" });
+      const html = await response.text();
+      document.open();
+      document.write(html);
+      document.close();
+    } catch (error) {
+      if (notice) notice.textContent = "Не удалось выполнить поиск. Проверьте сеть и повторите.";
+      if (button) button.disabled = false;
+    }
+  });
+});
+
 document.addEventListener("click", (event) => {
   const button = event.target.closest("[data-fill]");
   if (!button) return;

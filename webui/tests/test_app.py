@@ -1226,6 +1226,9 @@ def test_scan_page_shows_russian_error_for_bad_subnet(client, login):
     response = client.get("/speakers/new?scan=1&subnet=192.168.1.500")
     assert response.status_code == 200
     assert "Некорректная подсеть" in response.get_data(as_text=True)
+    body = client.get("/speakers/new").get_data(as_text=True)
+    assert "data-scan-form" in body
+    assert "Идёт поиск колонок" in body
 
 
 def test_access_page_lists_upstream_keys(client, app, login, csrf, settings):
