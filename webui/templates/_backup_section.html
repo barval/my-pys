@@ -71,7 +71,7 @@
         {% for item in backups %}
         <tr>
           <td class="mono">{{ item.name }}</td>
-          <td>{{ item.size }} Б</td>
+          <td>{{ format_size(item.size) }}</td>
           <td class="mono">{{ item.modified }}</td>
           <td><a class="btn btn-ghost btn-sm" href="/backup/download/{{ item.name }}">Скачать</a></td>
         </tr>

@@ -257,6 +257,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         lambda action: JOB_ACTION_LABELS.get(action, action)
     )
     app.jinja_env.globals["breadcrumbs"] = render_breadcrumbs
+    app.jinja_env.globals["format_size"] = format_size
 
     profiles = {profile.name: profile for profile in load_profiles(settings.speakers_dir)}
     runner = JobRunner(
