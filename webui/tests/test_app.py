@@ -23,6 +23,8 @@ def test_speaker_page_shows_full_identifiers(client, login):
     body = response.get_data(as_text=True)
     assert "EXAMPLE000000000000000000000001" in body
     assert "02:00:00:00:00:01" in body
+    assert 'class="inline-row"' in body
+    assert 'rel="icon"' in body
 
 
 def test_speaker_action_creates_job(client, app, login, csrf):
@@ -625,7 +627,6 @@ def test_probe_creates_status_jobs(client, app, login, csrf):
 
 def test_probe_page_auto_refresh_with_running_jobs(client, app, login, csrf, monkeypatch):
     """Page ?probe=1 shows refresh meta and notice when status jobs are running."""
-    from webui.jobs import JobRunner
     from types import SimpleNamespace
 
     login()
@@ -1371,7 +1372,7 @@ def test_access_add_key_form_has_no_label_field(client, app, login):
     assert 'name="label"' not in body
     assert 'placeholder="Orca free"' not in body
     assert 'placeholder="orca-token-2"' not in body
-    assert 'class="key-add-row"' in body
+    assert 'class="inline-row"' in body
 
 
 def test_prepare_screen_headings_and_button_colours(client, app, login):

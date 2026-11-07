@@ -8,7 +8,6 @@
 <section class="card">
   <h2>Начало</h2>
   <p>{{ host_step.hint }}</p>
-  <p class="muted small">Не забудьте вернуть DNS роутера после прошивки, иначе доступ в интернет на колонке может не заработать.</p>
 </section>
 
 <section class="card" style="margin-top:1rem">
@@ -46,6 +45,26 @@
     </form>
     {% endfor %}
   </div>
+</section>
+
+<section class="card" style="margin-top:1rem">
+  <h2>DNS роутера</h2>
+  <p>Стенд <code>lite-kit</code> должен притвориться сервером Яндекса: он
+    подменяет адрес <code>quasar.yandex.net</code> и отдаёт колонке прошивку.
+    Для этого колонка должна получать DNS-сервер стенда.</p>
+  <ol>
+    <li><strong>До прошивки.</strong> В настройках DHCP/DNS роутера укажите
+      предпочитаемый DNS-сервер <code>{{ config.WEBUI_STAND_IP }}</code> —
+      адрес этого хоста. Альтернативный DNS очистите.</li>
+    <li>Перезагружать роутер не нужно: новый DNS применится к следующему
+      DHCP-запросу колонки.</li>
+    <li><strong>После прошивки и привязки.</strong> Верните на роутере прежний
+      DNS (обычно «получить автоматически» от провайдера) и остановите стенд.
+      Иначе колонка может потерять обычный доступ в интернет.</li>
+  </ol>
+  <p class="muted small">Если колонка не привязывается или не скачивает
+    прошивку, проверьте DNS и логи стенда:
+    <code>docker logs ysl-lite-kit</code>.</p>
 </section>
 
 <section class="card" style="margin-top:1rem">

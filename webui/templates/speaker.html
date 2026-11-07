@@ -78,11 +78,13 @@
   <h2>Удаление</h2>
   <form method="post" action="/speakers/{{ profile.name }}/delete" class="stack">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label>Введите имя колонки для подтверждения
-      <input name="confirm" placeholder="{{ profile.name }}" required>
-    </label>
+    <div class="inline-row">
+      <label>Введите имя колонки для подтверждения
+        <input name="confirm" placeholder="{{ profile.name }}" required>
+      </label>
+      <button class="btn btn-danger" type="submit">Удалить колонку</button>
+    </div>
     <p class="muted">Колонка пропадёт из панели, файлы останутся в корзине.</p>
-    <button class="btn btn-danger" type="submit">Удалить колонку</button>
   </form>
 </section>
   <section class="card" style="margin-top:1rem">

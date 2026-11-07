@@ -243,9 +243,9 @@ input[type="checkbox"] { width: auto; }
 .form-actions { display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-end; margin-top: 1rem; }
 .form-actions .btn { align-self: flex-end; }
 
-/* «Добавить ключ»: поля и кнопка в одну строку */
-.key-add-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; }
-.key-add-row label { flex: 1 1 220px; margin: 0; }
+/* Поле ввода и кнопка в одну строку */
+.inline-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; }
+.inline-row label { flex: 1 1 220px; margin: 0; }
 
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
 table { width: 100%; border-collapse: collapse; font-size: .92rem; }
