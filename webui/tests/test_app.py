@@ -559,6 +559,7 @@ def test_home_lists_speaker_cards(client, login):
     assert 'href="/access"' in body
     assert 'href="/test"' in body
     assert 'href="/more"' in body
+    assert body.index("Настроить") < body.index("Проверить голосом")
 
 
 def test_legacy_speakers_url_redirects(client, login):
