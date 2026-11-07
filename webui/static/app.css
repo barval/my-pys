@@ -643,9 +643,6 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
 
 .subnet-field { max-width: 12rem; }
 
-/* Широкие экраны (например, таблица маршрутов) */
-.page-wide { max-width: 80%; }
-
 /* Маршруты — каждая запись в одну строку */
 #routes th,
 #routes td { white-space: nowrap; }

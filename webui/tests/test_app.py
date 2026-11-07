@@ -1355,7 +1355,7 @@ def test_access_probe_buttons_are_primary(client, app, login, settings):
                    [Provider("flai", "FLAI", "http://10.0.0.2:5000/v1", ("m",))])
     body = client.get("/access").get_data(as_text=True)
     assert 'class="btn btn-primary btn-sm" type="submit">Проверить связь' in body
-    assert "page-wide" in body
+    assert "page-wide" not in body
 
 
 def test_access_add_key_form_has_no_label_field(client, app, login):
