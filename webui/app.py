@@ -50,7 +50,7 @@ from .backup import (
     resolve_backup,
     restore_backup,
 )
-from .discovery import scan
+from .discovery import merge_known_profiles, scan
 from .jobs import JobRunner
 from .keys import (
     add_upstream_key,
@@ -515,6 +515,8 @@ def create_app(settings: Settings | None = None) -> Flask:
         if request.args.get("scan") == "1":
             try:
                 devices = scan(subnet)
+                refresh_profiles()
+                devices = merge_known_profiles(devices, profiles.values())
             except ValueError as exc:
                 error = str(exc)
         subnets = subnet_prefixes(

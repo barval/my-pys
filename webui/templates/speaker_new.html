@@ -27,7 +27,10 @@
     <ul class="found">
       {% for device in devices %}
       <li>
-        {% if device.device_id %}
+        {% if device.profile_name %}
+        {{ device.ip }} — {{ device.profile_name }} (уже добавлена)
+        <a class="btn btn-ghost btn-sm" href="/speakers/{{ device.profile_name }}">Открыть</a>
+        {% elif device.device_id %}
         {{ device.ip }} — {{ device.model }} ({{ device.mac }})
         <button type="button" class="btn" data-fill
                 data-ip="{{ device.ip }}"

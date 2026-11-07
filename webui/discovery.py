@@ -18,6 +18,7 @@ class Discovered:
     device_id: str
     model: str
     hostname: str
+    profile_name: str = ""
 
 
 def parse_subnet(value: str) -> list[str]:
@@ -69,6 +70,30 @@ def probe_host(ip: str, *, runner=_run, adb_port: int = 5555) -> Discovered | No
     return Discovered(ip, mac, device_id, model, f"yandexmicro-{device_id}")
 
 
+def _ip_key(device: Discovered) -> tuple[int, ...]:
+    return tuple(int(part) for part in device.ip.split("."))
+
+
+def merge_known_profiles(devices: list[Discovered], profiles) -> list[Discovered]:
+    """Дополняет найденные адреса данными профилей и поднимает их наверх."""
+    by_ip = {profile.ip: profile for profile in profiles if profile.ip}
+    merged: list[Discovered] = []
+    for device in devices:
+        profile = by_ip.get(device.ip)
+        if profile is not None:
+            device = Discovered(
+                ip=device.ip,
+                mac=device.mac or profile.mac,
+                device_id=device.device_id or profile.device_id,
+                model=device.model or profile.model,
+                hostname=device.hostname,
+                profile_name=profile.name,
+            )
+        merged.append(device)
+    merged.sort(key=lambda item: (not bool(item.profile_name or item.device_id), _ip_key(item)))
+    return merged
+
+
 def scan(
     subnet: str, *, runner=_run, workers: int = 32, adb_port: int = 5555
 ) -> list[Discovered]:
@@ -78,5 +103,5 @@ def scan(
             lambda ip: probe_host(ip, runner=runner, adb_port=adb_port), hosts
         )
     devices = [device for device in found if device is not None]
-    devices.sort(key=lambda device: tuple(int(part) for part in device.ip.split(".")))
+    devices.sort(key=_ip_key)
     return devices

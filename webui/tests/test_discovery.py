@@ -2,7 +2,7 @@ import subprocess
 
 import pytest
 
-from webui.discovery import Discovered, parse_subnet, probe_host, scan
+from webui.discovery import Discovered, merge_known_profiles, parse_subnet, probe_host, scan
 
 
 def completed(argv, stdout=""):
@@ -25,6 +25,30 @@ def fake_runner(alive):
             return completed(argv, "02:00:00:00:00:99\n")
         return completed(argv)
     return run
+
+
+def test_merge_known_profiles_enriches_and_sorts():
+    class Profile:
+        def __init__(self, name, ip, mac, device_id, model):
+            self.name = name
+            self.ip = ip
+            self.mac = mac
+            self.device_id = device_id
+            self.model = model
+
+    devices = [
+        Discovered("192.168.1.1", "", "", "", ""),
+        Discovered("192.168.1.2", "", "", "", ""),
+        Discovered("192.168.1.3", "02:00:00:00:00:03", "EXAMPLE3", "Station", ""),
+    ]
+    profiles = [
+        Profile("kitchen", "192.168.1.2", "02:00:00:00:00:02", "EXAMPLE2", "Station")
+    ]
+    merged = merge_known_profiles(devices, profiles)
+    assert [item.ip for item in merged] == ["192.168.1.2", "192.168.1.3", "192.168.1.1"]
+    assert merged[0].profile_name == "kitchen"
+    assert merged[0].device_id == "EXAMPLE2"
+    assert merged[0].mac == "02:00:00:00:00:02"
 
 
 def test_parse_subnet_returns_254_hosts():
