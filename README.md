@@ -60,7 +60,7 @@ docs/
   06-flai-all-cameras-api-bug.md  баг FLAI с камерами (исторический)
   07-webui.md                 веб-панель: Docker, вход, разделы, бэкапы
 config/
-  llm.env.example             пример переменных внешней LLM
+  llm.env.example             пример local/.env: адрес хоста и внешняя LLM
   router-routes.example.json  пример таблицы маршрутов роутера
   quasar-bridge-policy.json   политика: Яндекс-сервисы vs внешняя LLM
   quasar-bridge-notes.md      настройки Bridge и внешней LLM
