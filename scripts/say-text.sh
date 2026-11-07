@@ -25,7 +25,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Колонка: $IP"
+LABEL="$IP"
+if [[ -n "${SPEAKER_NAME:-}" ]]; then
+  LABEL="$SPEAKER_NAME${SPEAKER_ROOM:+ — $SPEAKER_ROOM} ($IP)"
+fi
+
+echo "Колонка: $LABEL"
 echo "TTS:     $TTS_URL"
 echo "Текст:   $TEXT"
 
