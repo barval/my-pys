@@ -76,3 +76,19 @@ def test_more_page_audit_is_scrollable(client, login):
     body = client.get("/more").get_data(as_text=True)
     assert "audit-scroll" in body
     assert "Записей нет" in body or "<tbody>" in body
+
+
+def test_advanced_index_has_no_back_link(client, login):
+    login()
+    body = client.get("/advanced").get_data(as_text=True)
+    assert "<h1>Дополнительно</h1>" in body
+    assert 'class="back" href="/advanced"' not in body
+
+
+def test_menu_uses_settings_and_models_and_access(client, login):
+    login()
+    body = client.get("/").get_data(as_text=True)
+    assert ">Настройки</a>" in body
+    assert ">Модели и доступ</a>" in body
+    assert ">Дополнительно</a>" in body
+    assert ">Ещё</a>" not in body

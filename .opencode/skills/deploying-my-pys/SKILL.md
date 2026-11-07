@@ -1,6 +1,6 @@
 ---
 name: Deploying my-pys
-description: Use when deploying, flashing, rooting, or operating the my-pys project (My Personal Yandex Station) in this repository — host Docker stack, Yandex Station Lite speakers, Quasar Bridge, LLM router, routes, upstream keys, local TTS, backups, and rollback.
+description: Use when deploying, flashing, rooting, or operating the my-pys project (My personal Yandex Station) in this repository — host Docker stack, Yandex Station Lite speakers, Quasar Bridge, LLM router, routes, upstream keys, local TTS, backups, and rollback.
 ---
 
 # Развёртывание my-pys

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <a class="back" href="/advanced">← Дополнительно</a>
+    {% if view != "index" %}<a class="back" href="/advanced">← Дополнительно</a>{% endif %}
     <h1>{{ title }}</h1>
     <div class="sub">{{ subtitle }}</div>
   </div>

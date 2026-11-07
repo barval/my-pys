@@ -1646,7 +1646,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         return render_template(
             "advanced.html",
             view="index",
-            title="Продвинутое",
+            title="Дополнительно",
             subtitle="Технические экраны и обслуживание панели",
         )
 

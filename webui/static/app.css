@@ -506,10 +506,11 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
 .speaker-toolbar .search-wrapper {
   display: flex;
   gap: .5rem;
-  flex: 0 1 22rem;
-  max-width: 22rem;
+  flex: 1 1 50%;
+  max-width: 50%;
   margin-top: 0;
 }
+.speaker-toolbar .search-wrapper input[type="search"] { flex: 1 1 auto; min-width: 0; }
 .speaker-toolbar .toolbar-right {
   display: flex;
   flex-direction: column;
@@ -643,7 +644,7 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
 .subnet-field { max-width: 12rem; }
 
 /* Широкие экраны (например, таблица маршрутов) */
-.page-wide { max-width: none; }
+.page-wide { max-width: 80%; }
 
 /* Маршруты — каждая запись в одну строку */
 #routes th,
@@ -660,3 +661,10 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
   top: 0;
   z-index: 1;
 }
+
+/* Экран «Проверка»: одинаковая сетка и кнопки на одной линии */
+.test-card { display: flex; flex-direction: column; height: 100%; }
+.test-card .test-form { display: flex; flex-direction: column; gap: .6rem; flex: 1 1 auto; }
+.test-card .field-inline { display: flex; align-items: center; gap: .6rem; }
+.test-card .field-inline select { flex: 1 1 auto; min-width: 0; }
+.test-card .test-form button { margin-top: auto; align-self: flex-start; }

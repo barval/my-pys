@@ -725,11 +725,11 @@ def test_fallback_is_added_edited_and_deleted(client, app, login, csrf):
 
 def test_project_title_in_login_and_admin(client, login):
     login_page = client.get("/login").get_data(as_text=True)
-    assert "Моя Яндекс Станция" in login_page
+    assert "Моя персональная Яндекс Станция" in login_page
     login()
     admin_page = client.get("/").get_data(as_text=True)
-    assert "Колонки — Моя Яндекс Станция" in admin_page
-    assert "Моя Яндекс Станция" in admin_page
+    assert "Колонки — Моя персональная Яндекс Станция" in admin_page
+    assert "Моя персональная Яндекс Станция v2.1" in admin_page
 
 
 def test_firmware_page_requires_login(client):

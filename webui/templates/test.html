@@ -7,7 +7,10 @@
 {% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Проверка</h1>
+  <div>
+    <h1>Проверка</h1>
+    <div class="sub">Голос, LLM и Bridge на выбранной колонке</div>
+  </div>
 </div>
 
 {% if job %}
@@ -21,12 +24,12 @@
 {% endif %}
 
 <div class="grid cards">
-  <section class="card" id="voice">
+  <section class="card test-card" id="voice">
     <h2>Голос</h2>
     <p class="muted small">Произнесите фразу на выбранной колонке. Синтез — локальный TTS, воспроизведение — на колонке.</p>
-    <form method="post" action="/test/say" class="stack">
+    <form method="post" action="/test/say" class="stack test-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label>Колонка
+      <label class="field-inline">Колонка
         <select name="speaker" required>
           {% for card in cards %}
           <option value="{{ card.profile.name }}">{{ card.profile.name }} — {{ card.profile.room or card.profile.platform }}</option>
@@ -40,12 +43,12 @@
     </form>
   </section>
 
-  <section class="card" id="llm">
+  <section class="card test-card" id="llm">
     <h2>LLM</h2>
     <p class="muted small">Проверяет ответ LLM через маршрут роутера. Если LLM не отвечает → проверьте маршрут в «Модели».</p>
-    <form method="post" action="/test/check" class="stack">
+    <form method="post" action="/test/check" class="stack test-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label>Колонка
+      <label class="field-inline">Колонка
         <select name="speaker" required>
           {% for card in cards %}
           <option value="{{ card.profile.name }}">{{ card.profile.name }} — {{ card.profile.room or card.profile.platform }}</option>
@@ -56,12 +59,12 @@
     </form>
   </section>
 
-  <section class="card" id="bridge">
+  <section class="card test-card" id="bridge">
     <h2>Bridge</h2>
     <p class="muted small">Проверяет доступность Bridge на колонке. Если Bridge не отвечает → шаг 7 мастера.</p>
-    <form method="post" action="/test/bridge" class="stack">
+    <form method="post" action="/test/bridge" class="stack test-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label>Колонка
+      <label class="field-inline">Колонка
         <select name="speaker" required>
           {% for card in cards %}
           <option value="{{ card.profile.name }}">{{ card.profile.name }} — {{ card.profile.room or card.profile.platform }}</option>
