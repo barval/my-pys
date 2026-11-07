@@ -12,7 +12,14 @@
 <body class="login-page">
   <div class="login-card">
     <div class="login-logo">◉</div>
-    <h1>{{ config.WEBUI_TITLE }}</h1>
+    <h1>
+      {%- set title_parts = config.WEBUI_TITLE.split(" Яндекс ") -%}
+      {%- if title_parts | length == 2 -%}
+      {{ title_parts[0] }}<br>Яндекс {{ title_parts[1] }}
+      {%- else -%}
+      {{ config.WEBUI_TITLE }}
+      {%- endif -%}
+    </h1>
     <p class="muted">Локальное управление колонками, роутером и ключами</p>
 
     {% if notice %}<p class="flash">{{ notice }}</p>{% endif %}

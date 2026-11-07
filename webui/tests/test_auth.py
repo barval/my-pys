@@ -9,6 +9,11 @@ def test_password_roundtrip():
     assert not verify_password("wrong", encoded)
 
 
+def test_login_title_breaks_before_yandex(client):
+    body = client.get("/login").get_data(as_text=True)
+    assert "Моя персональная<br>Яндекс Станция" in body
+
+
 def test_protected_page_redirects_to_login(client):
     response = client.get("/speakers")
     assert response.status_code == 302
