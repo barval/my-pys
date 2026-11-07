@@ -31,7 +31,7 @@
 
   <section class="card wizard-card">
     <h2>{{ current.number }}. {{ current.title }}</h2>
-    <p class="muted">Зачем: {{ current.hint }}</p>
+    <p class="muted">{{ current.hint }}</p>
 
     {% if progress.last_job %}
     <p class="muted small">Последнее задание: <a href="/jobs/{{ progress.last_job }}">/jobs/{{ progress.last_job }}</a></p>
