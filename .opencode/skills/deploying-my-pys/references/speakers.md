@@ -107,7 +107,7 @@ export SPEAKER_ENV=local/speakers/speaker-a.env
 ```
 
 Установщику нужен `secrets/speaker_ed25519`; для неинтерактивного пути —
-`python3-pexpect`; сборка `-chunked` берётся из `.cache/`, если она там
+`python3-pexpect` (в образе `webui` уже установлен); сборка `-chunked` берётся из `.cache/`, если она там
 есть. Он также читает `LLM_TOKEN_FILE` из профиля (запасной вариант —
 `secrets/router-token-example`), поэтому профиль должен его задавать.
 `make router-init` создаёт только `secrets/router-token-speaker-a`…`speaker-d`;

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from webui.profiles import load_profiles, mask_secret, parse_env
+from webui.profiles import NAME_RE, load_profiles, mask_secret, parse_env
 
 
 def test_parse_env_ignores_comments_and_quotes(tmp_path):
@@ -23,6 +23,24 @@ def test_load_profiles_skips_example(tmp_path):
         encoding="utf-8",
     )
     assert [p.name for p in load_profiles(tmp_path)] == ["speaker-a"]
+
+
+def test_load_profiles_skips_invalid_file(tmp_path):
+    (tmp_path / "speaker-a.env").write_text(
+        "SPEAKER_NAME=speaker-a\n"
+        "SPEAKER_DEVICE_ID=EXAMPLE0001\n"
+        "SPEAKER_MAC=02:00:00:00:00:01\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "broken.env").write_text(
+        "SPEAKER_NAME=broken\n", encoding="utf-8"
+    )
+    assert [p.name for p in load_profiles(tmp_path)] == ["speaker-a"]
+
+
+def test_profile_name_length_allows_router_token_prefix():
+    assert NAME_RE.fullmatch("a" * 51)
+    assert not NAME_RE.fullmatch("a" * 52)
 
 
 def test_mask_secret_keeps_edges():

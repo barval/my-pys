@@ -273,6 +273,15 @@ def test_config_reloads_when_upstream_key_appears(tmp_path):
     assert store.get().by_token("sk-router-test").primary.available is True
 
 
+def test_fallback_on_string_is_parsed(tmp_path):
+    path = write_config(tmp_path, "http://127.0.0.1:1/v1")
+    raw = json.loads(path.read_text())
+    raw["routes"][0]["primary"]["fallback_on"] = "503, 429"
+    path.write_text(json.dumps(raw))
+    config = r.load_config(path)
+    assert config.by_token("sk-router-test").primary.fallback_on == {429, 503}
+
+
 def test_session_rotates_after_thirty_minutes_idle(tmp_path):
     config = r.load_config(write_config(tmp_path, "http://127.0.0.1:1/v1"))
     route = config.by_token("sk-router-test")
@@ -570,5 +579,12 @@ def test_probe_upstream_reports_ok(tmp_path):
 
 
 def test_probe_upstream_without_key_does_not_connect():
-    result = r.probe_upstream(r.Upstream(base_url="http://127.0.0.1:1/v1"))
+    upstream = r.Upstream(base_url="http://127.0.0.1:1/v1", key_file="missing")
+    assert upstream.available is False
+    result = r.probe_upstream(upstream)
     assert result == {"state": "no_key"}
+
+
+def test_keyless_upstream_is_available():
+    upstream = r.Upstream(base_url="http://127.0.0.1:1/v1")
+    assert upstream.available is True

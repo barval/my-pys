@@ -14,6 +14,7 @@ import copy
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import threading
@@ -45,10 +46,12 @@ class Upstream:
     history: str = "client"
     timeout_seconds: float = 120.0
     fallback_on: frozenset[int] = DEFAULT_FALLBACK_STATUSES
+    key_file: str | None = None
 
     @property
     def available(self) -> bool:
-        return bool(self.api_key)
+        # Без api_key_file upstream может быть локальным и работать без ключа.
+        return bool(self.base_url) and (bool(self.api_key) or not self.key_file)
 
 
 @dataclass(frozen=True)
@@ -115,6 +118,13 @@ def _mtime_ns(path: Path) -> int:
         return 0
 
 
+def _parse_fallback_statuses(raw: Any) -> frozenset[int]:
+    if isinstance(raw, str):
+        parts = re.split(r"[\s,]+", raw.strip())
+        return frozenset(int(part) for part in parts if part)
+    return frozenset(int(code) for code in raw)
+
+
 def _parse_upstream(
     raw: Any,
     base_dir: Path,
@@ -151,9 +161,13 @@ def _parse_upstream(
 
     try:
         timeout_seconds = float(raw.get("timeout_seconds", 120))
-        fallback_on = frozenset(int(code) for code in raw.get("fallback_on", DEFAULT_FALLBACK_STATUSES))
+        fallback_on = _parse_fallback_statuses(
+            raw.get("fallback_on", DEFAULT_FALLBACK_STATUSES)
+        )
     except (TypeError, ValueError) as exc:
         raise ConfigError(f"invalid upstream timeout/status list: {exc}") from exc
+    if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+        raise ConfigError("upstream.timeout_seconds must be a positive number")
 
     return Upstream(
         base_url=base_url.rstrip("/"),
@@ -162,6 +176,7 @@ def _parse_upstream(
         history=history,
         timeout_seconds=timeout_seconds,
         fallback_on=fallback_on,
+        key_file=key_file if isinstance(key_file, str) and key_file else None,
     )
 
 
@@ -206,14 +221,13 @@ def probe_upstream(upstream: Upstream, timeout: float = 3.0) -> dict[str, Any]:
     if not upstream.available:
         return {"state": "no_key"}
     url = upstream.base_url.rstrip("/") + "/models"
-    request = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {upstream.api_key}",
-            "Accept": "application/json",
-            "User-Agent": "llm-router/1.0",
-        },
-    )
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "llm-router/1.0",
+    }
+    if upstream.api_key:
+        headers["Authorization"] = f"Bearer {upstream.api_key}"
+    request = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             status = int(response.status)
@@ -599,11 +613,15 @@ def _http_json(
 
 
 def cleanup_sessions(route: Route, sessions: SessionManager) -> int:
-    """Оставляет текущую сессию FLAI и две предыдущие для этого маршрута."""
-    upstream = route.primary
-    if upstream.history != "server" or not upstream.available:
-        return 0
+    """Оставляет текущую сессию FLAI и две предыдущие для всех server-upstream."""
+    total = 0
+    for upstream in (route.primary, *route.fallbacks):
+        if upstream.history == "server" and upstream.available:
+            total += _cleanup_upstream(route, upstream, sessions)
+    return total
 
+
+def _cleanup_upstream(route: Route, upstream: Upstream, sessions: SessionManager) -> int:
     users = sessions.users_for(route)
     titles = {_session_title(user) for user in users}
     current_title = _session_title(users[-1])
@@ -829,7 +847,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
             attempts.append((upstream, label))
 
         for index, (upstream, label) in enumerate(attempts):
-            has_next = index + 1 < len(attempts)
+            has_next = any(item.available for item, _ in attempts[index + 1 :])
             if not upstream.available:
                 LOG.warning("route=%s attempt=%s has no upstream key", route.name, label)
                 continue
@@ -837,16 +855,18 @@ class ProxyHandler(BaseHTTPRequestHandler):
             payload = build_payload(upstream, body, session_user) if body is not None else None
             data = _json_bytes(payload) if payload is not None else (raw_body or None)
             url = upstream.base_url.rstrip("/") + path[len("/v1") :]
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream" if stream else "application/json",
+                "User-Agent": "llm-router/1.0",
+            }
+            if upstream.api_key:
+                headers["Authorization"] = f"Bearer {upstream.api_key}"
             request = urllib.request.Request(
                 url,
                 data=data,
                 method=method,
-                headers={
-                    "Authorization": f"Bearer {upstream.api_key}",
-                    "Content-Type": "application/json",
-                    "Accept": "text/event-stream" if stream else "application/json",
-                    "User-Agent": "llm-router/1.0",
-                },
+                headers=headers,
             )
             started = time.monotonic()
 

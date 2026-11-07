@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
+import threading
 import urllib.request
 from pathlib import Path
 
@@ -123,6 +125,8 @@ def _upstream_from_form(form, *, prefix: str = "", default_history: str = "serve
         )
     except ValueError as exc:
         raise ValueError("timeout_seconds должен быть числом") from exc
+    if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+        raise ValueError("timeout_seconds должен быть положительным числом")
 
     errors: list[str] = []
     if not model:
@@ -190,6 +194,8 @@ def _upstream_from_provider(
         timeout_seconds = float(form.get("timeout_seconds") or form.get("timeout") or "180")
     except ValueError as exc:
         raise ValueError("timeout_seconds должен быть числом") from exc
+    if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+        raise ValueError("timeout_seconds должен быть положительным числом")
     return {
         "base_url": provider.base_url,
         "api_key_file": api_key_file,
@@ -252,11 +258,17 @@ def create_app(settings: Settings | None = None) -> Flask:
         )
         return sync_from_jobs(status_path, jobs_list)
 
+    profiles_lock = threading.RLock()
+
     def reload_profiles() -> None:
-        profiles.clear()
-        profiles.update(
-            {profile.name: profile for profile in load_profiles(settings.speakers_dir)}
-        )
+        nonlocal profiles
+        loaded = {
+            profile.name: profile
+            for profile in load_profiles(settings.speakers_dir)
+        }
+        with profiles_lock:
+            profiles = loaded
+            app.extensions["profiles"] = loaded
 
     def profiles_mtime() -> float:
         try:
@@ -271,9 +283,10 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     def refresh_profiles() -> None:
         mtime = profiles_mtime()
-        if mtime != profile_state["mtime"]:
-            reload_profiles()
-            profile_state["mtime"] = mtime
+        with profiles_lock:
+            if mtime != profile_state["mtime"]:
+                reload_profiles()
+                profile_state["mtime"] = mtime
 
     def speaker_cards() -> list[dict]:
         refresh_profiles()
@@ -495,6 +508,21 @@ def create_app(settings: Settings | None = None) -> Flask:
             "SPEAKER_COLOR": form.get("color", "").strip().lower(),
             "SPEAKER_MODEL": form.get("model", "").strip(),
         }
+
+        def form_error(message: str):
+            return render_template(
+                "speaker_new.html",
+                error=message,
+                devices=None,
+                subnet=values["SPEAKER_SUBNET"] or "192.168.1",
+                subnets=subnet_prefixes(
+                    load_subnets(settings.state_dir / "host-subnets.json")
+                ) or fallback_prefixes(profiles.values()),
+                color_choices=COLOR_CHOICES,
+            ), 400
+
+        if name and (settings.speakers_dir / f"{name}.env").exists():
+            return form_error("Колонка с таким именем уже существует")
         try:
             validate_profile(
                 name,
@@ -510,16 +538,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 raise ValueError("недопустимый цвет")
             write_profile(settings.speakers_dir, values)
         except ValueError as exc:
-            return render_template(
-                "speaker_new.html",
-                error=str(exc),
-                devices=None,
-                subnet=values["SPEAKER_SUBNET"] or "192.168.1",
-                subnets=subnet_prefixes(
-                    load_subnets(settings.state_dir / "host-subnets.json")
-                ) or fallback_prefixes(profiles.values()),
-                color_choices=COLOR_CHOICES,
-            ), 400
+            return form_error(str(exc))
         reload_profiles()
         audit("speaker.create", name)
         return redirect(url_for("speaker_setup", name=name, step=4), code=303)
@@ -686,18 +705,30 @@ def create_app(settings: Settings | None = None) -> Flask:
         raw = router_config()
         route = find_route(raw, name)
         appearance = load_overrides(appearance_path).get(profile.device_id)
+        if route is not None:
+            try:
+                new_raw = delete_route(raw, name)
+                if not new_raw.get("routes"):
+                    return (
+                        "Нельзя удалить последнюю колонку: в роутере должен "
+                        "остаться хотя бы один маршрут.",
+                        400,
+                    )
+                save_config(settings.router_config, new_raw)
+            except (ConfigError, OSError) as exc:
+                return str(exc), 400
         try:
             dest = archive_profile(
                 settings, name, route=route,
                 appearance=appearance,
             )
         except ValueError as exc:
+            if route is not None:
+                try:
+                    save_config(settings.router_config, raw)
+                except (ConfigError, OSError):
+                    pass
             return str(exc), 400
-        if route is not None:
-            try:
-                save_config(settings.router_config, delete_route(raw, name))
-            except (ConfigError, OSError) as exc:
-                return str(exc), 400
         remove_override(appearance_path, profile.device_id)
         reload_profiles()
         audit("speaker.delete", name, detail=str(dest))
@@ -1532,7 +1563,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             return redirect("/more#backup")
         try:
             path = create_backup(settings, scope, passphrase)
-        except BackupError as exc:
+        except (BackupError, ConfigError, ValueError, OSError) as exc:
             flash(str(exc))
             return redirect("/more#backup")
         audit("backup.create", scope, detail=path.name)
@@ -1545,7 +1576,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         passphrase = request.form.get("passphrase", "")
         try:
             manifest = inspect_backup(settings, name, passphrase)
-        except BackupError as exc:
+        except (BackupError, ConfigError, ValueError, OSError) as exc:
             flash(str(exc))
             return redirect("/more#backup")
         return render_template(
@@ -1606,7 +1637,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 f"Файлов: {summary['restored']}. "
                 f"Снапшот: {summary['snapshot']}"
             )
-        except BackupError as exc:
+        except (BackupError, ConfigError, ValueError, OSError) as exc:
             flash(str(exc))
         finally:
             if temp_path is not None:

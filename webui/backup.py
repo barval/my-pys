@@ -114,6 +114,39 @@ def _collect(settings: Settings, scope: str) -> tuple[list[tuple[str, Path]], st
         for path in sorted(secrets_dir.glob("*-token-*")):
             if path.is_file():
                 files.append((f"secrets/{path.name}", path))
+        # Ключи с произвольными именами берём из маршрутов: панель разрешает
+        # называть файлы как угодно, а не только *-token-*.
+        seen = {archive_name for archive_name, _ in files}
+        try:
+            raw = read_config(settings.router_config)
+        except (OSError, ValueError):
+            raw = {}
+        for route in raw.get("routes", []):
+            if not isinstance(route, dict):
+                continue
+            candidates = [route.get("token_file")]
+            for upstream in [route.get("primary"), *(route.get("fallbacks") or [])]:
+                if isinstance(upstream, dict):
+                    candidates.append(upstream.get("api_key_file"))
+            for candidate in candidates:
+                if not isinstance(candidate, str):
+                    continue
+                candidate = candidate.strip()
+                if not candidate or Path(candidate).name != candidate:
+                    continue
+                try:
+                    validate_secret_name(candidate)
+                except ValueError:
+                    continue
+                path = secrets_dir / candidate
+                archive_name = f"secrets/{candidate}"
+                if path.is_file() and archive_name not in seen:
+                    files.append((archive_name, path))
+                    seen.add(archive_name)
+        for extra in ("upstream-keys.json", "speaker-appearance.json"):
+            path = settings.state_dir / extra
+            if path.is_file():
+                files.append((f"webui-state/{extra}", path))
         for name in ("speaker_ed25519", "speaker_ed25519.pub", "webui-admin.hash"):
             path = secrets_dir / name
             if path.is_file():
@@ -370,44 +403,68 @@ def restore_backup(
             snapshot = _snapshot(settings, manifest, extracted)
             restored = 0
             router_done = False
-            for name in manifest.get("files", []):
-                if name == "router/routes.json":
-                    continue
-                source_file = extracted / Path(*PurePosixPath(name).parts)
-                if not source_file.is_file():
-                    raise BackupError(f"в архиве нет файла: {name}")
-                if name == "secrets/router-routes.json":
-                    validate_config(source_file)
-                    router_done = True
-                    continue
-                target = _target(settings, name)
-                mode = 0o600 if name.startswith("secrets/") else 0o644
-                _atomic_write(target, source_file.read_bytes(), mode)
-                restored += 1
 
-            if manifest["scope"] == "all" and router_done:
-                target = settings.router_config
-                _atomic_write(
-                    target,
-                    (extracted / "secrets" / "router-routes.json").read_bytes(),
-                    0o600,
-                )
-            if manifest["scope"] == "speaker":
-                fragment_path = extracted / "router" / "routes.json"
-                if fragment_path.is_file():
-                    fragment = json.loads(fragment_path.read_text(encoding="utf-8"))
-                    routes = fragment.get("routes", [])
-                    if len(routes) == 1:
-                        try:
-                            raw = read_config(settings.router_config)
-                        except (OSError, ValueError):
-                            raw = {"routes": []}
-                        save_config(
-                            settings.router_config,
-                            upsert_route(raw, routes[0]),
+            def rollback() -> None:
+                for name in manifest.get("files", []):
+                    if name == "router/routes.json":
+                        continue
+                    target = _target(settings, name)
+                    snap = snapshot / Path(*PurePosixPath(name).parts)
+                    if snap.is_file():
+                        _atomic_write(
+                            target,
+                            snap.read_bytes(),
+                            snap.stat().st_mode & 0o777,
                         )
-            if settings.router_config.is_file():
-                validate_config(settings.router_config)
+                    else:
+                        target.unlink(missing_ok=True)
+
+            try:
+                for name in manifest.get("files", []):
+                    if name == "router/routes.json":
+                        continue
+                    source_file = extracted / Path(*PurePosixPath(name).parts)
+                    if not source_file.is_file():
+                        raise BackupError(f"в архиве нет файла: {name}")
+                    if name == "secrets/router-routes.json":
+                        validate_config(source_file)
+                        router_done = True
+                        continue
+                    target = _target(settings, name)
+                    mode = 0o600 if name.startswith("secrets/") else 0o644
+                    _atomic_write(target, source_file.read_bytes(), mode)
+                    restored += 1
+
+                if manifest["scope"] == "all" and router_done:
+                    target = settings.router_config
+                    _atomic_write(
+                        target,
+                        (extracted / "secrets" / "router-routes.json").read_bytes(),
+                        0o600,
+                    )
+                if manifest["scope"] == "speaker":
+                    fragment_path = extracted / "router" / "routes.json"
+                    if fragment_path.is_file():
+                        fragment = json.loads(fragment_path.read_text(encoding="utf-8"))
+                        routes = fragment.get("routes", [])
+                        if len(routes) == 1:
+                            try:
+                                raw = read_config(settings.router_config)
+                            except (OSError, ValueError):
+                                raw = {"routes": []}
+                            save_config(
+                                settings.router_config,
+                                upsert_route(raw, routes[0]),
+                            )
+                if settings.router_config.is_file():
+                    validate_config(settings.router_config)
+            except Exception:
+                try:
+                    rollback()
+                except OSError:
+                    pass
+                raise
+
             return {
                 "scope": manifest["scope"],
                 "speaker": manifest.get("speaker"),

@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', updateFallbackModels);
       </select>
     </label>
     <label>Таймаут, секунд
-      <input name="timeout_seconds" type="number" step="1" value="{{ fallback.get('timeout_seconds', 180) }}">
+      <input name="timeout_seconds" type="number" min="1" step="1" value="{{ fallback.get('timeout_seconds', 180) }}">
     </label>
   </div>
   <div class="form-actions">

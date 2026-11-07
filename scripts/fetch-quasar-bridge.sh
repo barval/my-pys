@@ -4,12 +4,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [[ -f "$ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$ROOT/.env"
-  set +a
-fi
+# shellcheck source=lib-env.sh
+. "$ROOT/scripts/lib-env.sh"
+load_project_env "$ROOT"
 
 VERSION="${QUASAR_VERSION:-v0.6.2}"
 ARCH="${QUASAR_ARCH:-arm64}"

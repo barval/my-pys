@@ -4,12 +4,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export HOST_REPO_PATH="${HOST_REPO_PATH:-$ROOT}"
-if [[ -f "$ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$ROOT/.env"
-  set +a
-fi
+# shellcheck source=lib-env.sh
+. "$ROOT/scripts/lib-env.sh"
+load_project_env "$ROOT"
 
 VERSION="${YANDEXMICRO_VERSION:-0.369.1.46.4778262442.20261013.297}"
 FW="$ROOT/vendor/lite-kit/firmware/yandexmicro/$VERSION.zip"
@@ -37,10 +34,11 @@ echo
 echo "--- последние строки логов ---"
 "${compose[@]}" -f docker-compose.lite-kit.yml logs --tail=40 || true
 echo
+STAND_IP="${ROOT_STAND_IP:-192.168.1.2}"
 if command -v dig >/dev/null 2>&1; then
   echo "--- проверка DNS ---"
-  dig +short +time=3 @192.168.1.2 quasar.yandex.net A || true
+  dig +short +time=3 @"$STAND_IP" quasar.yandex.net A || true
 fi
 echo
-echo "Дальше: DNS роутера 192.168.1.1 = 192.168.1.2, затем сброс колонки."
+echo "Дальше: DNS роутера = $STAND_IP, затем сброс колонки."
 echo "Логи: docker logs -f ysl-lite-kit"

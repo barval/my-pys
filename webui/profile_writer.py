@@ -40,7 +40,7 @@ def _check_value(key: str, value: str) -> None:
 
 def validate_profile(name: str, ip: str, subnet: str, mac: str, device_id: str) -> None:
     if not NAME_RE.fullmatch(name):
-        raise ValueError("Имя: латиница в нижнем регистре, цифры и дефис, от 1 до 64 символов")
+        raise ValueError("Имя: латиница в нижнем регистре, цифры и дефис, от 1 до 51 символа")
 
     try:
         address = ipaddress.IPv4Address(ip)

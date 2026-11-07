@@ -38,12 +38,26 @@ print("rules:", ", ".join(rule["name"] for rule in routing["rules"]))
 PY
 
 ssh -T -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$ROOT/secrets/speaker_ed25519" -p "${SPEAKER_SSH_PORT:-2222}" \
-  root@"$IP" 'cat > /data/opt/quasar-bridge/config.json && chmod 600 /data/opt/quasar-bridge/config.json' < "$TMP_NEW"
+  root@"$IP" 'cat > /data/opt/quasar-bridge/config.json.new && chmod 600 /data/opt/quasar-bridge/config.json.new' < "$TMP_NEW"
 
 ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$ROOT/secrets/speaker_ed25519" -p "${SPEAKER_SSH_PORT:-2222}" root@"$IP" '
-pkg=/data/opt/quasar-bridge/app
-sh "$pkg/control.sh" check
-sh "$pkg/control.sh" restart
+set -e
+root=/data/opt/quasar-bridge
+pkg=$root/app
+cp -p "$root/config.json" "$root/config.json.bak"
+mv "$root/config.json.new" "$root/config.json"
+if ! sh "$pkg/control.sh" check; then
+  mv "$root/config.json.bak" "$root/config.json"
+  echo "Новый конфиг не прошёл проверку; восстановлен прежний." >&2
+  exit 1
+fi
+if ! sh "$pkg/control.sh" restart; then
+  mv "$root/config.json.bak" "$root/config.json"
+  sh "$pkg/control.sh" restart || true
+  echo "Bridge не перезапустился с новым конфигом; восстановлен прежний." >&2
+  exit 1
+fi
+rm -f "$root/config.json.bak"
 sleep 2
 sh "$pkg/control.sh" status
 sh "$pkg/control.sh" check-backends

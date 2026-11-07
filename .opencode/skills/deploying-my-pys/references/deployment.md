@@ -7,7 +7,8 @@
   `adb`, `ssh`, `ssh-keygen`.
 - Свободные TCP/UDP `53`, `80`, `443` и TCP `5002` на хосте.
 - Хост и колонки в одной L2-сети без изоляции клиентов.
-- Для неинтерактивной установки Bridge: `python3-pexpect`.
+- Для неинтерактивной установки Bridge на хосте: `python3-pexpect`
+  (в образе `webui` он уже есть).
 
 Никогда не устанавливайте сервисы проекта прямо на хост — только Docker.
 
@@ -26,7 +27,7 @@ cp config/speakers/example.env local/speakers/speaker-a.env
 ```
 
 Заменяйте `192.168.1.2` на IP вашего хоста везде ниже. Имена профилей —
-`[a-z0-9][a-z0-9-]{0,63}`; `SPEAKER_DEVICE_ID` и `SPEAKER_MAC` обязательны,
+`[a-z0-9][a-z0-9-]{0,50}`; `SPEAKER_DEVICE_ID` и `SPEAKER_MAC` обязательны,
 а профиль должен задавать `LLM_BASE_URL` и `LLM_TOKEN_FILE` (их используют
 установка Bridge и `set-speaker-key.sh`).
 
@@ -130,7 +131,7 @@ ssh -N -L 8080:127.0.0.1:8080 user@host
 | 4 | `uid=2000(shell)` или нет ADB | стенд не отдал прошивку: смотрите его логи, повторите шаг 2 |
 | 5 | нет `secrets/speaker_ed25519` или SSH-порт не `2222` | выполните шаг 4, проверьте `SPEAKER_SSH_PORT` |
 | 6 | нет провайдера или upstream-ключа | добавьте их на `/access` и вернитесь в мастер |
-| 7 | Bridge не скачан или нет `python3-pexpect` | `./scripts/fetch-quasar-bridge.sh`, пересоберите `webui` |
+| 7 | Bridge не скачан или нет `python3-pexpect` (на хосте) | `./scripts/fetch-quasar-bridge.sh`, пересоберите `webui` |
 | 8 | `401`, `503` или таймаут LLM | проверьте маршрут на `/access` и логи `make router-logs` |
 
 4. Шаг можно пропустить кнопкой «Пропустить» — прогресс сохранится в

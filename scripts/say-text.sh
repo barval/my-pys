@@ -67,5 +67,5 @@ PY
 
 SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$KEY" -p "$PORT")
 "${SSH[@]}" root@"$IP" 'cat > /tmp/my-pys-say.wav' < "$WAV"
-"${SSH[@]}" root@"$IP" 'aplay -q /tmp/my-pys-say.wav; rm -f /tmp/my-pys-say.wav'
+"${SSH[@]}" root@"$IP" 'rc=0; aplay -q /tmp/my-pys-say.wav || rc=$?; rm -f /tmp/my-pys-say.wav; exit $rc'
 echo "Готово: колонка произнесла текст."

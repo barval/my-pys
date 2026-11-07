@@ -78,8 +78,8 @@
           </select>
         </label>
         <label>Ключ провайдера
-          <select name="api_key_file" required>
-            <option value="">—</option>
+          <select name="api_key_file">
+            <option value="">— без ключа —</option>
             {% for key in upstream_keys %}
             <option value="{{ key.file }}">{{ key.label }} ({{ key.file }})</option>
             {% endfor %}

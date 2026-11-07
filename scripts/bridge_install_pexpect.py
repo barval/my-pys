@@ -66,7 +66,7 @@ def main() -> int:
         )
         if index == 0:
             child.sendline("n")
-            print("Проверка подключения к FLAI не прошла.", file=sys.stderr)
+            print("Проверка подключения к LLM не прошла.", file=sys.stderr)
             print(redact((child.before or ""))[-4000:], file=sys.stderr)
             return 1
         if index == 1:
@@ -86,6 +86,14 @@ def main() -> int:
         return 1
     finally:
         child.close(force=True)
+
+    # При перезагрузке (index == 1) SSH обрывается штатно, код может быть 255.
+    if index != 1 and child.exitstatus not in (None, 0):
+        print(f"Установщик завершился с кодом {child.exitstatus}.", file=sys.stderr)
+        return 1
+    if index != 1 and child.signalstatus is not None:
+        print(f"Установщик убит сигналом {child.signalstatus}.", file=sys.stderr)
+        return 1
 
     print("Установка завершена.")
     return 0

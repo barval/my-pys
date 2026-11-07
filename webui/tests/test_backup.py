@@ -98,6 +98,19 @@ def test_create_all_backup_encrypts_and_lists_manifest(tmp_path):
     assert "secrets/webui-session.key" not in manifest["files"]
 
 
+def test_backup_includes_key_with_arbitrary_name(tmp_path):
+    settings = _make_root(tmp_path)
+    (settings.secrets_dir / "openrouter").write_text("value-openrouter\n", encoding="utf-8")
+    path = settings.router_config
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    raw["routes"][0]["primary"]["api_key_file"] = "openrouter"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    archive = create_backup(settings, "all", "correct horse")
+    manifest = inspect_backup(settings, archive.name, "correct horse")
+    assert "secrets/openrouter" in manifest["files"]
+
+
 def test_wrong_passphrase_is_rejected(tmp_path):
     settings = _make_root(tmp_path)
     path = create_backup(settings, "all", "correct horse")

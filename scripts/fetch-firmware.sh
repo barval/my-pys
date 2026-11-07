@@ -8,12 +8,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [[ -f "$ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$ROOT/.env"
-  set +a
-fi
+# shellcheck source=lib-env.sh
+. "$ROOT/scripts/lib-env.sh"
+load_project_env "$ROOT"
 
 VERSION="${YANDEXMICRO_VERSION:-0.369.1.46.4778262442.20261013.297}"
 EXPECTED_SIZE="${YANDEXMICRO_SIZE:-66814464}"

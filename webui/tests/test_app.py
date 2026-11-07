@@ -682,6 +682,26 @@ def test_create_route_generates_token(client, app, login, csrf):
     assert "sk-router-" in response.get_data(as_text=True)
 
 
+def test_route_create_rejects_non_positive_timeout(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    before = path.read_text(encoding="utf-8")
+    response = client.post(
+        "/router/routes/new",
+        data={
+            "name": "speaker-b",
+            "base_url": "http://127.0.0.1:5000/v1",
+            "api_key_file": "flai-token-speaker-b",
+            "model": "flai-chat",
+            "history": "server",
+            "timeout_seconds": "-5",
+        },
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 400
+    assert path.read_text(encoding="utf-8") == before
+
+
 def test_fallback_is_added_edited_and_deleted(client, app, login, csrf):
     login()
     path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
@@ -1009,6 +1029,34 @@ def test_create_profile_from_panel(client, login, csrf, settings):
     assert response.status_code == 303
     assert (settings.speakers_dir / "speaker-z.env").is_file()
     assert client.get("/speakers/speaker-z").status_code == 200
+
+
+def test_create_profile_rejects_duplicate_name(client, login, csrf, settings):
+    login()
+    original = (settings.speakers_dir / "speaker-a.env").read_text(encoding="utf-8")
+    response = client.post("/speakers/new", headers={"X-CSRF-Token": csrf(client)}, data={
+        "name": "speaker-a", "ip": "192.168.1.150", "subnet": "192.168.1",
+        "mac": "02:00:00:00:00:99",
+        "device_id": "EXAMPLE000000000000000000000099",
+        "room": "Другая комната", "color": "blue",
+    })
+    assert response.status_code == 400
+    assert (settings.speakers_dir / "speaker-a.env").read_text(encoding="utf-8") == original
+
+
+def test_delete_last_profile_with_route_is_rejected(client, login, csrf, settings):
+    login()
+    write_router_config(settings.router_config)
+    before = settings.router_config.read_text(encoding="utf-8")
+    response = client.post(
+        "/speakers/speaker-a/delete",
+        headers={"X-CSRF-Token": csrf(client)},
+        data={"confirm": "speaker-a"},
+    )
+    assert response.status_code == 400
+    assert (settings.speakers_dir / "speaker-a.env").exists()
+    assert settings.router_config.read_text(encoding="utf-8") == before
+    assert not (settings.state_dir / "deleted-profiles").exists()
 
 
 def test_create_profile_rejects_bad_name(client, login, csrf, settings):

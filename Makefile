@@ -89,7 +89,7 @@ router-logs:
 	docker logs -f llm-router
 
 router-status:
-	curl -fsS http://192.168.1.2:5002/health
+	@bash -c '. scripts/lib-env.sh; load_project_env .; url="$${LLM_HEALTH_URL:-$${LLM_BASE_URL:-http://192.168.1.2:5002/v1}}"; curl -fsS "$${url%/v1}/health"'
 
 router-test:
 	pytest router/tests/test_router.py -q
