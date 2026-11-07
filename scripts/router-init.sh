@@ -7,7 +7,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRETS="$ROOT/secrets"
 mkdir -p "$SECRETS" "$ROOT/router-state"
 
-for name in speaker-a speaker-b speaker-c speaker-d; do
+NAMES=("$@")
+if [[ ${#NAMES[@]} -eq 0 ]]; then
+  NAMES=(speaker-a speaker-b speaker-c speaker-d)
+fi
+
+for name in "${NAMES[@]}"; do
   token_file="$SECRETS/router-token-$name"
   if [[ ! -s "$token_file" ]]; then
     token="$(python3 -c 'import secrets; print("sk-router-" + secrets.token_hex(24))')"
@@ -21,14 +26,14 @@ config="$SECRETS/router-routes.json"
 if [[ -f "$config" ]]; then
   echo "Конфиг уже существует: secrets/router-routes.json (не перезаписываю)"
 else
-  python3 - "$config" <<'PY'
+  python3 - "$config" "${NAMES[@]}" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
 routes = []
-for name in ("speaker-a", "speaker-b", "speaker-c", "speaker-d"):
+for name in sys.argv[2:]:
     routes.append(
         {
             "name": name,
@@ -56,8 +61,8 @@ PY
 fi
 chmod 600 "$config"
 
-for name in speaker-a speaker-b speaker-c speaker-d; do
-  if [[ ! -s "$SECRETS/flai-token-$name" ]]; then
+for name in "${NAMES[@]}"; do
+  if [[ ! -s "$SECRETS/upstream-token-$name" ]]; then
     echo "Внимание: нет upstream-ключа secrets/upstream-token-$name — маршрут $name будет отвечать 503." >&2
   fi
 done

@@ -4,11 +4,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export HOST_REPO_PATH="${HOST_REPO_PATH:-$ROOT}"
+export LITE_KIT_CONTEXT="${LITE_KIT_CONTEXT:-$ROOT}"
 # shellcheck source=lib-env.sh
 . "$ROOT/scripts/lib-env.sh"
 load_project_env "$ROOT"
 
-VERSION="${YANDEXMICRO_VERSION:-0.369.1.46.4778262442.20261013.297}"
+VERSION="${YANDEXMICRO_VERSION:-${FIRMWARE_VERSION:-0.369.1.46.4778262442.20261013.297}}"
 FW="$ROOT/vendor/lite-kit/firmware/yandexmicro/$VERSION.zip"
 if [[ ! -s "$FW" ]]; then
   echo "Нет прошивки: $FW" >&2

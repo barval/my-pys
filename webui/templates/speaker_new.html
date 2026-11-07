@@ -68,7 +68,7 @@
   <div class="form-grid">
     <label>Имя профиля
       <input name="name" value="{{ request.form.get('name', '') }}" required
-             pattern="[a-z0-9][a-z0-9-]{0,63}" placeholder="speaker-a">
+             pattern="[a-z0-9][a-z0-9-]{0,50}" placeholder="speaker-a">
     </label>
     <label>IP-адрес
       <input name="ip" value="{{ request.form.get('ip', '192.168.1.150') }}" required

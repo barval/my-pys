@@ -702,6 +702,19 @@ def test_route_create_rejects_non_positive_timeout(client, app, login, csrf):
     assert path.read_text(encoding="utf-8") == before
 
 
+def test_delete_last_route_is_rejected(client, app, login, csrf):
+    login()
+    path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
+    response = client.post(
+        "/router/routes/speaker-a/delete",
+        headers={"X-CSRF-Token": csrf(client)},
+        follow_redirects=True,
+    )
+    assert "Нельзя удалить последний маршрут" in response.get_data(as_text=True)
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    assert [route["name"] for route in raw["routes"]] == ["speaker-a"]
+
+
 def test_fallback_is_added_edited_and_deleted(client, app, login, csrf):
     login()
     path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)
@@ -1028,6 +1041,10 @@ def test_create_profile_from_panel(client, login, csrf, settings):
         "model": "Яндекс Станция Лайт",
     })
     assert response.status_code == 303
+    assert "/setup?step=4" in response.headers["Location"]
+    assert json.loads(
+        (settings.state_dir / "setup" / "speaker-z.json").read_text(encoding="utf-8")
+    )["step"] == 4
     assert (settings.speakers_dir / "speaker-z.env").is_file()
     assert client.get("/speakers/speaker-z").status_code == 200
 

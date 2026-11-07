@@ -1,4 +1,4 @@
-"""Local web UI for the Yandex Station project."""
+"""Локальная веб-панель проекта Яндекс Станции."""
 
 __all__ = ["APP_TITLE", "__version__"]
 

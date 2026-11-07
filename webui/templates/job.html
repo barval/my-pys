@@ -15,6 +15,9 @@
     <h1>Задание</h1>
     <div class="mono">{{ job.id }}</div>
   </div>
+  {% if job_profile %}
+  <a class="btn btn-ghost" href="/speakers/{{ job_profile.name }}/setup">Вернуться в мастер</a>
+  {% endif %}
   <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job_status_label(job.status) }}</span>
 </div>
 

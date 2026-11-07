@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import io
 import json
 import stat
+import tarfile
 
 import pytest
 
@@ -204,3 +206,31 @@ def test_backup_name_cannot_escape_directory(tmp_path):
     settings = _make_root(tmp_path)
     with pytest.raises(BackupError):
         resolve_backup(settings, "../escape.tar.gz")
+
+
+def test_backup_includes_root_env(tmp_path):
+    settings = _make_root(tmp_path)
+    (settings.root / ".env").write_text("ROOT_STAND_IP=10.0.0.2\n", encoding="utf-8")
+    path = create_backup(settings, "all")
+    manifest = inspect_backup(settings, path.name)
+    assert ".env" in manifest["files"]
+
+
+def test_manifest_path_traversal_is_rejected(tmp_path):
+    settings = _make_root(tmp_path)
+    directory = settings.root / "backups" / "config"
+    directory.mkdir(parents=True, exist_ok=True)
+    archive = directory / "evil.tar.gz"
+    manifest = json.dumps(
+        {"format": 1, "scope": "all", "files": ["local/../webui/app.py"]}
+    ).encode()
+    with tarfile.open(archive, "w:gz") as tar:
+        info = tarfile.TarInfo("manifest.json")
+        info.size = len(manifest)
+        tar.addfile(info, io.BytesIO(manifest))
+        data = b"bad"
+        member = tarfile.TarInfo("webui/app.py")
+        member.size = len(data)
+        tar.addfile(member, io.BytesIO(data))
+    with pytest.raises(BackupError, match="недопустимый путь"):
+        inspect_backup(settings, archive.name)

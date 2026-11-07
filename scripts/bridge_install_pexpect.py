@@ -10,7 +10,7 @@ import sys
 
 try:
     import pexpect
-except ImportError:  # pragma: no cover - checked by the shell wrapper
+except ImportError:  # pragma: no cover - проверяется shell-обёрткой
     print("Нужен python3-pexpect", file=sys.stderr)
     sys.exit(2)
 

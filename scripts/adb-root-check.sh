@@ -11,11 +11,18 @@ load_project_env "$ROOT"
 IP="$(bash "$ROOT/scripts/resolve-speaker.sh")"
 ADB_PORT="${SPEAKER_ADB_PORT:-5555}"
 DEVICE="$IP:$ADB_PORT"
+ADB="${ADB:-adb}"
 
 echo "Подключаемся к $DEVICE..."
-adb connect "$DEVICE"
+if ! "$ADB" connect "$DEVICE"; then
+  echo "ADB недоступен: включите ADB на колонке (шаг 4 мастера, runbook §5)." >&2
+  exit 1
+fi
 
-OUTPUT="$(adb -s "$DEVICE" shell id)"
+if ! OUTPUT="$("$ADB" -s "$DEVICE" shell id)"; then
+  echo "Не удалось выполнить команду на колонке через ADB." >&2
+  exit 1
+fi
 echo "$OUTPUT"
 
 if echo "$OUTPUT" | grep -q 'uid=0(root)'; then
@@ -23,5 +30,5 @@ if echo "$OUTPUT" | grep -q 'uid=0(root)'; then
   exit 0
 fi
 
-echo "Root не получен: выполните шаг 2 установщика прошивки." >&2
+echo "Root не получен: выполните шаг 4 мастера настройки (ADB и root)." >&2
 exit 1

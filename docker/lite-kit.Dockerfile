@@ -18,5 +18,5 @@ WORKDIR /app
 COPY vendor/lite-kit/ /app/
 RUN chmod +x /app/start.sh /app/stop.sh /app/check.sh /app/install-firmware.sh
 
-# run/downgrade makes the stand offer the .46 image to the factory build.
+# run/downgrade заставляет стенд предлагать заводской сборке образ .46.
 CMD ["sh", "-c", "mkdir -p /app/run /app/log && touch /app/run/downgrade && ./start.sh && tail -f /dev/null"]

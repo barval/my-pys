@@ -19,6 +19,20 @@ if TYPE_CHECKING:
 
 _MAC_RE = re.compile(r"^[0-9a-f]{2}(:[0-9a-f]{2}){5}$")
 _DEVICE_ID_RE = re.compile(r"^[A-Za-z0-9._-]{4,64}$")
+_SAFE_ENV_RE = re.compile(r"^[A-Za-z0-9_./:@%+=,~^*!?()-]+$")
+
+
+def _env_value(value: str) -> str:
+    """Безопасное значение для .env: простые строки без кавычек, остальные в кавычках."""
+    if _SAFE_ENV_RE.fullmatch(value):
+        return value
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("$", "\\$")
+        .replace("`", "\\`")
+    )
+    return f'"{escaped}"'
 
 _WRITE_ORDER = (
     "SPEAKER_NAME",
@@ -110,7 +124,7 @@ def write_profile(directory: Path, values: dict[str, str]) -> Path:
             _check_value(key, value)
             ordered[key] = value
 
-    lines = [f"{key}={value}\n" for key, value in ordered.items()]
+    lines = [f"{key}={_env_value(value)}\n" for key, value in ordered.items()]
     _atomic_write(path, "".join(lines))
     return path
 
@@ -132,14 +146,14 @@ def merge_profile_env(path: Path, values: dict[str, str]) -> None:
             continue
         key = stripped.split("=", 1)[0].strip()
         if key in values:
-            result.append(f"{key}={values[key]}\n")
+            result.append(f"{key}={_env_value(values[key])}\n")
             seen.add(key)
         else:
             result.append(line)
 
     for key, value in values.items():
         if key not in seen:
-            result.append(f"{key}={value}\n")
+            result.append(f"{key}={_env_value(value)}\n")
 
     _atomic_write(path, "".join(result))
 

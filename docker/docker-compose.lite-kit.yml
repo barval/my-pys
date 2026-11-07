@@ -1,7 +1,7 @@
 services:
   lite-kit:
     build:
-      context: ${HOST_REPO_PATH:-..}
+      context: ${LITE_KIT_CONTEXT:-..}
       dockerfile: docker/lite-kit.Dockerfile
     container_name: ysl-lite-kit
     network_mode: host

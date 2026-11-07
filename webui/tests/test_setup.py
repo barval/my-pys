@@ -1,3 +1,5 @@
+import json
+
 from webui.providers import Provider, save_providers
 
 from webui.tests.test_app import FakeRunner
@@ -57,6 +59,24 @@ def test_route_step_writes_profile_and_token(client, app, login, csrf, settings)
     assert "LLM_TOKEN_FILE=secrets/router-token-speaker-a" in profile
     assert (settings.secrets_dir / "router-token-speaker-a").is_file()
     assert runner.actions[0][0] == "key"
+
+
+def test_setup_step6_allows_keyless_route(client, app, login, csrf, settings):
+    login()
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    save_providers(
+        settings.state_dir / "providers.json",
+        [Provider("local", "Local", "http://127.0.0.1:11434/v1", ("llama",))],
+    )
+    response = client.post(
+        "/speakers/speaker-a/setup/6",
+        headers={"X-CSRF-Token": csrf(client)},
+        data={"op": "run", "provider_id": "local", "model": "llama", "api_key_file": ""},
+    )
+    assert response.status_code == 303
+    raw = json.loads(settings.router_config.read_text(encoding="utf-8"))
+    assert raw["routes"][0]["primary"]["api_key_file"] == ""
 
 
 def test_done_survives_reload(client, login, csrf, settings):

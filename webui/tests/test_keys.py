@@ -36,6 +36,23 @@ def test_inventory_never_contains_value(tmp_path):
     assert "super-secret" not in repr(item)
 
 
+def test_upstream_key_cannot_be_a_protected_secret(tmp_path):
+    for name in ("webui-admin.hash", "speaker_ed25519", "router-token-speaker-a"):
+        with pytest.raises(ValueError, match="не является ключом провайдера"):
+            set_upstream_key(tmp_path, name, "x")
+        with pytest.raises(ValueError, match="не является ключом провайдера"):
+            add_upstream_key(tmp_path / "registry.json", tmp_path, "", name, "x")
+        with pytest.raises(ValueError, match="не является ключом провайдера"):
+            delete_upstream_key(tmp_path / "registry.json", tmp_path, name, [])
+
+
+def test_delete_only_registered_key(tmp_path):
+    (tmp_path / "random").write_text("x", encoding="utf-8")
+    with pytest.raises(ValueError, match="не найден в списке"):
+        delete_upstream_key(tmp_path / "registry.json", tmp_path, "random", [])
+    assert (tmp_path / "random").exists()
+
+
 def test_secret_name_rejects_traversal(tmp_path):
     with pytest.raises(ValueError):
         write_secret(tmp_path, "../evil", "x")

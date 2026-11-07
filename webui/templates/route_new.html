@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', updateModels);
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label>Имя маршрута
     <input name="name" value="{{ request.form.get('name', '') }}" required
-           pattern="[a-z0-9][a-z0-9-]{0,31}" placeholder="speaker-e">
+           pattern="[a-z0-9][a-z0-9-]{0,50}" placeholder="speaker-e">
   </label>
   <p class="muted">Имя маршрута — произвольный идентификатор: латиница, цифры и дефис. Промежуточный токен будет создан автоматически и показан один раз.</p>
 

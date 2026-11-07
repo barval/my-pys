@@ -30,7 +30,7 @@ fi
 echo "== SSH key =="
 mkdir -p "$ROOT/secrets"
 if [[ ! -f "$KEY" ]]; then
-  ssh-keygen -t ed25519 -N "" -C "ysl-v1.0" -f "$KEY"
+  ssh-keygen -t ed25519 -N "" -C "ysl-v2.1" -f "$KEY"
 fi
 chmod 600 "$KEY"
 chmod 644 "$KEY.pub"

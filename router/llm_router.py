@@ -79,15 +79,9 @@ class Route:
     primary: Upstream
     fallbacks: tuple[Upstream, ...] = ()
 
-    @property
-    def fallback(self) -> Upstream | None:
-        return self.fallbacks[0] if self.fallbacks else None
-
-
 @dataclass(frozen=True)
 class Config:
     routes: tuple[Route, ...]
-    mtime_ns: int
     watched_mtimes: Mapping[str, int]
     response: ResponsePolicy
     response_chunked: ResponsePolicy
@@ -223,7 +217,7 @@ def probe_upstream(upstream: Upstream, timeout: float = 3.0) -> dict[str, Any]:
     url = upstream.base_url.rstrip("/") + "/models"
     headers = {
         "Accept": "application/json",
-        "User-Agent": "llm-router/1.0",
+        "User-Agent": "llm-router/2.1",
     }
     if upstream.api_key:
         headers["Authorization"] = f"Bearer {upstream.api_key}"
@@ -302,12 +296,10 @@ def load_config(path: Path) -> Config:
 
     if not routes:
         raise ConfigError("config has no routes")
-    mtime_ns = _mtime_ns(path)
     response_raw = raw.get("response")
     chunked_raw = response_raw.get("chunked") if isinstance(response_raw, dict) else None
     return Config(
         routes=tuple(routes),
-        mtime_ns=mtime_ns,
         watched_mtimes=watched,
         response=_parse_response_policy(response_raw),
         response_chunked=_parse_response_policy(chunked_raw, 100, 3000),
@@ -858,7 +850,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
             headers = {
                 "Content-Type": "application/json",
                 "Accept": "text/event-stream" if stream else "application/json",
-                "User-Agent": "llm-router/1.0",
+                "User-Agent": "llm-router/2.1",
             }
             if upstream.api_key:
                 headers["Authorization"] = f"Bearer {upstream.api_key}"

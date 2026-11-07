@@ -86,9 +86,3 @@ def load_profiles(directory: Path) -> list[Profile]:
             # Битый профиль не должен ронять панель и остальные колонки.
             LOG.warning("профиль %s пропущен: %s", path.name, exc)
     return profiles
-
-
-def mask_secret(value: str, keep: int = 4) -> str:
-    if len(value) <= keep * 2:
-        return "***"
-    return f"{value[:keep]}...{value[-keep:]}"

@@ -13,6 +13,16 @@ FIELDS = {
 }
 
 
+def test_write_profile_quotes_values_with_spaces_and_dollar(tmp_path):
+    path = write_profile(
+        tmp_path,
+        dict(FIELDS, SPEAKER_ROOM='Комната "A" $HOME', SPEAKER_MODEL="Яндекс Станция Лайт"),
+    )
+    text = path.read_text(encoding="utf-8")
+    assert 'SPEAKER_MODEL="Яндекс Станция Лайт"' in text
+    assert 'SPEAKER_ROOM="Комната \\"A\\" \\$HOME"' in text
+
+
 def test_write_profile_is_private_and_loadable(tmp_path):
     path = write_profile(tmp_path, FIELDS)
     assert oct(path.stat().st_mode & 0o777) == "0o600"

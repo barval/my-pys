@@ -119,6 +119,7 @@ services:
     environment:
       STAND_REPO: /repo
       HOST_REPO_PATH: "${HOST_REPO_PATH:-}"
+      LITE_KIT_CONTEXT: "/repo"
       CONTROL_PORT: "8082"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro

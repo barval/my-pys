@@ -79,8 +79,6 @@ def load_settings(
     llm_base_url = values.get("LLM_BASE_URL") or project_env.get(
         "LLM_BASE_URL", ""
     )
-    if not stand_ip and llm_base_url:
-        stand_ip = urlsplit(llm_base_url).hostname or ""
     if not stand_ip:
         stand_ip = "192.168.1.2"
     router_display_url = llm_base_url or f"http://{stand_ip}:5002/v1"

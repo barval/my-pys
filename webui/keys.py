@@ -9,6 +9,19 @@ from pathlib import Path
 from typing import Iterable
 
 _SECRET_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+_PROTECTED_SECRETS = {
+    "webui-admin.hash",
+    "webui-session.key",
+    "speaker_ed25519",
+    "speaker_ed25519.pub",
+    "router-routes.json",
+}
+
+
+def _validate_upstream_key_name(name: str) -> None:
+    if name in _PROTECTED_SECRETS or name.startswith("router-token-"):
+        raise ValueError("этот файл не является ключом провайдера")
+    validate_secret_name(name)
 
 
 @dataclass(frozen=True)
@@ -30,7 +43,7 @@ class KeyStatus:
 
 def validate_secret_name(name: str) -> None:
     if not _SECRET_NAME_RE.fullmatch(name):
-        raise ValueError(f"invalid secret name: {name}")
+        raise ValueError(f"недопустимое имя секрета: {name}")
 
 
 def write_secret(secrets_dir: Path, name: str, value: str) -> Path:
@@ -39,7 +52,7 @@ def write_secret(secrets_dir: Path, name: str, value: str) -> Path:
     secrets_dir.mkdir(parents=True, exist_ok=True)
     path = secrets_dir / name
     if path.resolve().parent != secrets_dir.resolve():
-        raise ValueError(f"secret escapes directory: {name}")
+        raise ValueError(f"секрет выходит за пределы каталога: {name}")
     temp = path.with_name(f".{name}.tmp")
     with open(temp, "w", encoding="utf-8") as stream:
         stream.write(value + "\n")
@@ -120,9 +133,9 @@ def set_upstream_key(
     key_file: str,
     value: str,
 ) -> None:
-    validate_secret_name(key_file)
+    _validate_upstream_key_name(key_file)
     if not value.strip():
-        raise ValueError("key value must not be empty")
+        raise ValueError("значение ключа не должно быть пустым")
     write_secret(secrets_dir, key_file, value.strip())
 
 
@@ -239,9 +252,9 @@ def add_upstream_key(
     value: str,
 ) -> str:
     key_file = key_file.strip()
-    validate_secret_name(key_file)
+    _validate_upstream_key_name(key_file)
     if not value.strip():
-        raise ValueError("key value must not be empty")
+        raise ValueError("значение ключа не должно быть пустым")
     entries = _load_registry(registry_path)
     if any(entry["file"] == key_file for entry in entries):
         raise ValueError("ключ с таким файлом уже добавлен")
@@ -257,16 +270,19 @@ def delete_upstream_key(
     key_file: str,
     routes: Iterable[dict],
 ) -> None:
-    validate_secret_name(key_file)
+    _validate_upstream_key_name(key_file)
     usage = key_usage(routes).get(key_file, [])
     if usage:
         raise ValueError("ключ используется маршрутами: " + ", ".join(usage))
-    entries = [
+    entries = _load_registry(registry_path)
+    if not any(entry["file"] == key_file for entry in entries):
+        raise ValueError("ключ не найден в списке")
+    remaining = [
         entry
-        for entry in _load_registry(registry_path)
+        for entry in entries
         if entry["file"] != key_file
     ]
-    save_registry(registry_path, entries)
+    save_registry(registry_path, remaining)
     try:
         (Path(secrets_dir) / key_file).unlink()
     except FileNotFoundError:

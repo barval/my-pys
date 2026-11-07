@@ -149,7 +149,17 @@ class JobRunner:
             self._set(job_id, status="running", started_at=_now())
             full_env = os.environ.copy()
             full_env.update(env)
-            log = open(self._jobs[job_id].log_path, "w", encoding="utf-8")
+            try:
+                log = open(self._jobs[job_id].log_path, "w", encoding="utf-8")
+            except OSError:
+                self._set(
+                    job_id,
+                    status="failed",
+                    exit_code=None,
+                    finished_at=_now(),
+                )
+                self._events[job_id].set()
+                return
             proc: subprocess.Popen | None = None
             status = "failed"
             exit_code: int | None = None

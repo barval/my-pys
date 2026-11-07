@@ -41,8 +41,10 @@ document.addEventListener('DOMContentLoaded', updateEditModels);
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="form-grid">
     <label>Файл токена
-      <input name="token_file" value="{{ request.form.get('token_file', route.get('token_file', '')) }}" required>
+      <input name="token_file" value="{{ request.form.get('token_file', route.get('token_file', '')) }}" readonly required>
     </label>
+    <p class="muted small">Имя токена задаётся при создании маршрута. Для смены
+      значения используйте «Сменить токен» в разделе «Ключи».</p>
     <label>Base URL
       <input name="base_url" value="{{ request.form.get('base_url', primary.get('base_url', '')) }}" required>
     </label>

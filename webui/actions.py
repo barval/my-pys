@@ -3,20 +3,18 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 from .profiles import Profile
 
 
 class UnknownAction(ValueError):
-    """Raised when an action is not in the allow-list."""
+    """Действие не входит в белый список."""
 
 
 @dataclass(frozen=True)
 class ActionSpec:
     key: str
     label: str
-    scope: Literal["speaker", "host"]
     argv: tuple[str, ...]
     needs_profile: bool
 
@@ -25,56 +23,48 @@ SPEAKER_ACTIONS: dict[str, ActionSpec] = {
     "status": ActionSpec(
         key="status",
         label="Статус Bridge",
-        scope="speaker",
         argv=("bash", "scripts/speaker-status.sh"),
         needs_profile=True,
     ),
     "resolve": ActionSpec(
         key="resolve",
         label="Найти колонку",
-        scope="speaker",
         argv=("bash", "scripts/resolve-speaker.sh"),
         needs_profile=True,
     ),
     "check": ActionSpec(
         key="check",
         label="Проверить LLM",
-        scope="speaker",
         argv=("bash", "scripts/check-llm.sh"),
         needs_profile=True,
     ),
     "key": ActionSpec(
         key="key",
         label="Записать ключ",
-        scope="speaker",
         argv=("bash", "scripts/set-speaker-key.sh"),
         needs_profile=True,
     ),
     "routing": ActionSpec(
         key="routing",
         label="Применить маршрутизацию",
-        scope="speaker",
         argv=("bash", "scripts/apply-bridge-routing.sh"),
         needs_profile=True,
     ),
     "bridge": ActionSpec(
         key="bridge",
         label="Установить Bridge",
-        scope="speaker",
         argv=("bash", "scripts/install-quasar-bridge.sh", "--non-interactive"),
         needs_profile=True,
     ),
     "root": ActionSpec(
         key="root",
         label="Настроить SSH/OTA",
-        scope="speaker",
         argv=("bash", "scripts/post-root-ssh.sh"),
         needs_profile=True,
     ),
     "adb": ActionSpec(
         key="adb",
         label="Проверить ADB и root",
-        scope="speaker",
         argv=("bash", "scripts/adb-root-check.sh"),
         needs_profile=True,
     ),
@@ -84,28 +74,24 @@ HOST_ACTIONS: dict[str, ActionSpec] = {
     "firmware": ActionSpec(
         key="firmware",
         label="Скачать прошивку",
-        scope="host",
         argv=("bash", "scripts/fetch-firmware.sh"),
         needs_profile=False,
     ),
     "router-start": ActionSpec(
         key="router-start",
         label="Запустить роутер",
-        scope="host",
         argv=("bash", "scripts/start-router.sh"),
         needs_profile=False,
     ),
     "router-stop": ActionSpec(
         key="router-stop",
         label="Остановить роутер",
-        scope="host",
         argv=("bash", "scripts/stop-router.sh"),
         needs_profile=False,
     ),
     "router-restart": ActionSpec(
         key="router-restart",
         label="Перезапустить роутер",
-        scope="host",
         argv=(
             "docker",
             "compose",
@@ -118,21 +104,18 @@ HOST_ACTIONS: dict[str, ActionSpec] = {
     "stand-start": ActionSpec(
         key="stand-start",
         label="Запустить стенд",
-        scope="host",
         argv=("bash", "scripts/start-lite-kit.sh"),
         needs_profile=False,
     ),
     "stand-stop": ActionSpec(
         key="stand-stop",
         label="Остановить стенд",
-        scope="host",
         argv=("bash", "scripts/stop-lite-kit.sh"),
         needs_profile=False,
     ),
     "stand-status": ActionSpec(
         key="stand-status",
         label="Статус стенда",
-        scope="host",
         argv=(
             "docker",
             "ps",

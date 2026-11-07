@@ -20,7 +20,7 @@
 запишет `local/speakers/<имя>.env`. Вручную:
 
 ```bash
-cp config/speaker.env.example local/speakers/speaker-a.env
+cp config/speakers/example.env local/speakers/speaker-a.env
 # заполните SPEAKER_IP, SPEAKER_SUBNET, SPEAKER_DEVICE_ID, SPEAKER_MAC,
 # SPEAKER_ROOM, SPEAKER_COLOR, LLM_BASE_URL, LLM_TOKEN_FILE
 ```
@@ -39,10 +39,6 @@ dig +short @192.168.1.2 quasar.yandex.net A     # -> 192.168.1.2
 Стенд слушает 53/80/443 и отдаёт сборку `.46`; он же включает ADB через
 sync. То же самое в панели: «Дополнительно → Подготовка хоста» (`/setup/prepare`).
 
-```bash
-./scripts/stop-lite-kit.sh             # затем верните DNS роутера
-```
-
 ## 2. Сброс и привязка
 
 1. Отключите питание, включите и сразу зажмите кнопку паузы на 6–10 с,
@@ -53,6 +49,12 @@ sync. То же самое в панели: «Дополнительно → П�
    введите пароль Wi-Fi и только потом нажмите подключение.
 3. Колонка скачает сборку `.46` со стенда и включит ADB. Не выключайте
    питание.
+
+После успешной прошивки остановите стенд и верните DNS роутера:
+
+```bash
+./scripts/stop-lite-kit.sh
+```
 
 В панели это шаг 2 мастера: действие выполняется вручную, панель только
 фиксирует результат кнопкой «Готово».

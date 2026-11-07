@@ -126,7 +126,7 @@ def advance(progress: Progress, key: str, *, skipped: bool = False) -> Progress:
         done.add(key)
         skipped_set.discard(key)
     completed = done | skipped_set
-    next_step = 9
+    next_step = STEPS[-1].number
     for step in STEPS:
         if step.key not in completed:
             next_step = step.number

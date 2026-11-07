@@ -14,7 +14,7 @@ SUBNET="${SPEAKER_SUBNET:-192.168.1}"
 HINT="${SPEAKER_IP:-}"
 
 if [[ -z "$DEVICE_ID" || -z "$MAC" ]]; then
-  echo "Задайте SPEAKER_DEVICE_ID и SPEAKER_MAC (config/speaker.env.example)" >&2
+  echo "Задайте SPEAKER_DEVICE_ID и SPEAKER_MAC (config/speakers/example.env)" >&2
   exit 1
 fi
 MAC="$(printf '%s' "$MAC" | tr 'A-F' 'a-f')"

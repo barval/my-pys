@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from webui.profiles import NAME_RE, load_profiles, mask_secret, parse_env
+from webui.profiles import NAME_RE, load_profiles, parse_env
 
 
 def test_parse_env_ignores_comments_and_quotes(tmp_path):
@@ -41,10 +41,6 @@ def test_load_profiles_skips_invalid_file(tmp_path):
 def test_profile_name_length_allows_router_token_prefix():
     assert NAME_RE.fullmatch("a" * 51)
     assert not NAME_RE.fullmatch("a" * 52)
-
-
-def test_mask_secret_keeps_edges():
-    assert mask_secret("EXAMPLE000000000000000000000001") == "EXAM...0001"
 
 
 def test_profile_model_and_color_defaults(tmp_path):

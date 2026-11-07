@@ -67,6 +67,9 @@ def _collect(settings: Settings, scope: str) -> tuple[list[tuple[str, Path]], st
         env_file = root / "local" / ".env"
         if env_file.is_file():
             files.append(("local/.env", env_file))
+        root_env = root / ".env"
+        if root_env.is_file():
+            files.append((".env", root_env))
         for path in sorted(speakers_dir.glob("*.env")):
             if path.name != "example.env":
                 files.append((f"local/speakers/{path.name}", path))
@@ -182,7 +185,7 @@ def _route_fragment(settings: Settings, name: str) -> dict | None:
     return None
 
 
-def _build_tar(settings: Settings, files: list[tuple[str, Path]], manifest: dict) -> bytes:
+def _build_tar(files: list[tuple[str, Path]], manifest: dict) -> bytes:
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
         for name, path in files:
@@ -236,7 +239,7 @@ def create_backup(settings: Settings, scope: str) -> Path:
                 archive.addfile(manifest_member, io.BytesIO(manifest_data))
             plain = buffer.getvalue()
         else:
-            plain = _build_tar(settings, files, manifest)
+            plain = _build_tar(files, manifest)
         suffix = speaker or "all"
         path = _backup_dir(settings) / f"config-{_timestamp()}-{suffix}.tar.gz"
         _atomic_write(path, plain, 0o600)
@@ -293,6 +296,20 @@ def _safe_extract(blob: bytes, destination: Path) -> None:
         raise BackupError(f"не удалось прочитать архив: {exc}") from exc
 
 
+def _archive_parts(name: str) -> PurePosixPath:
+    relative = PurePosixPath(name)
+    if name == ".env":
+        return relative
+    if (
+        relative.is_absolute()
+        or not relative.parts
+        or ".." in relative.parts
+        or relative.parts[0] not in {"local", "secrets", "webui-state", "router"}
+    ):
+        raise BackupError(f"недопустимый путь в архиве: {name}")
+    return relative
+
+
 def _load_archive(path: Path, destination: Path) -> dict:
     try:
         blob = path.read_bytes()
@@ -308,6 +325,8 @@ def _load_archive(path: Path, destination: Path) -> dict:
         raise BackupError("неподдерживаемая версия архива")
     if manifest.get("scope") not in ("all", "speaker"):
         raise BackupError("неизвестный режим архива")
+    for name in manifest.get("files", []):
+        _archive_parts(str(name))
     return manifest
 
 
@@ -322,7 +341,7 @@ def _snapshot(settings: Settings, manifest: dict) -> Path:
     directory = settings.state_dir / "restore-backups" / f"{stamp}-{uuid.uuid4().hex[:6]}"
     directory.mkdir(parents=True, exist_ok=False)
     for name in manifest.get("files", []):
-        relative = PurePosixPath(name)
+        relative = _archive_parts(name)
         if relative.parts[:1] == ("router",):
             continue
         source = settings.root / Path(*relative.parts)
@@ -335,7 +354,9 @@ def _snapshot(settings: Settings, manifest: dict) -> Path:
 
 
 def _target(settings: Settings, name: str) -> Path:
-    relative = PurePosixPath(name)
+    relative = _archive_parts(name)
+    if name == ".env":
+        return settings.root / ".env"
     if relative.parts[:1] == ("local",):
         return settings.root / Path(*relative.parts)
     if relative.parts[:1] == ("secrets",):

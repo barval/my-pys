@@ -89,7 +89,7 @@ Quasar Bridge, маршруты и ключи на колонку, резерв�
 | Применить политику маршрутизации | `SPEAKER_ENV=... ./scripts/apply-bridge-routing.sh` |
 | Записать токен роутера в колонку | `SPEAKER_ENV=... ./scripts/set-speaker-key.sh` |
 | Проверить одну колонку | `SPEAKER_ENV=... make status` / `check-backends` / `routes` |
-| Сказать фразу на колонке | `docker exec -e SPEAKER_ENV=... -e SAY_TEXT="..." my-pys-webui bash scripts/say-text.sh` |
+| Сказать фразу на колонке | `docker exec -e SPEAKER_ENV=... -e SPEAKER_TRUST_IP=1 -e SAY_TEXT="..." my-pys-webui bash scripts/say-text.sh` |
 
 ## Частые ошибки
 

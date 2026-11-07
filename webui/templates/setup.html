@@ -78,7 +78,7 @@
             <option value="">—</option>
             {% for provider in providers %}
               {% for model in provider.models %}
-              <option value="{{ model }}">{{ model }}</option>
+              <option value="{{ model }}" data-provider="{{ provider.id }}">{{ model }}</option>
               {% endfor %}
             {% endfor %}
           </select>
@@ -106,18 +106,41 @@
         <button class="btn btn-success" type="submit" name="op" value="done">Профиль уже найден</button>
         {% elif current.number == 4 %}
         <button class="btn btn-primary" type="submit" name="op" value="run">Проверить ADB и root</button>
+        <button class="btn btn-success" type="submit" name="op" value="done">Готово</button>
         {% elif current.number == 5 %}
         <button class="btn btn-primary" type="submit" name="op" value="run">Настроить SSH/OTA</button>
+        <button class="btn btn-success" type="submit" name="op" value="done">Готово</button>
         {% elif current.number == 6 %}
         <button class="btn btn-primary" type="submit" name="op" value="run">Создать маршрут и записать ключ</button>
+        <button class="btn btn-success" type="submit" name="op" value="done">Готово</button>
         {% elif current.number == 7 %}
         <button class="btn btn-primary" type="submit" name="op" value="run">Установить Bridge</button>
+        <button class="btn btn-success" type="submit" name="op" value="done">Готово</button>
         {% elif current.number == 8 %}
         <button class="btn btn-primary" type="submit" name="op" value="run">Проверить LLM</button>
+        <button class="btn btn-success" type="submit" name="op" value="done">Готово</button>
         <a class="btn btn-success" href="/test#voice">Сказать фразу</a>
         {% endif %}
       </div>
     </form>
   </section>
 </div>
+{% if current.number == 6 %}
+<script>
+const providerSelect = document.querySelector('select[name="provider_id"]');
+const modelSelect = document.querySelector('select[name="model"]');
+function filterModels() {
+  if (!providerSelect || !modelSelect) return;
+  const provider = providerSelect.value;
+  for (const option of modelSelect.options) {
+    const matches = !option.dataset.provider || option.dataset.provider === provider;
+    option.hidden = !matches;
+    option.disabled = !matches;
+  }
+  if (modelSelect.selectedOptions[0]?.disabled) modelSelect.value = "";
+}
+providerSelect?.addEventListener("change", filterModels);
+filterModels();
+</script>
+{% endif %}
 {% endblock %}

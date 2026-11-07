@@ -74,9 +74,9 @@ from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
 from .status import sync_from_jobs
 from .subnets import fallback_prefixes, load_subnets, subnet_prefixes
-from .wizard import HOST_STEP, STEPS, advance, load_progress, save_progress, set_last_job, step_by_number
+from .wizard import HOST_STEP, STEPS, Progress, advance, load_progress, save_progress, set_last_job, step_by_number
 
-_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
+_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,50}$")
 _ROUTER_ACTIONS = {"router-start", "router-stop", "router-restart"}
 _FIRMWARE_ACTIONS = {"firmware", "stand-start", "stand-stop", "stand-status"}
 MAX_FALLBACKS = 9
@@ -577,6 +577,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         except ValueError as exc:
             return form_error(str(exc))
         reload_profiles()
+        save_progress(progress_path(name), Progress(step=4))
         audit("speaker.create", name)
         return redirect(url_for("speaker_setup", name=name, step=4), code=303)
 
@@ -686,8 +687,8 @@ def create_app(settings: Settings | None = None) -> Flask:
                 flash("Выберите модель из списка провайдера")
                 return redirect(url_for("speaker_setup", name=name, step=6))
             api_key_file = request.form.get("api_key_file", "").strip()
-            if not api_key_file or Path(api_key_file).name != api_key_file:
-                flash("Выберите upstream-ключ")
+            if api_key_file and Path(api_key_file).name != api_key_file:
+                flash("Ключ должен быть именем файла без каталогов")
                 return redirect(url_for("speaker_setup", name=name, step=6))
             token_file = f"router-token-{name}"
             token_path = settings.secrets_dir / token_file
@@ -924,9 +925,6 @@ def create_app(settings: Settings | None = None) -> Flask:
                 for key, value in HOST_ACTIONS.items()
                 if key in _FIRMWARE_ACTIONS
             },
-            progress=load_progress(
-                settings.state_dir / "setup" / "_host.json", first_step=1
-            ),
         )
 
     @app.post("/setup/prepare/actions/<action>")
@@ -1037,7 +1035,6 @@ def create_app(settings: Settings | None = None) -> Flask:
                 providers=providers(),
             ), 400
         try:
-            token = rotate_router_token(settings.secrets_dir, f"router-token-{name}")
             if request.form.get("provider_id", "").strip():
                 primary = _upstream_from_provider(
                     request.form, providers(), default_history="server"
@@ -1061,6 +1058,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                     {"primary": {}, "fallbacks": []},
                     token_file=f"router-token-{name}",
                 )
+            token = rotate_router_token(settings.secrets_dir, f"router-token-{name}")
             save_config(settings.router_config, upsert_route(raw, route))
         except (ValueError, ConfigError, OSError) as exc:
             return render_template(
@@ -1314,6 +1312,9 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.post("/router/routes/<name>/delete")
     def route_delete(name: str):
         raw = router_config()
+        if len(raw.get("routes") or []) <= 1:
+            flash("Нельзя удалить последний маршрут: в роутере должен остаться хотя бы один")
+            return redirect(url_for("access_page", _anchor="routes"))
         try:
             save_config(settings.router_config, delete_route(raw, name))
             audit("router.delete", name)
@@ -1496,7 +1497,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             return redirect(url_for("access_page", _anchor="routes"))
         job = app.extensions["jobs"].submit("key", profile)
         audit("route.write-key", name, detail=f"job={job.id}")
-        return redirect("/test", code=303)
+        return redirect(url_for("job_page", job_id=job.id), code=303)
 
     def speaker_for_token_file(token_file: str):
         """Колонка, у которой LLM_TOKEN_FILE указывает на этот файл."""

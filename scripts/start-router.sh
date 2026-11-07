@@ -7,8 +7,11 @@ mkdir -p "$ROOT/router-state"
 
 if docker compose version >/dev/null 2>&1; then
   COMPOSE=(docker compose)
-else
+elif command -v docker-compose >/dev/null 2>&1; then
   COMPOSE=(docker-compose)
+else
+  echo "Нужен docker compose или docker-compose" >&2
+  exit 1
 fi
 
 "${COMPOSE[@]}" -f "$ROOT/docker/docker-compose.router.yml" up -d --build
