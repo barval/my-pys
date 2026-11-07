@@ -14,7 +14,7 @@ TMP_OLD="$(mktemp)"
 TMP_NEW="$(mktemp)"
 trap 'rm -f "$TMP_OLD" "$TMP_NEW"' EXIT
 
-ssh -o BatchMode=yes -i "$ROOT/secrets/speaker_ed25519" -p "${SPEAKER_SSH_PORT:-2222}" \
+ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$ROOT/secrets/speaker_ed25519" -p "${SPEAKER_SSH_PORT:-2222}" \
   root@"$IP" 'cat /data/opt/quasar-bridge/config.json' > "$TMP_OLD"
 
 python3 - "$TMP_OLD" "$TMP_NEW" "$POLICY" "$EXAMPLE" <<'PY'
@@ -37,10 +37,10 @@ print("default_route:", routing["default_route"])
 print("rules:", ", ".join(rule["name"] for rule in routing["rules"]))
 PY
 
-ssh -T -o BatchMode=yes -i "$ROOT/secrets/speaker_ed25519" -p "${SPEAKER_SSH_PORT:-2222}" \
+ssh -T -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$ROOT/secrets/speaker_ed25519" -p "${SPEAKER_SSH_PORT:-2222}" \
   root@"$IP" 'cat > /data/opt/quasar-bridge/config.json && chmod 600 /data/opt/quasar-bridge/config.json' < "$TMP_NEW"
 
-ssh -o BatchMode=yes -i "$ROOT/secrets/speaker_ed25519" -p "${SPEAKER_SSH_PORT:-2222}" root@"$IP" '
+ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$ROOT/secrets/speaker_ed25519" -p "${SPEAKER_SSH_PORT:-2222}" root@"$IP" '
 pkg=/data/opt/quasar-bridge/app
 sh "$pkg/control.sh" check
 sh "$pkg/control.sh" restart
