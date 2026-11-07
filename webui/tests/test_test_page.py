@@ -56,6 +56,8 @@ def test_running_test_job_refreshes_without_anchor(client, app, login):
     job.status = "succeeded"
     body = client.get("/test?job=job-9").get_data(as_text=True)
     assert 'http-equiv="refresh"' not in body
+    assert "выполнено" in body
+    assert ">succeeded<" not in body
 
 
 def test_check_creates_job(client, app, login, csrf):

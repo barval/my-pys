@@ -17,7 +17,7 @@
 <section class="card" style="margin-bottom: 1rem">
   <div class="card-head">
     <h2>Задание {{ job.id }}</h2>
-    <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job.status }}</span>
+    <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job_status_label(job.status) }}</span>
   </div>
   {% include "_job_log.html" %}
 </section>

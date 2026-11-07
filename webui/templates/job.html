@@ -13,7 +13,7 @@
     <h1>Задание</h1>
     <div class="mono">{{ job.id }}</div>
   </div>
-  <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job.status }}</span>
+  <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job_status_label(job.status) }}</span>
 </div>
 
 <div class="grid two">

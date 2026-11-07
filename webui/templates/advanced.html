@@ -68,7 +68,7 @@
           <td>{{ job.action }}</td>
           <td>{{ job.target }}</td>
           <td>
-            <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job.status }}</span>
+            <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job_status_label(job.status) }}</span>
           </td>
           <td class="mono">{{ job.started_at or job.created_at }}</td>
           <td><a class="btn btn-ghost btn-sm" href="/jobs/{{ job.id }}">Открыть</a></td>

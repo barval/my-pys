@@ -78,6 +78,14 @@ _ROUTER_ACTIONS = {"router-start", "router-stop", "router-restart"}
 _FIRMWARE_ACTIONS = {"firmware", "stand-start", "stand-stop", "stand-status"}
 MAX_FALLBACKS = 9
 SETUP_ACTIONS = {4: "adb", 5: "root", 7: "bridge", 8: "check"}
+JOB_STATUS_LABELS = {
+    "queued": "в очереди",
+    "running": "выполняется",
+    "succeeded": "выполнено",
+    "failed": "ошибка",
+    "cancelled": "отменено",
+    "interrupted": "прервано",
+}
 
 
 def json_for_pre(value, secrets_dir=None) -> str:
@@ -207,6 +215,9 @@ def create_app(settings: Settings | None = None) -> Flask:
         str(int(asset.stat().st_mtime)) if asset.exists() else "1"
     )
     init_auth(app, settings)
+    app.jinja_env.globals["job_status_label"] = (
+        lambda status: JOB_STATUS_LABELS.get(status, status)
+    )
 
     profiles = {profile.name: profile for profile in load_profiles(settings.speakers_dir)}
     runner = JobRunner(

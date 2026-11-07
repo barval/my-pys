@@ -130,7 +130,7 @@
           <td><a href="/jobs/{{ job.id }}">{{ job.created_at }}</a></td>
           <td>{{ job.action }}</td>
           <td>
-            <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job.status }}</span>
+            <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job_status_label(job.status) }}</span>
           </td>
         </tr>
         {% endfor %}
