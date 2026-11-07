@@ -23,8 +23,8 @@
     {% for item in subnets %}<option value="{{ item }}">{% endfor %}
   </datalist>
   {% if devices is not none %}
-    {% set known = devices | selectattr("device_id") | list %}
-    {% set others = devices | rejectattr("device_id") | list %}
+    {% set known = devices | selectattr("station") | list %}
+    {% set others = devices | rejectattr("station") | list %}
     {% if known %}
     <ul class="found">
       {% for device in known %}
@@ -52,7 +52,10 @@
       <summary>Другие активные адреса: {{ others | length }}</summary>
       <ul class="found">
         {% for device in others %}
-        <li>{{ device.ip }} — ADB недоступен, заполните поля вручную</li>
+        <li>
+          {% if device.device_id %}{{ device.ip }} — {{ device.model }}
+          {% else %}{{ device.ip }} — ADB недоступен, заполните поля вручную{% endif %}
+        </li>
         {% endfor %}
       </ul>
     </details>

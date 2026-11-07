@@ -20,6 +20,18 @@ class Discovered:
     hostname: str
     profile_name: str = ""
 
+    @property
+    def station(self) -> bool:
+        """Похоже ли устройство на Яндекс Станцию, а не на чужой ADB-хост."""
+        if self.profile_name:
+            return True
+        if not self.device_id:
+            return False
+        model = (self.model or "").lower()
+        return not model or any(
+            marker in model for marker in ("станц", "station", "yandexmicro", "яндекс")
+        )
+
 
 def parse_subnet(value: str) -> list[str]:
     value = value.strip()

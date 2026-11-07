@@ -51,6 +51,12 @@ def test_merge_known_profiles_enriches_and_sorts():
     assert merged[0].mac == "02:00:00:00:00:02"
 
 
+def test_station_marker_rejects_foreign_adb_devices():
+    assert not Discovered("192.168.1.43", "", "000490E468496EA1", "SaluteTV", "").station
+    assert Discovered("192.168.1.130", "", "LP0001", "Яндекс Станция Лайт", "").station
+    assert Discovered("192.168.1.131", "", "", "", "", profile_name="speaker-b").station
+
+
 def test_parse_subnet_returns_254_hosts():
     hosts = parse_subnet("192.168.1")
     assert len(hosts) == 254
