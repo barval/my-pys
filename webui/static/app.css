@@ -544,6 +544,14 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
   .speaker-toolbar .toolbar-right { width: 100%; justify-content: space-between; }
 }
 
+.scan-others { margin-top: .7rem; }
+.scan-others summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: .88rem;
+}
+.scan-others .found { margin-top: .4rem; }
+
 /* Быстрый старт: первые три шага до мастера колонки */
 .start-steps {
   display: flex;

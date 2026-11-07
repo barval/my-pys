@@ -23,28 +23,39 @@
     {% for item in subnets %}<option value="{{ item }}">{% endfor %}
   </datalist>
   {% if devices is not none %}
-    {% if devices %}
+    {% set known = devices | selectattr("device_id") | list %}
+    {% set others = devices | rejectattr("device_id") | list %}
+    {% if known %}
     <ul class="found">
-      {% for device in devices %}
+      {% for device in known %}
       <li>
         {% if device.profile_name %}
         {{ device.ip }} — {{ device.profile_name }} (уже добавлена)
         <a class="btn btn-ghost btn-sm" href="/speakers/{{ device.profile_name }}">Открыть</a>
-        {% elif device.device_id %}
+        {% else %}
         {{ device.ip }} — {{ device.model }} ({{ device.mac }})
         <button type="button" class="btn" data-fill
                 data-ip="{{ device.ip }}"
                 data-mac="{{ device.mac }}"
                 data-device-id="{{ device.device_id }}"
                 data-model="{{ device.model }}">Это моя колонка</button>
-        {% else %}
-        {{ device.ip }} — ADB недоступен, заполните поля вручную
         {% endif %}
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <p class="muted">В подсети {{ subnet }} ничего не нашлось. Убедитесь, что колонка включена и подключена к этой сети, затем повторите поиск.</p>
+    <p class="muted">Колонки не опознаны. Убедитесь, что колонка включена,
+      привязана и в сети, затем повторите поиск.</p>
+    {% endif %}
+    {% if others %}
+    <details class="scan-others">
+      <summary>Другие активные адреса: {{ others | length }}</summary>
+      <ul class="found">
+        {% for device in others %}
+        <li>{{ device.ip }} — ADB недоступен, заполните поля вручную</li>
+        {% endfor %}
+      </ul>
+    </details>
     {% endif %}
   {% endif %}
 </div>

@@ -1169,6 +1169,7 @@ def test_scan_marks_hosts_without_adb(client, login, monkeypatch):
         "192.168.1.152", "", "", "", "")])
     body = client.get("/speakers/new?scan=1").get_data(as_text=True)
     assert "192.168.1.152 — ADB недоступен, заполните поля вручную" in body
+    assert "Другие активные адреса: 1" in body
     assert "Это моя колонка" not in body
 
 
