@@ -21,6 +21,8 @@ def test_test_page_has_three_cards(client, login):
     login()
     body = client.get("/test").get_data(as_text=True)
     assert "Голос" in body and "LLM" in body and "Bridge" in body
+    assert 'class="grid cards test-grid"' in body
+    assert body.count('class="field-inline"') == 3
 
 
 def test_check_creates_job(client, app, login, csrf):

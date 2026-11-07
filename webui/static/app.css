@@ -663,9 +663,15 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
   z-index: 1;
 }
 
-/* Экран «Проверка»: одинаковая сетка и кнопки на одной линии */
-.test-card { display: flex; flex-direction: column; height: 100%; }
-.test-card .test-form { display: flex; flex-direction: column; gap: .6rem; flex: 1 1 auto; }
-.test-card .field-inline { display: flex; align-items: center; gap: .6rem; }
-.test-card .field-inline select { flex: 1 1 auto; min-width: 0; }
+/* Экран «Проверка»: «Колонка» и списки выбора на одной линии во всех карточках */
+.test-grid { grid-template-rows: auto auto 1fr; }
+.test-grid .test-card {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+}
+.test-card .test-form { display: flex; flex-direction: column; gap: .6rem; min-height: 0; }
+.test-card .field-inline { display: flex; flex-direction: column; align-items: stretch; gap: .3rem; margin: 0; }
+.test-card .field-inline select { width: 100%; }
 .test-card .test-form button { margin-top: auto; align-self: flex-start; }
