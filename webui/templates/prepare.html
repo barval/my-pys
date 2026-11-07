@@ -3,7 +3,7 @@
 {% block breadcrumbs %}{{ breadcrumbs([("Дополнительно", "/advanced"), ("Подготовка хоста", none)]) }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Подготовка хоста</h1>
+  <h1>1. Подготовка хоста</h1>
 </div>
 
 <section class="card">
@@ -74,5 +74,8 @@
 <section class="card" style="margin-top:1rem">
   <h2>Колонки</h2>
   <p>Когда хост готов, <a href="/speakers/new">добавьте колонку</a> и запустите мастер настройки.</p>
+  <div class="actions" style="margin-top:.8rem">
+    <a class="btn btn-primary" href="/start#step-2">Далее: сброс и привязка</a>
+  </div>
 </section>
 {% endblock %}

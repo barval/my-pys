@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Быстрый старт — {{ config.WEBUI_TITLE }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Быстрый старт</h1>
+    <div class="sub">От пустого проекта до работающей колонки</div>
+  </div>
+  {% if has_profiles %}
+  <a class="btn btn-ghost" href="/">К списку колонок</a>
+  {% endif %}
+</div>
+
+<div class="start-steps">
+  <section class="card start-step">
+    <div class="step-number">1</div>
+    <div>
+      <h2>Подготовка хоста</h2>
+      <p class="muted">{{ host_step.hint }}</p>
+      <p class="muted small">После прошивки колонок верните прежние настройки
+        DNS в роутере.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="/setup/prepare">Открыть подготовку хоста</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="card start-step" id="step-2">
+    <div class="step-number">2</div>
+    <div>
+      <h2>Сброс и привязка колонки</h2>
+      <ol class="start-list">
+        <li>Выключите из розетки остальные колонки, чтобы стенд не задел их.</li>
+        <li>Закрепите MAC → IP в DHCP роутера.</li>
+        <li>Сбросьте колонку: питание → сразу зажать ▶‖ на 6–10 секунд,
+          пока подсветка не станет жёлто-зелёной.</li>
+        <li>Привяжите в «Дом с Алисой»: Bluetooth и мобильный интернет на
+          телефоне, Wi-Fi телефона выключить, приложение перезапустить.</li>
+        <li>Колонка скачает прошивку со стенда, установит её и включит ADB
+          с root. Не выдёргивайте питание несколько минут.</li>
+      </ol>
+      <div class="actions">
+        <a class="btn btn-ghost" href="#step-3">Дальше: добавить колонку</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="card start-step" id="step-3">
+    <div class="step-number">3</div>
+    <div>
+      <h2>Добавить колонку в панель</h2>
+      <p class="muted">Найдите колонку в локальной сети по подсети или
+        заполните IP, MAC и Device ID вручную.</p>
+      <div class="actions">
+        <a class="btn btn-success" href="/speakers/new">Добавить колонку</a>
+      </div>
+      <p class="muted small">После создания профиля откроется мастер
+        колонки с шага 4: ADB/root, SSH/OTA, маршрут и ключ, Quasar Bridge
+        и проверка голосом.</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

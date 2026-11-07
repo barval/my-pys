@@ -465,6 +465,14 @@ def create_app(settings: Settings | None = None) -> Flask:
             response.headers["Cache-Control"] = "no-store"
         return response
 
+    @app.get("/start")
+    def start_page():
+        return render_template(
+            "start.html",
+            host_step=HOST_STEP,
+            has_profiles=bool(profiles),
+        )
+
     @app.get("/")
     def speakers_page():
         query = request.args.get("q", "").strip()

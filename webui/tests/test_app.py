@@ -519,6 +519,35 @@ def test_login_redirects_authenticated_user(client, login):
     assert response.headers["Location"].endswith("/")
 
 
+def test_start_page_shows_first_three_steps(client, login):
+    login()
+    body = client.get("/start").get_data(as_text=True)
+    assert "Подготовка хоста" in body
+    assert "Сброс и привязка колонки" in body
+    assert "Добавить колонку в панель" in body
+    assert 'href="/setup/prepare"' in body
+    assert 'href="/speakers/new"' in body
+
+
+def test_login_redirects_to_start_without_profiles(settings):
+    from webui.app import create_app
+
+    app = create_app(settings)
+    app.config.update(TESTING=True)
+    client = app.test_client()
+    client.get("/login")
+    with client.session_transaction() as session:
+        token = session["csrf"]
+    response = client.post(
+        "/login",
+        data={"password": "correct horse", "csrf_token": token},
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/start")
+    body = client.get("/").get_data(as_text=True)
+    assert "Начать настройку" in body
+
+
 def test_home_lists_speaker_cards(client, login):
     login()
     body = client.get("/").get_data(as_text=True)
@@ -1403,7 +1432,7 @@ def test_format_firmware_size():
 def test_prepare_screen_headings_and_button_colours(client, app, login):
     login()
     body = client.get("/setup/prepare").get_data(as_text=True)
-    assert "<h1>Подготовка хоста</h1>" in body
+    assert "<h1>1. Подготовка хоста</h1>" in body
     assert "<h2>Начало</h2>" in body
     assert "Зачем" not in body
     assert "на этот хост." in body

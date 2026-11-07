@@ -178,7 +178,10 @@ def init_auth(app: Flask, settings: Settings) -> None:
         session["user"] = "admin"
         session["csrf"] = secrets.token_urlsafe(32)
         audit("auth.login", remote)
-        return redirect(url_for("speakers_page"))
+        destination = (
+            "start_page" if not app.extensions.get("profiles") else "speakers_page"
+        )
+        return redirect(url_for(destination))
 
     @app.post("/logout")
     def logout():
