@@ -13,13 +13,19 @@
 </div>
 
 <div class="wizard">
-  <nav class="wizard-steps">
+  <nav class="wizard-steps" aria-label="Шаги мастера">
+    <a class="wizard-step host-step" href="/setup/prepare" title="Общий шаг для всех колонок">
+      <span class="step-number">1</span>
+      <span class="step-title">Подготовка хоста</span>
+      <span class="step-status">общий шаг</span>
+    </a>
     {% for step in steps %}
     {% set is_done = step.key in progress.done %}
     {% set is_skipped = step.key in progress.skipped %}
     {% set is_current = current.number == step.number %}
     <a class="wizard-step{% if is_current %} current{% endif %}{% if is_done %} done{% endif %}{% if is_skipped %} skipped{% endif %}"
-       href="/speakers/{{ profile.name }}/setup?step={{ step.number }}">
+       href="/speakers/{{ profile.name }}/setup?step={{ step.number }}"
+       {% if is_current %}aria-current="step"{% endif %}>
       <span class="step-number">{{ step.number }}</span>
       <span class="step-title">{{ step.title }}</span>
       <span class="step-status">

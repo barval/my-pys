@@ -538,6 +538,78 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
   .speaker-toolbar .toolbar-right { width: 100%; justify-content: space-between; }
 }
 
+/* Мастер настройки: вертикальный степпер */
+.wizard {
+  display: grid;
+  grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+.wizard-steps {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  position: sticky;
+  top: 1rem;
+}
+.wizard-step {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .55rem .65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  line-height: 1.25;
+}
+.wizard-step:hover {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  background: var(--surface-2);
+  text-decoration: none;
+}
+.step-number {
+  flex: 0 0 auto;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.step-title { flex: 1 1 auto; font-weight: 600; font-size: .92rem; }
+.step-status { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+.wizard-step.current {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+}
+.wizard-step.current .step-number {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.wizard-step.current .step-status { color: var(--primary); font-weight: 700; }
+.wizard-step.done .step-number { background: var(--ok); border-color: var(--ok); color: #fff; }
+.wizard-step.done .step-status { color: var(--ok); }
+.wizard-step.skipped { opacity: .62; }
+.wizard-step.host-step .step-status { color: var(--muted); }
+.wizard-card { min-width: 0; }
+
+@media (max-width: 900px) {
+  .wizard { grid-template-columns: 1fr; }
+  .wizard-steps {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: .25rem;
+  }
+  .wizard-step { min-width: 210px; }
+}
+
 /* Хлебные крошки на вложенных страницах */
 .breadcrumbs {
   display: flex;

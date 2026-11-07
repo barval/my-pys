@@ -8,6 +8,9 @@ def test_setup_page_lists_steps(client, login):
     body = client.get("/speakers/speaker-a/setup?step=7").get_data(as_text=True)
     assert "Quasar Bridge" in body
     assert "Маршрут и ключ" in body
+    assert 'href="/setup/prepare"' in body
+    assert "Подготовка хоста" in body
+    assert 'aria-current="step"' in body
     assert 'class="breadcrumbs"' in body
     assert 'href="/speakers/speaker-a"' in body
     assert ">Настроить</span>" in body
