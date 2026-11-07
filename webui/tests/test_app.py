@@ -657,6 +657,16 @@ def test_speaker_page_shows_cached_status(client, app, login):
 
 
 
+def test_corrupt_router_config_is_not_silently_overwritten(client, app, login):
+    login()
+    path = app.config["WEBUI_SETTINGS"].router_config
+    path.write_text("{broken", encoding="utf-8")
+    response = client.get("/access")
+    assert response.status_code == 500
+    assert "Файл маршрутов повреждён" in response.get_data(as_text=True)
+    assert path.read_text(encoding="utf-8") == "{broken"
+
+
 def test_create_route_generates_token(client, app, login, csrf):
     login()
     path = write_router_config(app.config["WEBUI_SETTINGS"].router_config)

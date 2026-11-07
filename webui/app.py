@@ -372,10 +372,14 @@ def create_app(settings: Settings | None = None) -> Flask:
         return result
 
     def router_config() -> dict:
+        if not settings.router_config.exists():
+            return {"routes": []}
         try:
             return read_config(settings.router_config)
-        except (OSError, ValueError):
-            return {"routes": []}
+        except (OSError, ValueError) as exc:
+            raise ConfigError(
+                f"Файл маршрутов повреждён или недоступен: {exc}"
+            ) from exc
 
     def progress_path(name: str) -> Path:
         return settings.state_dir / "setup" / f"{name}.json"
@@ -1775,5 +1779,9 @@ def create_app(settings: Settings | None = None) -> Flask:
             policy_json=policy_json,
             profiles=sorted(profiles.values(), key=lambda item: item.name),
         )
+
+    @app.errorhandler(ConfigError)
+    def handle_config_error(exc: ConfigError):
+        return render_template("config_error.html", error=str(exc)), 500
 
     return app
