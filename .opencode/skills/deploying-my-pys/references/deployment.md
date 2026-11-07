@@ -19,7 +19,7 @@
 
 ```bash
 cp config/llm.env.example local/.env
-# добавьте ROOT_STAND_IP=<IP хоста>, например ROOT_STAND_IP=192.168.1.2
+# проверьте ROOT_STAND_IP и LLM_* в local/.env
 
 cp config/speakers/example.env local/speakers/speaker-a.env
 # заполните SPEAKER_IP, SPEAKER_SUBNET, SPEAKER_DEVICE_ID, SPEAKER_MAC,

@@ -126,18 +126,18 @@ def _parse_upstream(
     watched: dict[str, int] | None = None,
 ) -> Upstream:
     if not isinstance(raw, dict):
-        raise ConfigError("upstream must be an object")
+        raise ConfigError("upstream должен быть объектом")
     base_url = raw.get("base_url")
     if not isinstance(base_url, str) or not base_url.strip():
-        raise ConfigError("upstream.base_url is required")
+        raise ConfigError("у upstream не указан base_url")
 
     api_key = raw.get("api_key") or ""
     if not isinstance(api_key, str):
-        raise ConfigError("upstream.api_key must be a string")
+        raise ConfigError("upstream.api_key должен быть строкой")
     key_file = raw.get("api_key_file")
     if key_file:
         if not isinstance(key_file, str):
-            raise ConfigError("upstream.api_key_file must be a string")
+            raise ConfigError("upstream.api_key_file должен быть строкой")
         key_path = _resolve(base_dir, key_file)
         api_key = _read_secret(key_path)
         if watched is not None:
@@ -147,11 +147,11 @@ def _parse_upstream(
 
     history = raw.get("history", default_history)
     if history not in HISTORY_MODES:
-        raise ConfigError("upstream.history must be 'client' or 'server'")
+        raise ConfigError("upstream.history должен быть client или server")
 
     model = raw.get("model")
     if model is not None and not isinstance(model, str):
-        raise ConfigError("upstream.model must be a string")
+        raise ConfigError("upstream.model должен быть строкой")
 
     try:
         timeout_seconds = float(raw.get("timeout_seconds", 120))
@@ -159,9 +159,9 @@ def _parse_upstream(
             raw.get("fallback_on", DEFAULT_FALLBACK_STATUSES)
         )
     except (TypeError, ValueError) as exc:
-        raise ConfigError(f"invalid upstream timeout/status list: {exc}") from exc
+        raise ConfigError(f"некорректный timeout/fallback_on: {exc}") from exc
     if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
-        raise ConfigError("upstream.timeout_seconds must be a positive number")
+        raise ConfigError("upstream.timeout_seconds должен быть положительным числом")
 
     return Upstream(
         base_url=base_url.rstrip("/"),
@@ -179,17 +179,17 @@ def _parse_session(raw: Any, default_history: str) -> SessionConfig:
         raw = {}
     mode = raw.get("mode", default_history)
     if mode not in HISTORY_MODES:
-        raise ConfigError("session.mode must be 'client' or 'server'")
+        raise ConfigError("session.mode должен быть client или server")
     user = raw.get("user", "voice")
     if not isinstance(user, str) or not user.strip():
-        raise ConfigError("session.user must be a non-empty string")
+        raise ConfigError("session.user должен быть непустой строкой")
     try:
         idle_minutes = int(raw.get("idle_minutes", 30))
         cleanup_keep = int(raw.get("cleanup_keep", 3))
     except (TypeError, ValueError) as exc:
-        raise ConfigError(f"invalid session limits: {exc}") from exc
+        raise ConfigError(f"некорректные лимиты сессии: {exc}") from exc
     if idle_minutes < 1 or cleanup_keep < 1:
-        raise ConfigError("session.idle_minutes and cleanup_keep must be positive")
+        raise ConfigError("session.idle_minutes и cleanup_keep должны быть положительными")
     return SessionConfig(mode=mode, user=user.strip(), idle_minutes=idle_minutes, cleanup_keep=cleanup_keep)
 
 
@@ -200,9 +200,9 @@ def _parse_response_policy(raw: Any, default_sentences: int = 3, default_chars: 
         max_sentences = int(raw.get("max_sentences", default_sentences))
         max_chars = int(raw.get("max_chars", default_chars))
     except (TypeError, ValueError) as exc:
-        raise ConfigError(f"invalid response limits: {exc}") from exc
+        raise ConfigError(f"некорректные лимиты ответа: {exc}") from exc
     if max_sentences < 1 or max_chars < 1:
-        raise ConfigError("response.max_sentences and response.max_chars must be positive")
+        raise ConfigError("response.max_sentences и response.max_chars должны быть положительными")
     return ResponsePolicy(
         max_sentences=max_sentences,
         max_chars=max_chars,
@@ -241,9 +241,9 @@ def load_config(path: Path) -> Config:
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        raise ConfigError(f"cannot read {path}: {exc}") from exc
+        raise ConfigError(f"не удалось прочитать {path}: {exc}") from exc
     if not isinstance(raw, dict) or not isinstance(raw.get("routes"), list):
-        raise ConfigError("config must contain a 'routes' array")
+        raise ConfigError("конфиг должен содержать массив routes")
 
     base_dir = path.parent
     watched = {str(path.resolve()): _mtime_ns(path)}
@@ -251,20 +251,20 @@ def load_config(path: Path) -> Config:
     by_token: dict[str, Route] = {}
     for item in raw["routes"]:
         if not isinstance(item, dict):
-            raise ConfigError("each route must be an object")
+            raise ConfigError("каждый маршрут должен быть объектом")
         name = item.get("name")
         if not isinstance(name, str) or not name.strip():
-            raise ConfigError("route.name is required")
+            raise ConfigError("у маршрута не указано имя")
         token_file = item.get("token_file")
         if not isinstance(token_file, str) or not token_file:
-            raise ConfigError(f"route {name}: token_file is required")
+            raise ConfigError(f"маршрут {name}: не указан token_file")
         token_path = _resolve(base_dir, token_file)
         token = _read_secret(token_path)
         watched[str(token_path.resolve())] = _mtime_ns(token_path)
         if not token:
-            raise ConfigError(f"route {name}: token file is missing or empty: {token_file}")
+            raise ConfigError(f"маршрут {name}: файл токена отсутствует или пуст: {token_file}")
         if token in by_token:
-            raise ConfigError(f"duplicate router token for route {name}")
+            raise ConfigError(f"маршрут {name}: токен уже используется другим маршрутом")
 
         session = _parse_session(item.get("session"), "server")
         primary = _parse_upstream(item.get("primary"), base_dir, session.mode, watched)
@@ -275,7 +275,7 @@ def load_config(path: Path) -> Config:
                 for entry in fallbacks_raw
             )
         elif fallbacks_raw is not None:
-            raise ConfigError(f"route {name}: fallbacks must be an array")
+            raise ConfigError(f"маршрут {name}: fallbacks должен быть массивом")
         else:
             fallback_raw = item.get("fallback")
             fallbacks = (
@@ -295,7 +295,7 @@ def load_config(path: Path) -> Config:
         by_token[token] = route
 
     if not routes:
-        raise ConfigError("config has no routes")
+        raise ConfigError("в конфиге нет ни одного маршрута")
     response_raw = raw.get("response")
     chunked_raw = response_raw.get("chunked") if isinstance(response_raw, dict) else None
     return Config(

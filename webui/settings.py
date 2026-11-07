@@ -66,10 +66,10 @@ def load_settings(
     secrets_dir = root_path / "secrets"
     router_control = values.get("WEBUI_ROUTER_CONTROL", "host")
     if router_control not in ("host", "sidecar"):
-        raise ValueError("WEBUI_ROUTER_CONTROL must be host or sidecar")
+        raise ValueError("WEBUI_ROUTER_CONTROL должен быть host или sidecar")
     stand_control = values.get("WEBUI_STAND_CONTROL", "host")
     if stand_control not in ("host", "sidecar"):
-        raise ValueError("WEBUI_STAND_CONTROL must be host or sidecar")
+        raise ValueError("WEBUI_STAND_CONTROL должен быть host или sidecar")
     project_env: dict[str, str] = {}
     for candidate in (root_path / "local" / ".env", root_path / ".env"):
         if candidate.is_file():
