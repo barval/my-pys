@@ -12,18 +12,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
-from cryptography.exceptions import InvalidTag
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-
 from .keys import validate_secret_name
 from .router_config import read_config, save_config, upsert_route, validate_config
 from .settings import Settings
 
-MAGIC = b"MY-PYS-BACKUP\x01"
 FORMAT_VERSION = 1
-ITERATIONS = 600_000
 MAX_RESTORE_BYTES = 64 * 1024 * 1024
 _LOCK = threading.Lock()
 
@@ -45,38 +38,6 @@ def _backup_dir(settings: Settings) -> Path:
 
 def _timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-
-
-def _derive_key(passphrase: str, salt: bytes) -> bytes:
-    return PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=ITERATIONS,
-    ).derive(passphrase.encode("utf-8"))
-
-
-def _encrypt(data: bytes, passphrase: str) -> bytes:
-    salt = os.urandom(16)
-    nonce = os.urandom(12)
-    ciphertext = AESGCM(_derive_key(passphrase, salt)).encrypt(
-        nonce, data, MAGIC
-    )
-    return MAGIC + salt + nonce + ciphertext
-
-
-def _decrypt(blob: bytes, passphrase: str) -> bytes:
-    header = len(MAGIC)
-    if len(blob) < header + 28 or not blob.startswith(MAGIC):
-        raise BackupError("это не архив резервной копии")
-    salt = blob[header : header + 16]
-    nonce = blob[header + 16 : header + 28]
-    try:
-        return AESGCM(_derive_key(passphrase, salt)).decrypt(
-            nonce, blob[header + 28 :], MAGIC
-        )
-    except InvalidTag as exc:
-        raise BackupError("неверный пароль или повреждённый архив") from exc
 
 
 def _atomic_write(path: Path, data: bytes, mode: int) -> None:
@@ -238,9 +199,7 @@ def _build_tar(settings: Settings, files: list[tuple[str, Path]], manifest: dict
     return buffer.getvalue()
 
 
-def create_backup(settings: Settings, scope: str, passphrase: str) -> Path:
-    if len(passphrase) < 8:
-        raise BackupError("пароль архива должен быть не короче 8 символов")
+def create_backup(settings: Settings, scope: str) -> Path:
     with _LOCK:
         files, speaker = _collect(settings, scope)
         if not files:
@@ -278,10 +237,9 @@ def create_backup(settings: Settings, scope: str, passphrase: str) -> Path:
             plain = buffer.getvalue()
         else:
             plain = _build_tar(settings, files, manifest)
-        encrypted = _encrypt(plain, passphrase)
         suffix = speaker or "all"
-        path = _backup_dir(settings) / f"config-{_timestamp()}-{suffix}.tar.gz.enc"
-        _atomic_write(path, encrypted, 0o600)
+        path = _backup_dir(settings) / f"config-{_timestamp()}-{suffix}.tar.gz"
+        _atomic_write(path, plain, 0o600)
         return path
 
 
@@ -289,7 +247,7 @@ def list_backups(settings: Settings) -> list[BackupInfo]:
     directory = _backup_dir(settings)
     result: list[BackupInfo] = []
     try:
-        paths = list(directory.glob("*.tar.gz.enc"))
+        paths = list(directory.glob("*.tar.gz"))
     except OSError:
         return result
     for path in sorted(paths, key=lambda item: item.stat().st_mtime, reverse=True):
@@ -307,7 +265,7 @@ def list_backups(settings: Settings) -> list[BackupInfo]:
 
 
 def resolve_backup(settings: Settings, name: str) -> Path:
-    if not name or Path(name).name != name or not name.endswith(".tar.gz.enc"):
+    if not name or Path(name).name != name or not name.endswith(".tar.gz"):
         raise BackupError("недопустимое имя архива")
     directory = _backup_dir(settings).resolve()
     path = (directory / name).resolve()
@@ -335,12 +293,12 @@ def _safe_extract(blob: bytes, destination: Path) -> None:
         raise BackupError(f"не удалось прочитать архив: {exc}") from exc
 
 
-def _load_archive(path: Path, passphrase: str, destination: Path) -> dict:
+def _load_archive(path: Path, destination: Path) -> dict:
     try:
         blob = path.read_bytes()
     except OSError as exc:
         raise BackupError(f"не удалось открыть архив: {exc}") from exc
-    _safe_extract(_decrypt(blob, passphrase), destination)
+    _safe_extract(blob, destination)
     manifest_path = destination / "manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -353,13 +311,13 @@ def _load_archive(path: Path, passphrase: str, destination: Path) -> dict:
     return manifest
 
 
-def inspect_backup(settings: Settings, name: str, passphrase: str) -> dict:
+def inspect_backup(settings: Settings, name: str) -> dict:
     path = resolve_backup(settings, name)
     with tempfile.TemporaryDirectory(prefix="webui-backup-") as directory:
-        return _load_archive(path, passphrase, Path(directory))
+        return _load_archive(path, Path(directory))
 
 
-def _snapshot(settings: Settings, manifest: dict, extracted: Path) -> Path:
+def _snapshot(settings: Settings, manifest: dict) -> Path:
     stamp = _timestamp()
     directory = settings.state_dir / "restore-backups" / f"{stamp}-{uuid.uuid4().hex[:6]}"
     directory.mkdir(parents=True, exist_ok=False)
@@ -390,17 +348,13 @@ def _target(settings: Settings, name: str) -> Path:
 def restore_backup(
     settings: Settings,
     source: Path,
-    passphrase: str,
-    confirm: str,
 ) -> dict:
-    if confirm != "REPLACE":
-        raise BackupError("для восстановления введите REPLACE")
     with _LOCK:
         path = Path(source)
         with tempfile.TemporaryDirectory(prefix="webui-restore-") as directory:
             extracted = Path(directory)
-            manifest = _load_archive(path, passphrase, extracted)
-            snapshot = _snapshot(settings, manifest, extracted)
+            manifest = _load_archive(path, extracted)
+            snapshot = _snapshot(settings, manifest)
             restored = 0
             router_done = False
 

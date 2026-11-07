@@ -1590,13 +1590,8 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.post("/backup/create")
     def backup_create():
         scope = request.form.get("scope", "all")
-        passphrase = request.form.get("passphrase", "")
-        confirm = request.form.get("confirm", "")
-        if passphrase != confirm:
-            flash("Пароли архива не совпадают")
-            return redirect("/more#backup")
         try:
-            path = create_backup(settings, scope, passphrase)
+            path = create_backup(settings, scope)
         except (BackupError, ConfigError, ValueError, OSError) as exc:
             flash(str(exc))
             return redirect("/more#backup")
@@ -1607,9 +1602,8 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.post("/backup/inspect")
     def backup_inspect():
         name = request.form.get("backup", "")
-        passphrase = request.form.get("passphrase", "")
         try:
-            manifest = inspect_backup(settings, name, passphrase)
+            manifest = inspect_backup(settings, name)
         except (BackupError, ConfigError, ValueError, OSError) as exc:
             flash(str(exc))
             return redirect("/more#backup")
@@ -1637,16 +1631,14 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.post("/backup/restore")
     def backup_restore():
-        passphrase = request.form.get("passphrase", "")
-        confirm = request.form.get("confirm", "")
         uploaded = request.files.get("archive")
         temp_path: Path | None = None
         try:
             if uploaded is not None and uploaded.filename:
-                if not uploaded.filename.endswith(".tar.gz.enc"):
-                    raise BackupError("ожидается файл .tar.gz.enc")
+                if not uploaded.filename.endswith(".tar.gz"):
+                    raise BackupError("ожидается файл .tar.gz")
                 descriptor, name = tempfile.mkstemp(
-                    dir=str(settings.state_dir), suffix=".tar.gz.enc"
+                    dir=str(settings.state_dir), suffix=".tar.gz"
                 )
                 os.close(descriptor)
                 temp_path = Path(name)
@@ -1657,9 +1649,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 source = resolve_backup(
                     settings, request.form.get("backup", "")
                 )
-            summary = restore_backup(
-                settings, source, passphrase, confirm
-            )
+            summary = restore_backup(settings, source)
             reload_profiles()
             audit(
                 "backup.restore",

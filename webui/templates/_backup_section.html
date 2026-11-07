@@ -23,15 +23,10 @@
           {% endfor %}
         </select>
       </label>
-      <label>Пароль архива
-        <input type="password" name="passphrase" minlength="8" required autocomplete="new-password">
-      </label>
-      <label>Повторите пароль
-        <input type="password" name="confirm" minlength="8" required autocomplete="new-password">
-      </label>
       <button class="btn btn-success" type="submit">Создать</button>
     </form>
-    <p class="muted">Пароль не сохраняется. Без него архив не открыть.</p>
+    <p class="muted">Архив не шифруется: в нём лежат ключи и SSH-ключ.
+      Храните его в защищённом месте.</p>
   </section>
 
   <section class="card">
@@ -47,17 +42,14 @@
         </select>
       </label>
       <label>Или загрузить файл
-        <input type="file" name="archive" accept=".enc">
+        <input type="file" name="archive" accept=".tar.gz">
       </label>
-      <label>Пароль архива
-        <input type="password" name="passphrase" required autocomplete="off">
-      </label>
-      <label>Введите REPLACE
-        <input type="text" name="confirm" required autocomplete="off" placeholder="REPLACE">
-      </label>
+      <p class="muted small">Восстановление заменит текущие профили, ключи и
+        конфиг роутера. Перед заменой панель сохранит копию текущих файлов в
+        <code>webui-state/restore-backups/</code> — оттуда можно вернуть
+        прежнее состояние вручную.</p>
       <button class="btn btn-danger" type="submit">Восстановить</button>
     </form>
-    <p class="muted">Снапшот текущих файлов: <code>webui-state/restore-backups/</code>.</p>
   </section>
 </div>
 
@@ -94,9 +86,6 @@
         <option value="{{ item.name }}">{{ item.name }}</option>
         {% endfor %}
       </select>
-    </label>
-    <label>Пароль
-      <input type="password" name="passphrase" required autocomplete="off">
     </label>
     <button class="btn btn-warning" type="submit">Проверить</button>
   </form>

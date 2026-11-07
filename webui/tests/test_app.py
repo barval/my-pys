@@ -383,16 +383,12 @@ def test_backup_create_and_download(client, app, login, csrf):
     login()
     response = client.post(
         "/backup/create",
-        data={
-            "scope": "all",
-            "passphrase": "correct horse",
-            "confirm": "correct horse",
-        },
+        data={"scope": "all"},
         headers={"X-CSRF-Token": csrf(client)},
         follow_redirects=True,
     )
     assert response.status_code == 200
-    assert ".tar.gz.enc" in response.get_data(as_text=True)
+    assert ".tar.gz" in response.get_data(as_text=True)
 
     settings = app.config["WEBUI_SETTINGS"]
     name = list_backups(settings)[0].name
@@ -401,36 +397,13 @@ def test_backup_create_and_download(client, app, login, csrf):
     assert download.headers["Cache-Control"] == "no-store"
 
 
-def test_backup_restore_requires_replace(client, app, login, csrf):
-    from webui.backup import list_backups
-
+def test_backup_page_has_restore_notice_and_no_password_fields(client, login):
     login()
-    profile = app.config["WEBUI_SETTINGS"].root / "local" / "speakers" / "speaker-a.env"
-    original = profile.read_text(encoding="utf-8")
-    client.post(
-        "/backup/create",
-        data={
-            "scope": "all",
-            "passphrase": "correct horse",
-            "confirm": "correct horse",
-        },
-        headers={"X-CSRF-Token": csrf(client)},
-    )
-    profile.write_text("CHANGED\n", encoding="utf-8")
-    name = list_backups(app.config["WEBUI_SETTINGS"])[0].name
-    response = client.post(
-        "/backup/restore",
-        data={
-            "backup": name,
-            "passphrase": "correct horse",
-            "confirm": "",
-        },
-        headers={"X-CSRF-Token": csrf(client)},
-        follow_redirects=True,
-    )
-    assert "REPLACE" in response.get_data(as_text=True)
-    assert profile.read_text(encoding="utf-8") == "CHANGED\n"
-    profile.write_text(original, encoding="utf-8")
+    body = client.get("/more").get_data(as_text=True)
+    assert "Восстановление заменит" in body
+    assert "restore-backups" in body
+    assert "REPLACE" not in body
+    assert "Пароль архива" not in body
 
 
 def test_backup_restore_all_from_stored_archive(client, app, login, csrf):
@@ -442,22 +415,14 @@ def test_backup_restore_all_from_stored_archive(client, app, login, csrf):
     original = profile.read_text(encoding="utf-8")
     client.post(
         "/backup/create",
-        data={
-            "scope": "all",
-            "passphrase": "correct horse",
-            "confirm": "correct horse",
-        },
+        data={"scope": "all"},
         headers={"X-CSRF-Token": csrf(client)},
     )
     name = list_backups(settings)[0].name
     profile.write_text("CHANGED\n", encoding="utf-8")
     response = client.post(
         "/backup/restore",
-        data={
-            "backup": name,
-            "passphrase": "correct horse",
-            "confirm": "REPLACE",
-        },
+        data={"backup": name},
         headers={"X-CSRF-Token": csrf(client)},
         follow_redirects=True,
     )
