@@ -245,9 +245,13 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.config["WEBUI_STAND_IP"] = settings.stand_ip
     app.config["WEBUI_ROUTER_DISPLAY_URL"] = settings.router_display_url
     app.config["WEBUI_ROUTER_HEALTH_DISPLAY_URL"] = settings.router_health_display_url
-    asset = settings.static_dir / "app.css"
+    assets = [
+        settings.static_dir / "app.css",
+        settings.static_dir / "app.js",
+    ]
+    mtimes = [path.stat().st_mtime for path in assets if path.exists()]
     app.config["WEBUI_ASSET_VERSION"] = (
-        str(int(asset.stat().st_mtime)) if asset.exists() else "1"
+        str(int(max(mtimes))) if mtimes else "1"
     )
     init_auth(app, settings)
     app.jinja_env.globals["job_status_label"] = (
