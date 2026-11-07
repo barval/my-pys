@@ -12,7 +12,7 @@
 
 <div class="card">
   <h2>Найти колонку</h2>
-  <form method="get" action="/speakers/new" class="form-inline" data-scan-form="scan-notice"{% if autoscan %} data-autoscan="1"{% endif %}>
+  <form method="get" action="/speakers/new" class="form-inline" data-scan-form="scan-notice">
     <input type="hidden" name="scan" value="1">
     <label>Подсеть
       <input name="subnet" value="{{ subnet }}" list="host-subnets" placeholder="192.168.1" class="subnet-field">

@@ -1229,8 +1229,6 @@ def test_scan_page_shows_russian_error_for_bad_subnet(client, login):
     body = client.get("/speakers/new").get_data(as_text=True)
     assert "data-scan-form" in body
     assert "Идёт поиск колонок" in body
-    body = client.get("/speakers/new?autoscan=1").get_data(as_text=True)
-    assert 'data-autoscan="1"' in body
 
 
 def test_access_page_lists_upstream_keys(client, app, login, csrf, settings):
