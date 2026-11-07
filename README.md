@@ -52,13 +52,11 @@ VERSION                       версия проекта
 docs/
   README.md                   индекс документации
   00-architecture.md          схема тракта, компоненты, порты
-  01-findings.md              что выяснено о колонке, LLM и сети
-  02-plan.md                  план работ по этапам
   03-runbook.md               точные команды и порядок действий
   04-risks.md                 риски, ограничения и откат
   05-troubleshooting.md       диагностика типовых ошибок
-  06-flai-all-cameras-api-bug.md  баг FLAI с камерами (исторический)
   07-webui.md                 веб-панель: Docker, вход, разделы, бэкапы
+  images/                     скриншоты для README
 config/
   llm.env.example             пример local/.env: адрес хоста и внешняя LLM
   router-routes.example.json  пример таблицы маршрутов роутера
