@@ -2,7 +2,7 @@
 {% block title %}Проверка — {{ config.WEBUI_TITLE }}{% endblock %}
 {% block head %}
 {% if job and job.status not in ("succeeded", "failed", "cancelled", "interrupted") %}
-<meta http-equiv="refresh" content="2">
+<meta http-equiv="refresh" content="2;url={{ url_for('test_page', job=job.id) }}">
 {% endif %}
 {% endblock %}
 {% block content %}
