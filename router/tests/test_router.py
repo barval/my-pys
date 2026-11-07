@@ -6,7 +6,6 @@ from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import llm_router as r  # noqa: E402
@@ -193,9 +192,7 @@ def test_health_probe_is_detected():
     assert r.is_health_probe(with_system) is False
 
 
-def test_client_history_keeps_everything(tmp_path):
-    config = r.load_config(write_config(tmp_path, "http://127.0.0.1:1/v1"))
-    route = config.by_token("sk-router-test")
+def test_client_history_keeps_everything():
     body = {
         "model": "client-model",
         "messages": [

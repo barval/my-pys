@@ -1,6 +1,6 @@
-# Shared env loader for project scripts.
-# Usage: . "$ROOT/scripts/lib-env.sh"; load_project_env "$ROOT"
-# Loads local/.env (or .env), then an optional per-speaker profile from SPEAKER_ENV.
+# Общий загрузчик окружения для скриптов проекта.
+# Использование: . "$ROOT/scripts/lib-env.sh"; load_project_env "$ROOT"
+# Сначала читает local/.env (или .env), затем профиль колонки из SPEAKER_ENV.
 load_project_env() {
   local root="$1"
   local envfile

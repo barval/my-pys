@@ -26,7 +26,7 @@ cfg = json.load(open(old, encoding="utf-8"))
 policy = json.load(open(policy_path, encoding="utf-8"))
 example = json.load(open(example_path, encoding="utf-8"))["routing"]
 
-# Keep classifier/refusal defaults from upstream, replace only routing policy.
+# Сохраняем настройки классификатора и отказов upstream, меняем только routing.
 routing = dict(example)
 routing["default_route"] = policy["default_route"]
 routing["rules"] = policy["rules"]

@@ -29,7 +29,7 @@ _LOCK = threading.Lock()
 
 
 class BackupError(Exception):
-    """Raised when a backup cannot be created, read or restored."""
+    """Ошибка создания, чтения или восстановления резервной копии."""
 
 
 @dataclass(frozen=True)

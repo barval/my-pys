@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from types import SimpleNamespace
 
 from webui.status import load_status, save_status, sync_from_jobs
@@ -55,7 +54,6 @@ def test_save_and_load_round_trip(tmp_path):
 
 def test_sync_from_status_job_success_sets_online_and_bridge(tmp_path):
     """Successful status job sets both online=True and bridge=True."""
-    from webui.status import SpeakerStatus
     path = tmp_path / "speaker-status.json"
     result = sync_from_jobs(path, [
         job("status", "speaker-a", 0, "2026-11-06T10:01:00+00:00"),
@@ -66,7 +64,6 @@ def test_sync_from_status_job_success_sets_online_and_bridge(tmp_path):
 
 def test_sync_from_status_job_failure_sets_online_and_bridge_false(tmp_path):
     """Failed status job sets both online=False and bridge=False."""
-    from webui.status import SpeakerStatus
     path = tmp_path / "speaker-status.json"
     result = sync_from_jobs(path, [
         job("status", "speaker-a", 1, "2026-11-06T10:01:00+00:00"),
@@ -77,7 +74,6 @@ def test_sync_from_status_job_failure_sets_online_and_bridge_false(tmp_path):
 
 def test_sync_from_resolve_keeps_online_only(tmp_path):
     """resolve action keeps mapping to online only."""
-    from webui.status import SpeakerStatus
     path = tmp_path / "speaker-status.json"
     result = sync_from_jobs(path, [
         job("resolve", "speaker-a", 0, "2026-11-06T10:01:00+00:00"),
@@ -88,7 +84,6 @@ def test_sync_from_resolve_keeps_online_only(tmp_path):
 
 def test_sync_from_check_keeps_llm_only(tmp_path):
     """check action keeps mapping to llm only."""
-    from webui.status import SpeakerStatus
     path = tmp_path / "speaker-status.json"
     result = sync_from_jobs(path, [
         job("check", "speaker-a", 0, "2026-11-06T10:01:00+00:00"),

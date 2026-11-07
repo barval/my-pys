@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Local Piper HTTP service used by the "say" action.
+"""Локальный HTTP-сервис Piper для действия «Сказать».
 
-POST /say with {"text": "..."} returns a mono 16-bit WAV. The voice model is
-loaded once and kept in memory; requests are serialized because a PiperVoice is
-not safe for concurrent synthesis.
+POST /say с {"text": "..."} возвращает моно WAV 16 бит. Модель голоса
+загружается один раз и остаётся в памяти; запросы выполняются последовательно,
+потому что PiperVoice не безопасен при одновременном синтезе.
 """
 from __future__ import annotations
 

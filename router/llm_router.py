@@ -1,12 +1,11 @@
-"""Local OpenAI-compatible router for the Quasar Bridge speakers.
+"""Локальный OpenAI-совместимый роутер для колонок с Quasar Bridge.
 
-The router keeps the speaker-side configuration stable: every speaker talks to
-one address with a router token.  Per-route config decides which upstream gets
-the request, whether the upstream keeps conversation history itself, and where
-to fail over when the primary is unavailable.
+Колонка всегда ходит на один адрес со своим промежуточным токеном. Маршрут
+решает, какой upstream получит запрос, кто хранит историю диалога и куда
+переключиться, если основной upstream недоступен.
 
-Only the Python standard library is used so the container needs no pip
-dependencies and the tests run on the host.
+Используется только стандартная библиотека Python: контейнеру не нужны
+pip-зависимости, а тесты запускаются на хосте.
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ HISTORY_MODES = frozenset({"client", "server"})
 
 
 class ConfigError(Exception):
-    """Raised when router-routes.json cannot be used."""
+    """Ошибка: router-routes.json нельзя использовать."""
 
 
 @dataclass(frozen=True)
@@ -62,7 +61,7 @@ class SessionConfig:
 
 @dataclass(frozen=True)
 class ResponsePolicy:
-    """Voice-output limits applied to non-stream chat completions."""
+    """Ограничения длины ответа для не-stream запросов."""
 
     max_sentences: int = 3
     max_chars: int = 400
@@ -95,9 +94,6 @@ class Config:
         return self.by_token_map.get(token)
 
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
 
 
 def _resolve(base_dir: Path, value: str) -> Path:
@@ -206,7 +202,7 @@ def _parse_response_policy(raw: Any, default_sentences: int = 3, default_chars: 
 
 
 def probe_upstream(upstream: Upstream, timeout: float = 3.0) -> dict[str, Any]:
-    """Return a short live status for an upstream without exposing its key."""
+    """Короткий статус upstream без раскрытия ключа."""
     if not upstream.available:
         return {"state": "no_key"}
     url = upstream.base_url.rstrip("/") + "/models"
@@ -306,7 +302,7 @@ def load_config(path: Path) -> Config:
 
 
 class ConfigStore:
-    """Reloads the config when its mtime changes, keeping the last good copy."""
+    """Перечитывает конфиг при изменении mtime, сохраняя последнюю рабочую копию."""
 
     def __init__(self, path: Path):
         self.path = Path(path)
@@ -331,20 +327,17 @@ class ConfigStore:
         return self._config
 
 
-# ---------------------------------------------------------------------------
-# Request shaping
-# ---------------------------------------------------------------------------
 
 
 def build_payload(upstream: Upstream, body: dict[str, Any], session_user: str) -> dict[str, Any]:
-    """Return the upstream body for one route.
+    """Собирает тело запроса для одного маршрута.
 
-    ``server`` history sends only the last user message.  FLAI concatenates
-    every role into one text and stores it as a user turn, so sending the
-    Bridge's system prompt or history would both duplicate context and make
-    the model quote service instructions back to the user.  The upstream's
-    own system prompt supplies the identity and style.  ``client`` history
-    passes every message through.
+    При ``history=server`` отправляется только последнее сообщение
+    пользователя. FLAI склеивает все роли в один текст и хранит его как
+    реплику пользователя, поэтому system-промпт и история Bridge дублировали
+    бы контекст и провоцировали модель цитировать служебные инструкции.
+    Личность и стиль задаёт собственный system-промпт upstream.
+    При ``history=client`` запрос передаётся как есть.
     """
     payload = copy.deepcopy(body)
     if upstream.model:
@@ -392,7 +385,7 @@ def _message_text(message: dict[str, Any]) -> str:
 
 
 def is_health_probe(body: dict[str, Any]) -> bool:
-    """True for the Bridge's single-message ``check-backends`` probe."""
+    """Проверяет одиночный запрос Bridge от ``check-backends``."""
     messages = body.get("messages")
     if not isinstance(messages, list) or len(messages) != 1:
         return False
@@ -415,7 +408,7 @@ _WHITESPACE = re.compile(r"\s+")
 
 
 def shorten_text(text: str, policy: ResponsePolicy) -> str:
-    """Trim an LLM answer to the voice budget, preferring sentence boundaries."""
+    """Обрезает ответ LLM до голосового лимита, стараясь резать по предложениям."""
     original = text.strip()
     if not original:
         return original
@@ -450,7 +443,7 @@ def shorten_text(text: str, policy: ResponsePolicy) -> str:
 
 
 def apply_response_policy(data: bytes, policy: ResponsePolicy) -> bytes:
-    """Shorten assistant text in an OpenAI chat-completion JSON response."""
+    """Сокращает текст ассистента в JSON-ответе chat completions."""
     try:
         payload = json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, ValueError):
@@ -481,13 +474,10 @@ def apply_response_policy(data: bytes, policy: ResponsePolicy) -> bytes:
     return json.dumps(payload, ensure_ascii=False).encode("utf-8") if changed else data
 
 
-# ---------------------------------------------------------------------------
-# Session state
-# ---------------------------------------------------------------------------
 
 
 class SessionManager:
-    """Tracks one logical FLAI conversation per route and its idle epochs."""
+    """Хранит логическую сессию FLAI для маршрута и её эпохи простоя."""
 
     def __init__(self, state_path: Path, clock: Callable[[], float] = time.time):
         self.state_path = Path(state_path)
@@ -510,7 +500,7 @@ class SessionManager:
         os.replace(tmp, self.state_path)
 
     def lease(self, route: Route) -> tuple[str, bool]:
-        """Return (session user, rotated) and update the idle timer."""
+        """Возвращает пользователя сессии и признак ротации, обновляя таймер."""
         with self._lock:
             entry = self._state.get(route.name)
             base = route.session.user
@@ -545,7 +535,7 @@ class SessionManager:
             return list(users) if isinstance(users, list) and users else [route.session.user]
 
     def trim_users(self, route: Route, keep: int) -> None:
-        """Keep the state file from growing with every epoch."""
+        """Не даёт файлу состояния расти с каждой эпохой."""
         with self._lock:
             entry = self._state.get(route.name)
             if not isinstance(entry, dict):
@@ -559,13 +549,10 @@ class SessionManager:
                     LOG.warning("cannot save session state: %s", exc)
 
 
-# ---------------------------------------------------------------------------
-# FLAI session cleanup
-# ---------------------------------------------------------------------------
 
 
 def _session_title(user: str) -> str:
-    fingerprint = hashlib.sha1(user.encode("utf-8")).hexdigest()  # noqa: S324 - FLAI's session key, not security
+    fingerprint = hashlib.sha1(user.encode("utf-8")).hexdigest()  # noqa: S324 — ключ сессии FLAI, не для безопасности
     return "flai:conv:" + fingerprint[:32]
 
 
@@ -575,7 +562,7 @@ def select_stale_sessions(
     keep: int,
     must_keep: str | None = None,
 ) -> list[str]:
-    """Return ids of matching sessions except the newest ``keep`` (and must_keep)."""
+    """Возвращает id старых сессий, оставляя ``keep`` новейших и ``must_keep``."""
     matching = [
         session
         for session in sessions
@@ -612,7 +599,7 @@ def _http_json(
 
 
 def cleanup_sessions(route: Route, sessions: SessionManager) -> int:
-    """Keep the current FLAI session and two previous ones for this route."""
+    """Оставляет текущую сессию FLAI и две предыдущие для этого маршрута."""
     upstream = route.primary
     if upstream.history != "server" or not upstream.available:
         return 0
@@ -664,9 +651,6 @@ def schedule_cleanup(route: Route, sessions: SessionManager) -> None:
     threading.Thread(target=run, daemon=True, name=f"cleanup-{route.name}").start()
 
 
-# ---------------------------------------------------------------------------
-# HTTP proxy
-# ---------------------------------------------------------------------------
 
 
 def _error_payload(message: str, code: str) -> dict[str, Any]:
@@ -708,8 +692,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt: str, *args: Any) -> None:
         LOG.info("%s - %s", self.address_string(), fmt % args)
-
-    # -- request handling -------------------------------------------------
 
     def _handle(self, method: str) -> None:
         path = urlsplit(self.path).path
@@ -831,8 +813,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
             label != "primary",
         )
 
-    # -- upstream ---------------------------------------------------------
-
     def _forward(
         self,
         route: Route,
@@ -933,8 +913,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
         return 503, {}, _json_bytes(_error_payload("route has no configured upstream", "route_unavailable")), "none"
 
-    # -- responses --------------------------------------------------------
-
     def _copy_headers(self, headers: Mapping[str, str] | None) -> None:
         if not headers:
             return
@@ -970,9 +948,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
         try:
             if first:
                 self._write_chunk(first)
-            # read1() returns as soon as the upstream has any bytes. read(n)
-            # on a chunked response waits for n bytes or EOF, which buffers
-            # SSE events and keeps the speaker silent until the stream ends.
+            # read1() отдаёт данные сразу, как только upstream прислал байты.
+            # read(n) на chunked-ответе ждёт n байт или EOF, из-за чего SSE
+            # события буферизуются и колонка молчит до конца потока.
             read = getattr(response, "read1", None) or response.read
             while True:
                 chunk = read(8192)

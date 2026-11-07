@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
 from webui.appearance import (
+    canonical_color,
     color_hex,
+    color_label,
     load_overrides,
     resolve_color,
     resolve_model,
@@ -39,9 +43,6 @@ def test_marketing_color_aliases():
     assert canonical_color("mint") == "green"
 
 
-import pytest
-
-from webui.appearance import canonical_color, color_label
 
 LITE_COLORS = [
     ("cappuccino", "beige", "Капучино"),

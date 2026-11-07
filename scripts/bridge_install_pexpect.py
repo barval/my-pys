@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Drive the official Quasar Bridge installer through a PTY.
+"""Запускает официальный установщик Quasar Bridge через PTY.
 
-The installer runs the remote setup with `ssh -tt`. A plain pipe closes
-before setup.sh can read its answers; pexpect keeps a real terminal open
-and sends each answer when the corresponding prompt appears.
+Установщик выполняет удалённую настройку через `ssh -tt`. Обычный pipe
+закрывается раньше, чем setup.sh прочитает ответы; pexpect держит настоящий
+терминал и отправляет ответ, когда появляется соответствующий вопрос.
 """
 import os
-import re
 import sys
 
 try:
@@ -32,8 +31,6 @@ def main() -> int:
         "sh", [installer, target, "-p", port],
         env=env, encoding="utf-8", timeout=600,
     )
-    child.logfile = None
-
     def send(pattern: str, answer: str, timeout: int = 600) -> None:
         child.expect(pattern, timeout=timeout)
         child.sendline(answer)
@@ -77,10 +74,8 @@ def main() -> int:
             send("Перезагрузить сейчас", reboot)
             child.expect(pexpect.EOF, timeout=180)
         elif index == 2:
-            # Already connected: installer skips the connect/reboot prompts.
+            # Уже подключено: установщик пропускает вопросы о подключении и перезагрузке.
             child.expect(pexpect.EOF, timeout=60)
-        else:
-            pass
     except pexpect.TIMEOUT:
         print("Таймаут ожидания мастера установки.", file=sys.stderr)
         print(redact((child.before or ""))[-4000:], file=sys.stderr)

@@ -126,12 +126,8 @@ def set_upstream_key(
     write_secret(secrets_dir, key_file, value.strip())
 
 
-# ---------------------------------------------------------------------------
-# Registry of upstream keys
-# ---------------------------------------------------------------------------
-
-# Keys are first-class: a key exists once and any route can reference its file.
-# The registry stores only labels and file names, never values.
+# Ключ существует один раз, и любой маршрут может ссылаться на его файл.
+# В реестре хранятся только метки и имена файлов, без значений.
 
 
 @dataclass(frozen=True)
@@ -198,7 +194,7 @@ def key_usage(routes: Iterable[dict]) -> dict[str, list[str]]:
 def sync_registry(
     entries: list[dict[str, str]], routes: Iterable[dict]
 ) -> list[dict[str, str]]:
-    """Register files already referenced by routes, so old configs keep working."""
+    """Добавляет в реестр файлы из старых конфигов, чтобы они продолжали работать."""
     known = {entry["file"] for entry in entries}
     for file in key_usage(routes):
         if file in known:
