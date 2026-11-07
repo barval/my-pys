@@ -36,6 +36,9 @@ WORKDIR /app
 COPY requirements-webui.txt /app/requirements-webui.txt
 RUN pip install --no-cache-dir -r /app/requirements-webui.txt
 COPY webui /app/webui
+COPY router /app/router
+COPY scripts /app/scripts
+COPY config /app/config
 
 EXPOSE 8080
 CMD ["python", "-m", "webui", "--host", "0.0.0.0"]

@@ -212,8 +212,8 @@ adb shell id
 ```
 
 Должно быть `uid=0(root)`. Если `uid=2000(shell)` — это не тот ADB-режим;
-перечитайте `docs/01-findings.md` и лог `get_sync_info`. Не продолжайте
-установку SSH, пока root не подтверждён.
+перечитайте раздел ADB в `docs/03-runbook.md` и лог `get_sync_info`. Не
+продолжайте установку SSH, пока root не подтверждён.
 
 ## SSH не пускает
 

@@ -55,6 +55,26 @@ class JobRunner:
         self._procs: dict[str, subprocess.Popen] = {}
         self._pool = ThreadPoolExecutor(max_workers=max_workers)
         self._load()
+        self._prune(200)
+
+    def _prune(self, keep: int) -> None:
+        """Удаляет старые завершённые задания, чтобы state не рос бесконечно."""
+        if len(self._jobs) <= keep:
+            return
+        ordered = sorted(self._jobs.values(), key=lambda item: item.created_at)
+        for job in ordered[:-keep]:
+            if job.status in ("queued", "running"):
+                continue
+            self._jobs.pop(job.id, None)
+            self._events.pop(job.id, None)
+            for path in (
+                self.jobs_dir / f"{job.id}.json",
+                job.log_path,
+            ):
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     def _load(self) -> None:
         for path in self.jobs_dir.glob("*.json"):
@@ -226,28 +246,6 @@ class JobRunner:
         except OSError:
             return "", offset
         return data[offset:].decode("utf-8", errors="replace"), len(data)
-
-    def cancel(self, job_id: str) -> bool:
-        with self._lock:
-            job = self._jobs.get(job_id)
-            if job is None or job.status in (
-                "succeeded",
-                "failed",
-                "cancelled",
-                "interrupted",
-            ):
-                return False
-            job.status = "cancelled"
-            job.finished_at = _now()
-            self._persist(job)
-            proc = self._procs.get(job_id)
-        if proc is not None:
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except OSError:
-                pass
-        self._events[job_id].set()
-        return True
 
     def wait(self, job_id: str, timeout: float | None = None) -> Job:
         event = self._events.get(job_id)

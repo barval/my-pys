@@ -26,7 +26,7 @@ def redact(text: str, secrets_dir: Path | None = None) -> str:
                     value = path.read_text(encoding="utf-8").strip()
                 except (OSError, UnicodeDecodeError):
                     continue
-                if len(value) > 24:
+                if len(value) >= 8:
                     result = result.replace(value, "***")
         except OSError:
             pass
