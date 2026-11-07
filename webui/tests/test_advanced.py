@@ -71,6 +71,31 @@ def test_advanced_bridge_policy_is_read_only(client, login, csrf):
     assert 'name="rules"' not in body
     assert "/speakers/speaker-a/actions/routing" in body
 
+def test_more_page_shows_only_last_100_audit_entries(client, login, settings):
+    login()
+    path = settings.state_dir / "audit.jsonl"
+    path.write_text(
+        "\n".join(
+            json.dumps(
+                {
+                    "time": f"2026-01-01T00:00:{index:02d}+00:00",
+                    "action": "test",
+                    "target": f"t-{index:03d}",
+                    "result": "ok",
+                    "detail": "",
+                }
+            )
+            for index in range(150)
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    body = client.get("/more").get_data(as_text=True)
+    assert "t-149" in body
+    assert "t-050" in body
+    assert "t-049" not in body
+
+
 def test_more_page_audit_is_scrollable(client, login):
     login()
     body = client.get("/more").get_data(as_text=True)

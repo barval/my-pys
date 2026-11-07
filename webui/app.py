@@ -434,7 +434,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         path = settings.state_dir / "audit.jsonl"
         entries: list[dict] = []
         try:
-            for line in path.read_text(encoding="utf-8").splitlines()[-200:]:
+            for line in path.read_text(encoding="utf-8").splitlines()[-100:]:
                 try:
                     entries.append(json.loads(line))
                 except ValueError:
