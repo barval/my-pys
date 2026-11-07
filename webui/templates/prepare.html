@@ -9,6 +9,7 @@
 <section class="card">
   <h2>Начало</h2>
   <p>{{ host_step.hint }}</p>
+  {% if host_step.note %}<p class="muted small">{{ host_step.note }}</p>{% endif %}
 </section>
 
 <section class="card" style="margin-top:1rem">
