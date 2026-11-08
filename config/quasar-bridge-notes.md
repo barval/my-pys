@@ -65,7 +65,9 @@ pkg=/data/opt/quasar-bridge/app
 | «включи трансляцию» | `yandex` / `yandex_intercom` |
 | «позвони…» | `yandex` / `yandex_intercom` |
 | «громче» / «следующий трек» | `yandex` / `speaker_controls` |
-| «новости» / «переведи…» | `yandex` / `yandex_services` |
+| «новости» / «какие новости в сфере ИИ» | `llm` / `default` |
+| «переведи…» | `yandex` / `yandex_services` |
+| «какие события сегодня» | `yandex` / `yandex_calendar_events` |
 | «запусти пылесос» | `yandex` / `home_devices` |
 | «включи сценарий…» | `yandex` / `yandex_scenarios` |
 | «подсветка кровати 10%» | `yandex` / `home_state` |
