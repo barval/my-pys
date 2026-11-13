@@ -3,7 +3,7 @@
 Все заметные изменения проекта. Формат — Keep a Changelog,
 версии — SemVer.
 
-## [Unreleased]
+## [2.2] — Unreleased
 
 ### Добавлено
 

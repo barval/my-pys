@@ -14,7 +14,7 @@ def test_healthz_is_public(tmp_path):
     client = app.test_client()
     payload = client.get("/healthz").get_json()
     assert payload["status"] == "ok"
-    assert payload["version"] == "2.1"
+    assert payload["version"] == "2.2"
 
 
 def test_speaker_page_shows_full_identifiers(client, login):
@@ -773,7 +773,7 @@ def test_project_title_in_login_and_admin(client, login):
     login()
     admin_page = client.get("/").get_data(as_text=True)
     assert "Колонки — Моя персональная Яндекс Станция" in admin_page
-    assert "Моя персональная Яндекс Станция <small>v2.1</small>" in admin_page
+    assert "Моя персональная Яндекс Станция <small>v2.2</small>" in admin_page
 
 
 def test_firmware_page_requires_login(client):

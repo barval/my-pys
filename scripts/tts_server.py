@@ -35,7 +35,7 @@ def _load_voice():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "my-pys-tts/2.1"
+    server_version = "my-pys-tts/2.2"
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib naming
         if self.path == "/healthz":

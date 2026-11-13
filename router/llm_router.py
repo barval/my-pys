@@ -217,7 +217,7 @@ def probe_upstream(upstream: Upstream, timeout: float = 3.0) -> dict[str, Any]:
     url = upstream.base_url.rstrip("/") + "/models"
     headers = {
         "Accept": "application/json",
-        "User-Agent": "llm-router/2.1",
+        "User-Agent": "llm-router/2.2",
     }
     if upstream.api_key:
         headers["Authorization"] = f"Bearer {upstream.api_key}"
@@ -850,7 +850,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
             headers = {
                 "Content-Type": "application/json",
                 "Accept": "text/event-stream" if stream else "application/json",
-                "User-Agent": "llm-router/2.1",
+                "User-Agent": "llm-router/2.2",
             }
             if upstream.api_key:
                 headers["Authorization"] = f"Bearer {upstream.api_key}"
