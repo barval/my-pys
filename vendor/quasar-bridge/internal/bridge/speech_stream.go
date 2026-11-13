@@ -78,7 +78,7 @@ func cleanSpeechText(text string) string {
 type streamBuffer struct {
 	pending  string
 	maxChars int
-	emitted  bool
+	index    int
 }
 
 func newStreamBuffer(maxChars int) *streamBuffer {
@@ -88,29 +88,46 @@ func newStreamBuffer(maxChars int) *streamBuffer {
 	return &streamBuffer{maxChars: maxChars}
 }
 
-// Add appends an LLM delta and returns complete, cleaned speech chunks.
+// Add appends an LLM delta and returns complete, cleaned speech chunks. Chunks
+// are cut only at sentence boundaries: the first chunk is exactly one sentence,
+// later sentences are merged up to the growing target size.
 func (b *streamBuffer) Add(delta string) []string {
 	b.pending += delta
 	var out []string
 	for {
 		cut := safeSentenceCut(b.pending)
-		if cut <= 0 {
-			if len([]rune(b.pending)) > b.maxChars*2 {
+		if cut > 0 {
+			runes := len([]rune(b.pending[:cut]))
+			if runes > b.maxChars {
+				// Предложение длиннее лимита: режем по словам, иначе кусок
+				// не влезет в TTS-запрос.
+				cut = lastSpaceCut(b.pending, b.maxChars)
+			} else if b.index > 0 && runes < speechChunkTarget(b.index, b.maxChars) {
+				// Копим короткие предложения до целевого размера куска.
+				if len([]rune(b.pending)) <= b.maxChars*2 {
+					break
+				}
 				cut = lastSpaceCut(b.pending, b.maxChars)
 			}
-			if cut <= 0 {
-				break
-			}
+		} else if len([]rune(b.pending)) > b.maxChars*2 {
+			// Предложение ещё не закончилось, но текста уже слишком много.
+			cut = lastSpaceCut(b.pending, b.maxChars)
+		}
+		if cut <= 0 {
+			break
 		}
 		part := strings.TrimSpace(b.pending[:cut])
 		b.pending = b.pending[cut:]
 		if clean := cleanSpeechText(part); clean != "" {
-			out = append(out, b.shortenFirst(splitSpeech(clean, b.maxChars, 100))...)
+			chunks := splitSpeech(clean, b.maxChars, 100)
+			out = append(out, chunks...)
+			b.index += len(chunks)
 		}
 	}
 	return out
 }
 
+// Flush returns the rest of the answer, merging short sentences.
 func (b *streamBuffer) Flush() []string {
 	part := strings.TrimSpace(b.pending)
 	b.pending = ""
@@ -121,40 +138,9 @@ func (b *streamBuffer) Flush() []string {
 	if clean == "" {
 		return nil
 	}
-	return b.shortenFirst(splitSpeech(clean, b.maxChars, 100))
-}
-
-// shortenFirst makes the very first TTS request short. The station synthesizes
-// the whole request before playback, so a long first sentence delays the first
-// audible word by ten seconds or more. Following chunks keep the normal size.
-func (b *streamBuffer) shortenFirst(chunks []string) []string {
-	if b.emitted || len(chunks) == 0 {
-		return chunks
-	}
-	b.emitted = true
-	limit := speechFirstChunkChars()
-	if limit < 1 || len([]rune(chunks[0])) <= limit {
-		return chunks
-	}
-	head, tail := splitAtWord(chunks[0], limit)
-	if head == "" || tail == "" {
-		return chunks
-	}
-	return append([]string{head, tail}, chunks[1:]...)
-}
-
-// splitAtWord cuts text before the last space inside limit runes.
-func splitAtWord(text string, limit int) (string, string) {
-	runes := []rune(text)
-	if len(runes) <= limit {
-		return text, ""
-	}
-	for i := limit; i > 0; i-- {
-		if unicode.IsSpace(runes[i-1]) {
-			return strings.TrimSpace(string(runes[:i-1])), strings.TrimSpace(string(runes[i:]))
-		}
-	}
-	return text, ""
+	chunks := splitSpeechAdaptive(clean, b.maxChars, 100)
+	b.index += len(chunks)
+	return chunks
 }
 
 // safeSentenceCut returns the byte index after the last complete sentence.

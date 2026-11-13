@@ -25,11 +25,27 @@ func speechChunkLimit() int {
 	return envPositiveInt("QUASAR_SPEECH_MAX_CHUNKS", defaultSpeechChunkLimit)
 }
 
-// speechFirstChunkChars caps the first TTS request. The station synthesizes a
-// whole request before playback, so a long opening sentence sounds only after
-// all of it is synthesized; a short opener starts speaking much sooner.
-func speechFirstChunkChars() int {
-	return envPositiveInt("QUASAR_SPEECH_FIRST_CHARS", 40)
+// speechChunkStep — целевой размер второго куска. Дальше куски удваиваются
+// до QUASAR_SPEECH_MAX_CHARS: на длинном ответе это уменьшает число TTS-
+// запросов, не разрезая предложения.
+func speechChunkStep() int {
+	return envPositiveInt("QUASAR_SPEECH_STEP_CHARS", 160)
+}
+
+// speechChunkTarget — целевой размер куска по его номеру. Первый кусок —
+// всегда одно законченное предложение: резать его по символам нельзя.
+func speechChunkTarget(index, maxChars int) int {
+	if index <= 0 {
+		return maxChars
+	}
+	limit := speechChunkStep()
+	for i := 1; i < index && limit < maxChars; i++ {
+		limit *= 2
+	}
+	if limit > maxChars {
+		limit = maxChars
+	}
+	return limit
 }
 
 func speechFillerEnabled() bool {
@@ -134,6 +150,71 @@ func splitSpeech(text string, maxChars, maxChunks int) []string {
 	}
 	flush()
 
+	if len(chunks) == 0 {
+		chunks = []string{text}
+	}
+	if len(chunks) > maxChunks {
+		chunks = chunks[:maxChunks]
+		chunks[len(chunks)-1] = strings.TrimRight(chunks[len(chunks)-1], " ") + "…"
+	}
+	return chunks
+}
+
+// splitSpeechAdaptive делит ответ по границам предложений: первый кусок —
+// ровно первое предложение, дальше предложения склеиваются до целевого
+// размера (160, 320, затем maxChars). Внутри предложения текст режется
+// только если само предложение длиннее maxChars.
+func splitSpeechAdaptive(text string, maxChars, maxChunks int) []string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+	if maxChars < 1 {
+		maxChars = defaultSpeechChunkChars
+	}
+	if maxChunks < 1 {
+		maxChunks = defaultSpeechChunkLimit
+	}
+	sentences := splitSentences(text)
+	if len(sentences) == 0 {
+		sentences = []string{text}
+	}
+	var chunks []string
+	var current []string
+	size := 0
+	flush := func() {
+		if size == 0 {
+			return
+		}
+		chunks = append(chunks, strings.TrimSpace(strings.Join(current, " ")))
+		current = nil
+		size = 0
+	}
+	for _, sentence := range sentences {
+		runes := []rune(sentence)
+		if len(runes) > maxChars {
+			flush()
+			chunks = append(chunks, splitWords(runes, maxChars)...)
+			continue
+		}
+		if size == 0 {
+			current = []string{sentence}
+			size = len(runes)
+			if len(chunks) == 0 {
+				flush()
+			}
+			continue
+		}
+		if size >= speechChunkTarget(len(chunks), maxChars) || size+1+len(runes) > maxChars {
+			flush()
+			current = []string{sentence}
+			size = len(runes)
+			continue
+		}
+		current = append(current, sentence)
+		size += 1 + len(runes)
+	}
+	flush()
 	if len(chunks) == 0 {
 		chunks = []string{text}
 	}
