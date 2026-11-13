@@ -597,9 +597,11 @@ SPEAKER_ENV=local/speakers/speaker-b.env ./scripts/set-speaker-key.sh
 Текущий Bridge работает в streaming-режиме (`QUASAR_STREAM_LLM=1`),
 поэтому ответ приходит потоком, а длину озвучки ограничивает сам Bridge:
 `QUASAR_SPEECH_MAX_CHARS` (по умолчанию ~500 символов на кусок) и
-`QUASAR_SPEECH_MAX_CHUNKS`. Первый кусок короче
-(`QUASAR_SPEECH_FIRST_CHARS`, ~40 символов), чтобы речь начиналась
-раньше.
+`QUASAR_SPEECH_MAX_CHUNKS`. Первый кусок — ровно первое законченное
+предложение: Bridge не разрывает предложения, чтобы не ломать интонацию.
+Дальше короткие предложения склеиваются до `QUASAR_SPEECH_STEP_CHARS`
+(160), затем целевой размер удваивается до `QUASAR_SPEECH_MAX_CHARS` —
+на длинном ответе это меньше TTS-запросов, а старт не затягивается.
 
 Если streaming выключить, работает блок `response`, включая
 `response.chunked` (до 100 предложений / 3000 символов) — он

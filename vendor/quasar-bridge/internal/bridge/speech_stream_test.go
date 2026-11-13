@@ -71,24 +71,38 @@ func TestClearFillersDropsQueuedFillers(t *testing.T) {
 	}
 }
 
-func TestStreamBufferShortensOnlyTheFirstChunk(t *testing.T) {
-	t.Setenv("QUASAR_SPEECH_FIRST_CHARS", "40")
+func TestStreamBufferKeepsSentencesIntact(t *testing.T) {
 	buf := newStreamBuffer(500)
+	text := "Согласно информации из загруженного документа, ему сорок девять лет. Он родился двадцать восьмого декабря. Это написано в документе."
+	var got []string
+	got = append(got, buf.Add(text)...)
+	got = append(got, buf.Flush()...)
 
-	first := buf.Add("Согласно информации из загруженного документа, ему сорок девять лет. Дата рождения: двадцать восьмое декабря.")
-	if len(first) < 2 {
-		t.Fatalf("first add returned %d chunks: %#v", len(first), first)
+	if len(got) == 0 || got[0] != "Согласно информации из загруженного документа, ему сорок девять лет." {
+		t.Fatalf("first chunk must be the whole first sentence: %#v", got)
 	}
-	if n := len([]rune(first[0])); n > 40 {
-		t.Fatalf("first chunk has %d runes: %q", n, first[0])
+	for _, chunk := range got {
+		if !strings.HasSuffix(chunk, ".") && !strings.HasSuffix(chunk, "!") && !strings.HasSuffix(chunk, "?") && !strings.HasSuffix(chunk, "…") {
+			t.Fatalf("chunk is not a whole sentence: %q", chunk)
+		}
 	}
-	if strings.TrimSpace(first[0]) == "" || strings.TrimSpace(first[1]) == "" {
-		t.Fatalf("empty chunk: %#v", first)
+	if len(got) < 2 {
+		t.Fatalf("expected a merged tail, got %#v", got)
 	}
+}
 
-	second := buf.Add("Это уже второй ответ без искусственного дробления на короткие куски текста.")
-	if len(second) != 1 || len([]rune(second[0])) <= 40 {
-		t.Fatalf("second chunk was shortened: %#v", second)
+func TestStreamBufferMergesShortSentencesAfterTheFirst(t *testing.T) {
+	buf := newStreamBuffer(500)
+	text := "Первое. " + strings.Repeat("Короткое предложение. ", 12)
+	var got []string
+	got = append(got, buf.Add(text)...)
+	got = append(got, buf.Flush()...)
+
+	if len(got) == 0 || got[0] != "Первое." {
+		t.Fatalf("first chunk=%#v", got)
+	}
+	if len(got) >= 12 {
+		t.Fatalf("short sentences were not merged: %d chunks", len(got))
 	}
 }
 
