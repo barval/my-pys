@@ -64,6 +64,8 @@ services:
     restart: unless-stopped
     init: true
     read_only: true
+    ports:
+      - "${TTS_BIND:-127.0.0.1}:${TTS_PORT:-8083}:8083"
     tmpfs:
       - /tmp:mode=1777,size=32m
     cap_drop:

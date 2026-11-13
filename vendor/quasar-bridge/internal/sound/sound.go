@@ -11,6 +11,7 @@ import (
 type Request struct {
 	Sound    string `json:"sound,omitempty"`
 	URL      string `json:"url,omitempty"`
+	File     string `json:"file,omitempty"`
 	Command  string `json:"command,omitempty"`
 	StreamID string `json:"stream_id,omitempty"`
 	Title    string `json:"title,omitempty"`
