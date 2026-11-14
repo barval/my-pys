@@ -65,4 +65,7 @@ func TestPiperSpeechURLRejectsEmptyConfig(t *testing.T) {
 	if _, err := piperSpeechURL("   "); err == nil {
 		t.Fatal("empty text must be rejected")
 	}
+	if _, err := piperSpeechURL(strings.Repeat("слово ", 200)); err == nil {
+		t.Fatal("long text must fall back to the station TTS")
+	}
 }

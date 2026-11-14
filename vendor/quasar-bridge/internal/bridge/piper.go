@@ -17,6 +17,12 @@ func piperBaseURL() string {
 	return strings.TrimSpace(os.Getenv("QUASAR_TTS_PIPER_URL"))
 }
 
+// piperMaxChars — предел текста для одного запроса Piper: длинный ответ не
+// влезает в URL и лимит сервиса, поэтому его озвучивает станция.
+func piperMaxChars() int {
+	return envPositiveInt("QUASAR_TTS_PIPER_MAX_CHARS", 900)
+}
+
 // piperSpeechURL собирает ссылку на синтез: станция скачивает её сама.
 func piperSpeechURL(text string) (string, error) {
 	base := piperBaseURL()
@@ -26,6 +32,9 @@ func piperSpeechURL(text string) (string, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return "", errors.New("piper text is empty")
+	}
+	if len([]rune(text)) > piperMaxChars() {
+		return "", errors.New("piper text is too long")
 	}
 	return strings.TrimRight(base, "/") + "/say.wav?text=" + url.QueryEscape(text), nil
 }
