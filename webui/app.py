@@ -813,7 +813,6 @@ def create_app(settings: Settings | None = None) -> Flask:
         refresh_profiles()
         job = app.extensions["jobs"].submit("tts", profile)
         audit("speaker.tts", profile.name, detail=f"mode={mode} job={job.id}")
-        flash("Тип TTS применяется, Bridge перезапустится через несколько секунд")
         target = (request.form.get("next") or "").strip()
         if target != url_for("speaker_page", name=name) and not target.startswith(
             url_for("speaker_page", name=name) + "/"
