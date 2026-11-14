@@ -35,7 +35,7 @@ set -e
 f=/data/opt/quasar-bridge/runtime.env
 touch "\$f"
 tmp="\$f.tmp"
-grep -v -E '^(QUASAR_TTS_PIPER_URL|QUASAR_TTS_PIPER_MAX_CHARS)=' "\$f" > "\$tmp" || true
+grep -v -E '^(QUASAR_TTS_PIPER_URL|QUASAR_TTS_PIPER_MAX_CHARS|QUASAR_TTS_PIPER_DIR)=' "\$f" > "\$tmp" || true
 if [ "$MODE" = piper ]; then
   cat >> "\$tmp" <<'ENV'
 QUASAR_TTS_PIPER_URL="$PIPER_URL"

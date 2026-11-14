@@ -89,6 +89,7 @@ Quasar Bridge, маршруты и ключи на колонку, резерв�
 | Установить Bridge | `SPEAKER_ENV=... ./scripts/install-quasar-bridge.sh --non-interactive` |
 | Применить политику маршрутизации | `SPEAKER_ENV=... ./scripts/apply-bridge-routing.sh` |
 | Записать токен роутера в колонку | `SPEAKER_ENV=... ./scripts/set-speaker-key.sh` |
+| Тип TTS колонки (облако/Piper) | панель «Тип TTS:» или `SPEAKER_ENV=... ./scripts/set-speaker-tts.sh` (`SPEAKER_TTS=cloud\|piper`) |
 | Проверить одну колонку | `SPEAKER_ENV=... make status` / `check-backends` / `routes` |
 | Сказать фразу на колонке | `docker exec -e SPEAKER_ENV=... -e SPEAKER_TRUST_IP=1 -e SAY_TEXT="..." my-pys-webui bash scripts/say-text.sh` |
 

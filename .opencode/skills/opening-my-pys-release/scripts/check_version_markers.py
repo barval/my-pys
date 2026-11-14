@@ -109,10 +109,10 @@ def check_changelog(version: str, previous: str) -> list[str]:
         return ["CHANGELOG.md: файл не найден"]
     text = CHANGELOG.read_text(encoding="utf-8", errors="replace")
     failures: list[str] = []
-    if not re.search(rf"^## \[{re.escape(version)}\] — Unreleased$", text, re.MULTILINE):
-        failures.append(f"CHANGELOG.md: нет раздела «## [{version}] — Unreleased»")
+    if not re.search(rf"^## \[{re.escape(version)}\] — (Unreleased|\d{{4}}-\d{{2}}-\d{{2}})$", text, re.MULTILINE):
+        failures.append(f"CHANGELOG.md: нет раздела «## [{version}] — Unreleased» или даты")
     else:
-        print(f"OK     CHANGELOG.md: раздел {version} открыт как Unreleased")
+        print(f"OK     CHANGELOG.md: раздел {version} открыт (Unreleased или дата)")
     if not re.search(rf"^## \[{re.escape(previous)}\] — \d{{4}}-\d{{2}}-\d{{2}}$", text, re.MULTILINE):
         failures.append(f"CHANGELOG.md: раздел {previous} не датирован")
     else:

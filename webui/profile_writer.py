@@ -44,6 +44,7 @@ _WRITE_ORDER = (
     "SPEAKER_COLOR",
     "SPEAKER_MODEL",
     "SPEAKER_PLATFORM",
+    "SPEAKER_TTS",
 )
 
 

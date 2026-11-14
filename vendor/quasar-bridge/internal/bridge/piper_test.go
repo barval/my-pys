@@ -45,7 +45,7 @@ func TestSpeakPiperStripsMarkdown(t *testing.T) {
 	n.requests[p.id] = p
 	t.Cleanup(func() { delete(n.requests, p.id) })
 
-	if err := n.speakPiper(p, "Валерию **49 лет**."); err != nil {
+	if err := n.speakPiper(p, "Готовый ответ **49 лет**."); err != nil {
 		t.Fatal(err)
 	}
 	directives := n.takeSound(p)
