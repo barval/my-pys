@@ -207,6 +207,7 @@ type nativeRequest struct {
 	speechDone                      bool
 	speechIDs                       []string
 	fillerStream                    uint32
+	fillerSent                      time.Time
 	audio                           oggSpeech
 	audioIsProgress                 bool
 	audioStarted                    bool
@@ -1001,7 +1002,7 @@ func (n *Native) clearFillers(p *nativeRequest) {
 		}
 		p.speechQueue = kept
 	}
-	active := p.speechActive && p.speechActiveFiller
+	active := p.fillerStream != 0 && time.Since(p.fillerSent) <= speechFillerCancelWindow()
 	messageID := p.ttsID
 	streamID := p.fillerStream
 	p.fillerStream = 0
@@ -1038,6 +1039,9 @@ func (n *Native) sendNextSpeech(p *nativeRequest) error {
 	p.speechQueue = p.speechQueue[1:]
 	p.speechActive = true
 	p.speechActiveFiller = item.filler
+	if item.filler {
+		p.fillerSent = time.Now()
+	}
 	p.ttsID = newID()
 	p.speechIDs = append(p.speechIDs, p.ttsID)
 	n.tts[p.ttsID] = p

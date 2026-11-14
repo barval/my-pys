@@ -64,6 +64,13 @@ func speechFillerMax() int {
 	return envPositiveInt("QUASAR_SPEECH_FILLER_MAX", 3)
 }
 
+// speechFillerCancelWindow — сколько секунд после отправки заполнителя ещё
+// имеет смысл закрывать его TTS-поток. Станция закрывает поток сразу после
+// выдачи текста, но само аудио может звучать ещё несколько секунд.
+func speechFillerCancelWindow() time.Duration {
+	return time.Duration(envPositiveInt("QUASAR_SPEECH_FILLER_CANCEL_SECONDS", 10)) * time.Second
+}
+
 func speechFillerPhrases() []string {
 	raw := strings.TrimSpace(os.Getenv("QUASAR_SPEECH_FILLERS"))
 	if raw == "" {
