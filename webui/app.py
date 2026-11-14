@@ -802,6 +802,24 @@ def create_app(settings: Settings | None = None) -> Flask:
         audit("speaker.appearance", name)
         return redirect(url_for("speaker_page", name=name))
 
+    @app.post("/speakers/<name>/tts")
+    def speaker_tts(name: str):
+        profile = get_profile(name)
+        mode = (request.form.get("tts") or "").strip().lower()
+        if mode not in {"cloud", "piper"}:
+            flash("Неизвестный тип TTS")
+            return redirect(url_for("speaker_page", name=name))
+        merge_profile_env(profile.path, {"SPEAKER_TTS": mode})
+        refresh_profiles()
+        job = app.extensions["jobs"].submit("tts", profile)
+        audit("speaker.tts", profile.name, detail=f"mode={mode} job={job.id}")
+        target = (request.form.get("next") or "").strip()
+        if target != url_for("speaker_page", name=name) and not target.startswith(
+            url_for("speaker_page", name=name) + "/"
+        ):
+            target = url_for("speaker_page", name=name)
+        return redirect(target, code=303)
+
     @app.post("/speakers/<name>/actions/<action>")
     def speaker_action(name: str, action: str):
         profile = get_profile(name)

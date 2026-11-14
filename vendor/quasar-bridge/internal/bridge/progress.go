@@ -14,6 +14,7 @@ import (
 	deferred "github.com/freequasar/quasar-go-genproto/proto/alice/protos/api/alicekit/streaming"
 	"google.golang.org/protobuf/encoding/protowire"
 	"quasarbridge/internal/reply"
+	"quasarbridge/internal/sound"
 	"quasarbridge/internal/wire"
 )
 
@@ -144,6 +145,35 @@ func (n *Native) deferredPart(p *nativeRequest, text string, last bool) error {
 	n.captureDelivered(p, text, last, len(base.Directives) > 0, true)
 	return nil
 }
+
+// deferredSound отправляет директиву проигрывания в промежуточной части
+// потокового ответа. Так локальный заполнитель звучит, пока модель думает,
+// не открывая TTS-поток станции (он приглушает плеер).
+func (n *Native) deferredSound(p *nativeRequest, request sound.Request) error {
+	if err := p.ctx.Err(); err != nil {
+		return err
+	}
+	soundDirective, err := makeSoundDirective(request)
+	if err != nil {
+		return err
+	}
+	p.partial++
+	base := &deferred.TDeferedAliceResponseProto_TBaseResponse{
+		Directives: []*directive.TDirective{soundDirective},
+	}
+	r := &deferred.TDeferedAliceResponseProto{
+		RequestId:          p.applicationID(),
+		ResponsePartialNum: p.partial,
+		TDeferredResponse:  &deferred.TDeferedAliceResponseProto_BaseResponse{BaseResponse: base},
+	}
+	m := &server.TServerMessage{Message: &server.TServerMessage_Event{Event: &server.TServerMessage_TEvent{Header: &header.TEventHeader{MessageId: newID(), RefMessageId: p.id}, Event: &server.TServerMessage_TEvent_DeferredAliceResponse{DeferredAliceResponse: r}}}}
+	b, err := (wire.Frame{Server: m, Prefix: []byte("AAPI")}).Marshal()
+	if err != nil {
+		return err
+	}
+	return n.down(p.ctx, websocket.MessageBinary, b)
+}
+
 func (n *Native) finishDeferred(p *nativeRequest, text string) error {
 	select {
 	case <-p.ctx.Done():

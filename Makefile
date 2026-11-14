@@ -6,6 +6,10 @@ DOCKER_GID ?= $(shell stat -c '%g' /var/run/docker.sock 2>/dev/null || echo 988)
 HOST_REPO_PATH ?= $(CURDIR)
 export WEBUI_UID WEBUI_GID DOCKER_GID HOST_REPO_PATH
 
+TTS_BIND ?= 0.0.0.0
+TTS_PORT ?= 8083
+export TTS_BIND TTS_PORT
+
 help:
 	@echo "make check     — проверить внешнюю LLM"
 	@echo "make firmware  — скачать прошивку .46"

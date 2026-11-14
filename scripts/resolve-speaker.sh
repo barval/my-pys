@@ -41,11 +41,14 @@ if [[ -n "$HINT" ]] && is_ipv4 "$HINT"; then
     exit 0
   fi
   # В контейнере ARP не видит LAN (трафик идёт через шлюз). Если записи
-  # о соседе нет вовсе, доверяем явной подсказке: доступ к колонке всё
-  # равно защищён SSH-ключом, чужая машина его не примет.
+  # о соседе нет вовсе, доверяем явной подсказке, но только если колонка
+  # реально отвечает на SSH-порту: устаревший IP в профиле иначе даёт
+  # «No route to host».
   if [[ "${SPEAKER_TRUST_IP:-0}" == "1" && -z "$(mac_of "$HINT")" ]]; then
-    echo "$HINT"
-    exit 0
+    if timeout 3 bash -c "exec 3<>/dev/tcp/${HINT}/${SPEAKER_SSH_PORT:-2222}" 2>/dev/null; then
+      echo "$HINT"
+      exit 0
+    fi
   fi
 fi
 

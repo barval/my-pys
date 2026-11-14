@@ -47,7 +47,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
 
 tar xzf "$STOCK" -C "$BUILD/release"
 install -m 755 "$BUILD/src/quasar-bridge-arm64" "$BUILD/release/bin/quasar-bridge"
-printf '0.6.2-chunked\n' > "$BUILD/release/VERSION"
+printf '0.6.2-chunked-stream\n' > "$BUILD/release/VERSION"
 printf 'arm64\n' > "$BUILD/release/ARCH"
 
 tar czf "$DEST/quasar-bridge-linux-arm64.tar.gz" -C "$BUILD/release" .

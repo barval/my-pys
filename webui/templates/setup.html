@@ -45,7 +45,6 @@
 
     {% if current.number == 2 %}
     <div class="instruction">
-      <p>Включите колонку и привяжите её в приложении «Дом с Алисой».</p>
       <p class="muted small">После привязки колонка появится в локальной сети и можно будет переходить к поиску.</p>
     </div>
     {% elif current.number == 3 %}
@@ -125,6 +124,7 @@
     </form>
   </section>
 </div>
+{% include "_tts_switch.html" %}
 {% if current.number == 6 %}
 <script>
 const providerSelect = document.querySelector('select[name="provider_id"]');

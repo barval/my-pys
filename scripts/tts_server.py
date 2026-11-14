@@ -14,6 +14,7 @@ import os
 import threading
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlsplit
 
 VOICE_PATH = os.environ.get("TTS_VOICE_PATH", "/voices/model.onnx")
 PORT = int(os.environ.get("TTS_PORT", "8083"))
@@ -34,14 +35,31 @@ def _load_voice():
         return _voice
 
 
+def _synthesize(text: str) -> bytes:
+    voice = _load_voice()
+    buffer = io.BytesIO()
+    with _speak_lock:
+        with wave.open(buffer, "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(voice.config.sample_rate)
+            voice.synthesize(text, wav_file)
+    return buffer.getvalue()
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "my-pys-tts/2.1"
+    server_version = "my-pys-tts/2.2"
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib naming
-        if self.path == "/healthz":
+        parts = urlsplit(self.path)
+        if parts.path == "/healthz":
             self._json(200, {"status": "ok"})
-        else:
-            self._json(404, {"error": "not found"})
+            return
+        if parts.path == "/say.wav":
+            text = (parse_qs(parts.query).get("text") or [""])[0].strip()
+            self._say(text)
+            return
+        self._json(404, {"error": "not found"})
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib naming
         if self.path != "/say":
@@ -54,6 +72,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": "request body must be valid JSON"})
             return
         text = str(payload.get("text", "")).strip() if isinstance(payload, dict) else ""
+        self._say(text)
+
+    def _say(self, text: str) -> None:
         if not text:
             self._json(400, {"error": "text is required"})
             return
@@ -61,19 +82,11 @@ class Handler(BaseHTTPRequestHandler):
             self._json(413, {"error": "text is too long"})
             return
         try:
-            voice = _load_voice()
-            buffer = io.BytesIO()
-            with _speak_lock:
-                with wave.open(buffer, "wb") as wav_file:
-                    wav_file.setnchannels(1)
-                    wav_file.setsampwidth(2)
-                    wav_file.setframerate(voice.config.sample_rate)
-                    voice.synthesize(text, wav_file)
+            audio = _synthesize(text)
         except Exception as exc:  # noqa: BLE001 - surface any TTS failure
             logging.exception("synthesis failed")
             self._json(500, {"error": str(exc)})
             return
-        audio = buffer.getvalue()
         self.send_response(200)
         self.send_header("Content-Type", "audio/wav")
         self.send_header("Content-Length", str(len(audio)))

@@ -83,6 +83,10 @@ func (s *speechStream) chunk(text string) error {
 	s.n.clearFillers(s.p)
 	s.full.WriteString(text)
 	s.full.WriteByte(' ')
+	if piperBaseURL() != "" {
+		// Piper озвучивает ответ целиком в finish, промежуточный TTS не нужен.
+		return nil
+	}
 	return s.n.enqueueSpeech(s.p, text)
 }
 
@@ -111,7 +115,10 @@ func (n *Native) startSpeechKeepalive(p *nativeRequest) func() {
 
 // startSpeechFillers speaks short phrases while the first real answer chunk is
 // delayed by a slow search or reasoning model. It stops on the first content
-// chunk, cancellation, or finish.
+// chunk, cancellation, or finish. A new phrase is sent only when the previous
+// one is no longer in flight, so fillers never queue up behind each other.
+// With the local Piper voice a filler is synthesized locally and sent as an
+// audio_play directive: the station's own TTS stream would duck the player.
 func (n *Native) startSpeechFillers(p *nativeRequest) func() {
 	if !speechFillerEnabled() {
 		return nil
@@ -131,9 +138,18 @@ func (n *Native) startSpeechFillers(p *nativeRequest) func() {
 			return
 		case <-timer.C:
 		}
-		for index := 0; index < speechFillerMax(); index++ {
-			if err := n.enqueueFiller(p, phrases[index%len(phrases)]); err != nil {
-				return
+		sent := 0
+		for sent < speechFillerMax() {
+			if piperBaseURL() != "" {
+				if err := n.fillerPiper(p, phrases[sent%len(phrases)]); err != nil {
+					return
+				}
+				sent++
+			} else if n.fillerIdle(p) {
+				if err := n.enqueueFiller(p, phrases[sent%len(phrases)]); err != nil {
+					return
+				}
+				sent++
 			}
 			select {
 			case <-stop:
@@ -155,6 +171,14 @@ func (s *speechStream) finish(full string) error {
 	}
 	if strings.TrimSpace(full) == "" {
 		full = strings.TrimSpace(s.full.String())
+	}
+	if piperBaseURL() != "" {
+		if err := s.n.speakPiper(s.p, full); err != nil {
+			slog.Warn("native_piper_failed", "request", requestTag(s.p.id))
+			if err := s.n.enqueueSpeech(s.p, full); err != nil {
+				return err
+			}
+		}
 	}
 	if err := s.n.deferredPart(s.p, full, true); err != nil {
 		return err
@@ -189,6 +213,8 @@ type nativeRequest struct {
 	fillersStopped                  bool
 	speechDone                      bool
 	speechIDs                       []string
+	fillerStream                    uint32
+	fillerSent                      time.Time
 	audio                           oggSpeech
 	audioIsProgress                 bool
 	audioStarted                    bool
@@ -532,6 +558,9 @@ func (n *Native) Server(ctx context.Context, k websocket.MessageType, data []byt
 		}
 		if e.GetTtsSpeak() != nil {
 			n.streams[uint32(e.Header.GetStreamId())] = p
+			if p.speechActive && p.speechActiveFiller {
+				p.fillerStream = uint32(e.Header.GetStreamId())
+			}
 			if p.streaming {
 				if e.GetTtsSpeak().GetFormat() != "audio/opus" {
 					p.cancel()
@@ -806,10 +835,20 @@ func (n *Native) reply(p *nativeRequest, text string) error {
 	if p.streaming {
 		return n.finishDeferred(p, text)
 	}
+	if piperBaseURL() != "" && strings.TrimSpace(text) != "" {
+		if err := n.speakPiper(p, text); err == nil {
+			return n.replySingle(p, text)
+		}
+		slog.Warn("native_piper_failed", "request", requestTag(p.id))
+	}
 	chunks := splitSpeech(text, speechChunkChars(), speechChunkLimit())
 	if len(chunks) > 1 {
 		return n.replyChunked(p, text, chunks)
 	}
+	return n.replySingle(p, text)
+}
+
+func (n *Native) replySingle(p *nativeRequest, text string) error {
 	requestID := p.request.GetHeader().GetRequestId()
 	if requestID == "" {
 		requestID = p.id
@@ -953,8 +992,11 @@ func (n *Native) enqueueSpeechItems(p *nativeRequest, filler bool, chunks ...str
 	return n.sendNextSpeech(p)
 }
 
-// clearFillers drops queued filler phrases when the first real answer arrives.
-// A filler that is already playing is allowed to finish; the answer follows it.
+// clearFillers drops filler phrases when the first real answer arrives and
+// closes the TTS stream of the filler already sent to the station. The station
+// has no per-text cancel, so closing its stream is the only way to stop it: the
+// answer then starts from the station's close notification instead of waiting
+// for the whole filler queue.
 func (n *Native) clearFillers(p *nativeRequest) {
 	n.mu.Lock()
 	p.fillersStopped = true
@@ -967,7 +1009,31 @@ func (n *Native) clearFillers(p *nativeRequest) {
 		}
 		p.speechQueue = kept
 	}
+	active := p.fillerStream != 0 && time.Since(p.fillerSent) <= speechFillerCancelWindow()
+	messageID := p.ttsID
+	streamID := p.fillerStream
+	p.fillerStream = 0
 	n.mu.Unlock()
+	if !active || streamID == 0 {
+		return
+	}
+	sc := &stream.TStreamControl{MessageId: messageID, StreamId: int64(streamID), Action: &stream.TStreamControl_Close{Close: &stream.TStreamControl_TActionClose{}}}
+	m := &server.TServerMessage{Message: &server.TServerMessage_StreamControl{StreamControl: sc}}
+	b, err := (wire.Frame{Server: m, Prefix: []byte("AAPI")}).Marshal()
+	if err != nil {
+		return
+	}
+	if err := n.down(p.ctx, websocket.MessageBinary, b); err != nil {
+		slog.Warn("native_filler_cancel_failed", "request", requestTag(p.id))
+	}
+}
+
+// fillerIdle reports whether a new filler may be sent: only one filler is in
+// flight at a time, so fillers never pile up in the station queue.
+func (n *Native) fillerIdle(p *nativeRequest) bool {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return !p.canceled && !p.fillersStopped && !p.speechActive && len(p.speechQueue) == 0
 }
 
 func (n *Native) sendNextSpeech(p *nativeRequest) error {
@@ -980,6 +1046,9 @@ func (n *Native) sendNextSpeech(p *nativeRequest) error {
 	p.speechQueue = p.speechQueue[1:]
 	p.speechActive = true
 	p.speechActiveFiller = item.filler
+	if item.filler {
+		p.fillerSent = time.Now()
+	}
 	p.ttsID = newID()
 	p.speechIDs = append(p.speechIDs, p.ttsID)
 	n.tts[p.ttsID] = p

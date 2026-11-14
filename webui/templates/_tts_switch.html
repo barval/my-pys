@@ -1,0 +1,16 @@
+<section class="card" style="margin-top:1rem">
+  <h2>Тип TTS:</h2>
+  <form method="post" action="/speakers/{{ profile.name }}/tts" class="tts-switch">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ request.path }}">
+    <label class="tts-option">
+      <input type="radio" name="tts" value="cloud"{% if profile.tts != "piper" %} checked{% endif %} onchange="this.form.submit()">
+      <span>Облачный TTS Яндекса</span>
+    </label>
+    <label class="tts-option">
+      <input type="radio" name="tts" value="piper"{% if profile.tts == "piper" %} checked{% endif %} onchange="this.form.submit()">
+      <span>Локальный TTS Piper</span>
+    </label>
+  </form>
+  <p class="muted small">Облачный TTS синтезирует на станции; локальный Piper — на хосте, заполнители идут через тот же плеер.</p>
+</section>
