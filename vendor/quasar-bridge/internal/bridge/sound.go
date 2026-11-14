@@ -65,31 +65,16 @@ func (n *Native) takeSound(p *nativeRequest) []*directives.TDirective {
 func (n *Native) hasSilentPlayback(p *nativeRequest) bool {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	return p.soundDirective != nil && p.soundRequest != nil && (p.soundRequest.URL != "" || p.soundRequest.File != "" || p.soundRequest.Command != "")
+	return p.soundDirective != nil && p.soundRequest != nil && (p.soundRequest.URL != "" || p.soundRequest.Command != "")
 }
 
 func makeSoundDirective(request sound.Request) (*directives.TDirective, error) {
 	if request.Command != "" {
-		if (request.Command != "pause" && request.Command != "stop") || request.URL != "" || request.File != "" || request.Sound != "" || request.StreamID != "" || request.OffsetMS != 0 {
+		if (request.Command != "pause" && request.Command != "stop") || request.URL != "" || request.Sound != "" || request.StreamID != "" || request.OffsetMS != 0 {
 			return nil, errors.New("invalid playback control")
 		}
 		payload, _ := structpb.NewStruct(map[string]any{})
 		return &directives.TDirective{Type: "client_action", Name: "audio_stop", AnalyticsType: "audio_stop", IsLedSilent: true, PayloadType: &directives.TDirective_Payload{Payload: payload}}, nil
-	}
-	if request.File != "" {
-		if request.URL != "" || request.Sound != "" || request.StreamID != "" || request.OffsetMS != 0 {
-			return nil, errors.New("supply exactly one sound, file or audio URL")
-		}
-		payload, err := proto.Marshal(&fileplayer.TAudioFilePlayerCapability_TLocalAudioFilePlayDirective{
-			Name:      newID(),
-			Channel:   channel.EDirectiveChannel_Dialog,
-			PlayTimes: 1,
-			Sound:     &fileplayer.TAudioFilePlayerCapability_TLocalAudioFilePlayDirective_FileName{FileName: request.File},
-		})
-		if err != nil {
-			return nil, errors.New("cannot encode audio file directive")
-		}
-		return &directives.TDirective{Type: "client_action", Name: "local_audio_file_play", AnalyticsType: "local_audio_file_play", DirectiveType: endpoint.TCapability_LocalAudioFilePlayDirectiveType, IsLedSilent: true, PayloadType: &directives.TDirective_PayloadRaw{PayloadRaw: payload}}, nil
 	}
 	if request.URL != "" && request.Sound == "" {
 		if request.OffsetMS < 0 || request.OffsetMS > 2*60*60*1000 {
