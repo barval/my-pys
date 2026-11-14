@@ -233,6 +233,7 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--primary);
 }
 input[type="checkbox"] { width: auto; }
+input[type="radio"] { width: auto; }
 .stack > * { margin-top: .65rem; }
 .form-grid {
   display: grid;
@@ -246,9 +247,9 @@ input[type="checkbox"] { width: auto; }
 .inline-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; }
 .inline-row label { flex: 1 1 220px; margin: 0; }
 
-.tts-switch { display: grid; gap: .35rem; }
-.tts-option { display: flex; align-items: center; gap: .5rem; margin: 0; }
-.tts-option input { margin: 0; }
+.tts-switch { display: flex; flex-direction: column; align-items: flex-start; gap: .35rem; }
+.tts-option { display: flex; align-items: center; justify-content: flex-start; gap: .5rem; margin: 0; }
+.tts-option input[type="radio"] { width: auto; flex: 0 0 auto; margin: 0; padding: 0; }
 
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
 table { width: 100%; border-collapse: collapse; font-size: .92rem; }
