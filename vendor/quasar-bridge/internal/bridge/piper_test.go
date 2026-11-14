@@ -3,6 +3,9 @@ package bridge
 import (
 	"strings"
 	"testing"
+	"time"
+
+	request "github.com/freequasar/quasar-go-genproto/proto/alice/protos/api/alicekit/events/alice_request"
 )
 
 func TestSpeakPiperQueuesAudioURL(t *testing.T) {
@@ -67,5 +70,31 @@ func TestPiperSpeechURLRejectsEmptyConfig(t *testing.T) {
 	}
 	if _, err := piperSpeechURL(strings.Repeat("слово ", 200)); err == nil {
 		t.Fatal("long text must fall back to the station TTS")
+	}
+}
+
+func TestFillerPiperSendsAudioDirective(t *testing.T) {
+	t.Setenv("QUASAR_TTS_PIPER_URL", "http://192.168.1.2:8083")
+	n, down := testNative(t)
+	p := &nativeRequest{
+		ctx:     t.Context(),
+		id:      "piper-filler",
+		request: &request.TAliceRequestProto{Header: &request.TAliceRequestProto_THeader{RequestId: new("app-request")}},
+	}
+
+	if err := n.fillerPiper(p, "Секунду, ищу ответ."); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case frame := <-down:
+		r := frame.Server.GetEvent().GetDeferredAliceResponse()
+		if r == nil || len(r.GetBaseResponse().GetDirectives()) != 1 {
+			t.Fatalf("expected one deferred directive, got %s", frame.Kind())
+		}
+		if r.GetBaseResponse().GetDirectives()[0].GetName() != "audio_play" {
+			t.Fatalf("unexpected directive %q", r.GetBaseResponse().GetDirectives()[0].GetName())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("filler directive was not sent")
 	}
 }

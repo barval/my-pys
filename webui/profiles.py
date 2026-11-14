@@ -23,6 +23,7 @@ class Profile:
     model: str
     color: str
     room: str
+    tts: str = "cloud"
 
 
 def parse_env(path: Path) -> dict[str, str]:
@@ -80,6 +81,7 @@ def load_profiles(directory: Path) -> list[Profile]:
                     model=model,
                     color=values.get("SPEAKER_COLOR", "").strip().lower(),
                     room=values.get("SPEAKER_ROOM", "").strip(),
+                    tts=values.get("SPEAKER_TTS", "cloud").strip() or "cloud",
                 )
             )
         except (OSError, ValueError) as exc:

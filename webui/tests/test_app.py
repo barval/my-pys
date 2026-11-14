@@ -38,6 +38,29 @@ def test_speaker_action_creates_job(client, app, login, csrf):
     assert "/jobs/" in response.headers["Location"]
 
 
+def test_speaker_tts_saves_mode_and_creates_job(client, app, login, csrf, settings):
+    login()
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    response = client.post(
+        "/speakers/speaker-a/tts",
+        data={"tts": "piper"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 303
+    assert "/jobs/" in response.headers["Location"]
+    assert runner.actions and runner.actions[0][0] == "tts"
+    body = (settings.speakers_dir / "speaker-a.env").read_text(encoding="utf-8")
+    assert "SPEAKER_TTS=piper" in body
+
+
+def test_setup_page_has_tts_toggle(client, login):
+    login()
+    body = client.get("/speakers/speaker-a/setup").get_data(as_text=True)
+    assert "Тип TTS:" in body
+    assert "Локальный TTS Piper" in body
+
+
 def test_unknown_speaker_returns_404(client, login):
     login()
     assert client.get("/speakers/nope").status_code == 404

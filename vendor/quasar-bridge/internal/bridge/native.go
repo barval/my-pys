@@ -117,12 +117,9 @@ func (n *Native) startSpeechKeepalive(p *nativeRequest) func() {
 // delayed by a slow search or reasoning model. It stops on the first content
 // chunk, cancellation, or finish. A new phrase is sent only when the previous
 // one is no longer in flight, so fillers never queue up behind each other.
-// With the local Piper voice fillers are off: the station ducks the media
-// player while its own TTS stream is active, so a filler would mute the answer.
+// With the local Piper voice a filler is synthesized locally and sent as an
+// audio_play directive: the station's own TTS stream would duck the player.
 func (n *Native) startSpeechFillers(p *nativeRequest) func() {
-	if piperBaseURL() != "" {
-		return nil
-	}
 	if !speechFillerEnabled() {
 		return nil
 	}
@@ -143,7 +140,12 @@ func (n *Native) startSpeechFillers(p *nativeRequest) func() {
 		}
 		sent := 0
 		for sent < speechFillerMax() {
-			if n.fillerIdle(p) {
+			if piperBaseURL() != "" {
+				if err := n.fillerPiper(p, phrases[sent%len(phrases)]); err != nil {
+					return
+				}
+				sent++
+			} else if n.fillerIdle(p) {
 				if err := n.enqueueFiller(p, phrases[sent%len(phrases)]); err != nil {
 					return
 				}

@@ -106,17 +106,6 @@ func TestFillerIdleOnlyWhenNothingIsSpoken(t *testing.T) {
 	}
 }
 
-func TestFillersOffWithPiperVoice(t *testing.T) {
-	t.Setenv("QUASAR_SPEECH_FILLER", "1")
-	t.Setenv("QUASAR_TTS_PIPER_URL", "http://192.168.1.2:8083")
-	n, _ := testNative(t)
-	p := &nativeRequest{ctx: t.Context(), id: "piper-fillers"}
-	if stop := n.startSpeechFillers(p); stop != nil {
-		stop()
-		t.Fatal("fillers must be off while the local Piper voice is enabled")
-	}
-}
-
 func TestClearFillersIgnoresStaleFillerStream(t *testing.T) {
 	n, down := testNative(t)
 	p := &nativeRequest{

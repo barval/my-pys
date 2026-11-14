@@ -49,3 +49,14 @@ func (n *Native) speakPiper(p *nativeRequest, text string) error {
 	}
 	return n.queueSound(p.ctx, p, sound.Request{URL: link, Title: "Piper"})
 }
+
+// fillerPiper озвучивает заполнитель локальным синтезом отдельной директивой
+// в промежуточной части потока: TTS-поток станции не открывается, поэтому
+// плеер не приглушается.
+func (n *Native) fillerPiper(p *nativeRequest, text string) error {
+	link, err := piperSpeechURL(cleanSpeechText(text))
+	if err != nil {
+		return err
+	}
+	return n.deferredSound(p, sound.Request{URL: link, Title: "Piper"})
+}

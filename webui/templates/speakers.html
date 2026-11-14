@@ -40,7 +40,7 @@
         {% with color=card.color, color_name=card.color_name, icon_id=card.profile.name, model=card.model %}{% include "_speaker_icon.html" %}{% endwith %}
       </div>
       <div class="speaker-card-info">
-        <h2>{{ card.profile.name }}</h2>
+        <h2><a href="/speakers/{{ card.profile.name }}">{{ card.profile.name }}</a></h2>
         <p class="muted">{{ card.profile.room or card.profile.platform }}</p>
         <p class="muted small">{{ card.model }}</p>
         <p class="status-line small">
