@@ -1,87 +1,17 @@
 package bridge
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"path/filepath"
+	"strings"
 	"testing"
-
-	fileplayer "github.com/freequasar/quasar-go-genproto/proto/alice/protos/endpoint/capabilities/audio_file_player"
-	"google.golang.org/protobuf/proto"
-	"quasarbridge/internal/sound"
 )
 
-func testWAV() []byte {
-	data := make([]byte, 48)
-	copy(data, "RIFF")
-	copy(data[8:], "WAVEfmt ")
-	return data
-}
-
-func TestPiperSpeechSavesWav(t *testing.T) {
-	wav := testWAV()
-	var gotText string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/say" {
-			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
-		}
-		var payload map[string]string
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Errorf("invalid payload: %v", err)
-		}
-		gotText = payload["text"]
-		w.Header().Set("Content-Type", "audio/wav")
-		_, _ = w.Write(wav)
-	}))
-	defer server.Close()
-
-	dir := t.TempDir()
-	t.Setenv("QUASAR_TTS_PIPER_URL", server.URL)
-	t.Setenv("QUASAR_TTS_PIPER_DIR", dir)
-
-	name, err := piperSpeech(t.Context(), "Согласно документам, ответ готов.")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotText != "Согласно документам, ответ готов." {
-		t.Fatalf("text sent to piper: %q", gotText)
-	}
-	info, err := os.Stat(filepath.Join(dir, name))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.Size() != int64(len(wav)) {
-		t.Fatalf("saved %d bytes, want %d", info.Size(), len(wav))
-	}
-}
-
-func TestPiperSpeechRejectsNonWav(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("not audio"))
-	}))
-	defer server.Close()
-	t.Setenv("QUASAR_TTS_PIPER_URL", server.URL)
-	t.Setenv("QUASAR_TTS_PIPER_DIR", t.TempDir())
-
-	if _, err := piperSpeech(t.Context(), "текст"); err == nil {
-		t.Fatal("non-WAV body must be rejected")
-	}
-}
-
-func TestSpeakPiperQueuesLocalFile(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write(testWAV())
-	}))
-	defer server.Close()
-	t.Setenv("QUASAR_TTS_PIPER_URL", server.URL)
-	t.Setenv("QUASAR_TTS_PIPER_DIR", t.TempDir())
-
+func TestSpeakPiperQueuesAudioURL(t *testing.T) {
+	t.Setenv("QUASAR_TTS_PIPER_URL", "http://192.168.1.2:8083/")
 	n, _ := testNative(t)
 	p := &nativeRequest{ctx: t.Context(), id: "piper-request"}
 	n.requests[p.id] = p
 	t.Cleanup(func() { delete(n.requests, p.id) })
+
 	if err := n.speakPiper(p, "Готовый ответ"); err != nil {
 		t.Fatal(err)
 	}
@@ -89,27 +19,50 @@ func TestSpeakPiperQueuesLocalFile(t *testing.T) {
 		t.Fatal("piper answer must suppress the station TTS")
 	}
 	directives := n.takeSound(p)
-	if len(directives) != 1 || directives[0].GetName() != "local_audio_file_play" {
+	if len(directives) != 1 || directives[0].GetName() != "audio_play" {
 		t.Fatalf("unexpected directives: %+v", directives)
 	}
-	var payload fileplayer.TAudioFilePlayerCapability_TLocalAudioFilePlayDirective
-	if err := proto.Unmarshal(directives[0].GetPayloadRaw(), &payload); err != nil {
-		t.Fatal(err)
+	stream, ok := directives[0].GetPayload().AsMap()["stream"].(map[string]any)
+	if !ok {
+		t.Fatalf("no stream in payload: %v", directives[0].GetPayload().AsMap())
 	}
-	if payload.GetFileName() == "" {
-		t.Fatal("local file directive without a file name")
+	link, _ := stream["url"].(string)
+	if !strings.HasPrefix(link, "http://192.168.1.2:8083/say.wav?text=") {
+		t.Fatalf("unexpected piper url: %q", link)
+	}
+	if !strings.Contains(link, "%D0") {
+		t.Fatalf("text is not url-encoded: %q", link)
 	}
 }
 
-func TestLocalFileDirectiveRejectsMixedFields(t *testing.T) {
-	if _, err := makeSoundDirective(sound.Request{File: "piper.wav", URL: "http://example.com/a.mp3"}); err == nil {
-		t.Fatal("file and URL must not be combined")
-	}
-	directive, err := makeSoundDirective(sound.Request{File: "piper.wav"})
-	if err != nil {
+func TestSpeakPiperStripsMarkdown(t *testing.T) {
+	t.Setenv("QUASAR_TTS_PIPER_URL", "http://192.168.1.2:8083")
+	n, _ := testNative(t)
+	p := &nativeRequest{ctx: t.Context(), id: "piper-markdown"}
+	n.requests[p.id] = p
+	t.Cleanup(func() { delete(n.requests, p.id) })
+
+	if err := n.speakPiper(p, "Валерию **49 лет**."); err != nil {
 		t.Fatal(err)
 	}
-	if directive.GetName() != "local_audio_file_play" {
-		t.Fatalf("unexpected directive %q", directive.GetName())
+	directives := n.takeSound(p)
+	stream, _ := directives[0].GetPayload().AsMap()["stream"].(map[string]any)
+	link, _ := stream["url"].(string)
+	if strings.Contains(link, "%2A") || strings.Contains(link, "%23") {
+		t.Fatalf("markdown leaked into the piper url: %q", link)
+	}
+	if !strings.Contains(link, "49") {
+		t.Fatalf("text is missing from the piper url: %q", link)
+	}
+}
+
+func TestPiperSpeechURLRejectsEmptyConfig(t *testing.T) {
+	t.Setenv("QUASAR_TTS_PIPER_URL", "")
+	if _, err := piperSpeechURL("текст"); err == nil {
+		t.Fatal("piper must be disabled without a URL")
+	}
+	t.Setenv("QUASAR_TTS_PIPER_URL", "http://192.168.1.2:8083")
+	if _, err := piperSpeechURL("   "); err == nil {
+		t.Fatal("empty text must be rejected")
 	}
 }
