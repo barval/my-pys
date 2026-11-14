@@ -48,10 +48,22 @@ def test_speaker_tts_saves_mode_and_creates_job(client, app, login, csrf, settin
         headers={"X-CSRF-Token": csrf(client)},
     )
     assert response.status_code == 303
-    assert "/jobs/" in response.headers["Location"]
+    assert response.headers["Location"].endswith("/speakers/speaker-a")
     assert runner.actions and runner.actions[0][0] == "tts"
     body = (settings.speakers_dir / "speaker-a.env").read_text(encoding="utf-8")
     assert "SPEAKER_TTS=piper" in body
+
+
+def test_speaker_tts_stays_on_the_setup_page(client, app, login, csrf):
+    login()
+    app.extensions["jobs"] = FakeRunner()
+    response = client.post(
+        "/speakers/speaker-a/tts",
+        data={"tts": "cloud", "next": "/speakers/speaker-a/setup"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 303
+    assert response.headers["Location"].endswith("/speakers/speaker-a/setup")
 
 
 def test_setup_page_has_tts_toggle(client, login):

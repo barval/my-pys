@@ -2,6 +2,7 @@
   <h2>Тип TTS:</h2>
   <form method="post" action="/speakers/{{ profile.name }}/tts" class="tts-switch">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ request.path }}">
     <label class="tts-option">
       <input type="radio" name="tts" value="cloud"{% if profile.tts != "piper" %} checked{% endif %} onchange="this.form.submit()">
       <span>Облачный TTS Яндекса</span>
