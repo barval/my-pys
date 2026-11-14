@@ -32,6 +32,7 @@ func TestClearFillersClosesActiveFillerStream(t *testing.T) {
 		speechActive:       true,
 		speechActiveFiller: true,
 		fillerStream:       12,
+		fillerSent:         time.Now(),
 	}
 
 	n.clearFillers(p)
@@ -102,5 +103,24 @@ func TestFillerIdleOnlyWhenNothingIsSpoken(t *testing.T) {
 	p.fillersStopped = true
 	if n.fillerIdle(p) {
 		t.Fatal("filler must not be sent after the answer arrived")
+	}
+}
+
+func TestClearFillersIgnoresStaleFillerStream(t *testing.T) {
+	n, down := testNative(t)
+	p := &nativeRequest{
+		ctx:          t.Context(),
+		id:           "filler-request",
+		ttsID:        "filler-tts",
+		fillerStream: 12,
+		fillerSent:   time.Now().Add(-30 * time.Second),
+	}
+
+	n.clearFillers(p)
+
+	select {
+	case frame := <-down:
+		t.Fatalf("stale filler stream must not be closed: %s", frame.Kind())
+	default:
 	}
 }
