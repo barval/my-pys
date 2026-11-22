@@ -53,7 +53,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$KEY" -p "$PORT")
+SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+  -o ConnectTimeout=10 -o ServerAliveInterval=5 -o ServerAliveCountMax=3 \
+  -i "$KEY" -p "$PORT")
 
 echo "Колонка: $LABEL"
 echo "Файл:    $FILE ($(wc -c < "$FILE" | tr -d ' ') байт)"

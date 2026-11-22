@@ -65,7 +65,9 @@ with open(out, "wb") as handle:
     handle.write(data)
 PY
 
-SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$KEY" -p "$PORT")
+SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+  -o ConnectTimeout=10 -o ServerAliveInterval=5 -o ServerAliveCountMax=3 \
+  -i "$KEY" -p "$PORT")
 "${SSH[@]}" root@"$IP" 'cat > /tmp/my-pys-say.wav' < "$WAV"
 "${SSH[@]}" root@"$IP" 'rc=0; aplay -q /tmp/my-pys-say.wav || rc=$?; rm -f /tmp/my-pys-say.wav; exit $rc'
 echo "Готово: колонка произнесла текст."
