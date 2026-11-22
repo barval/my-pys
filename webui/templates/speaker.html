@@ -92,7 +92,7 @@
   <section class="card" style="margin-top:1rem">
   <h2>Продвинутые действия</h2>
   <div class="actions">
-    {% for action in actions %}
+    {% for action in actions if action.key != "stop-audio" %}
     <form method="post" action="/speakers/{{ profile.name }}/actions/{{ action.key }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn" type="submit">{{ action.label }}</button>
@@ -102,6 +102,10 @@
             data-dialog-open="say-dialog-{{ profile.name }}">Сказать</button>
     <button class="btn" type="button"
             data-dialog-open="audio-dialog-{{ profile.name }}">Загрузить аудио</button>
+    <form method="post" action="/speakers/{{ profile.name }}/actions/stop-audio">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" type="submit">Остановить звук</button>
+    </form>
   </div>
   <p class="muted">Действия выполняются по очереди; лог откроется на отдельной странице.
 

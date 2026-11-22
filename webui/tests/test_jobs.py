@@ -40,6 +40,15 @@ def test_unknown_action_does_not_create_job(tmp_path):
         runner.submit("nope", None)
 
 
+def test_stop_audio_does_not_wait_for_playback(tmp_path):
+    runner = JobRunner(tmp_path, CommandBuilder(tmp_path))
+    audio = runner.submit_command("audio", "speaker-a", ["bash", "-c", "sleep 2"], {})
+    stop = runner.submit_command("stop-audio", "speaker-a", ["bash", "-c", "true"], {})
+    runner.wait(stop.id, timeout=5)
+    runner.wait(audio.id, timeout=10)
+    assert runner.get(stop.id).finished_at < runner.get(audio.id).finished_at
+
+
 def test_unfinished_job_is_marked_interrupted(tmp_path, make_profile):
     jobs_dir = tmp_path / "jobs"
     jobs_dir.mkdir()

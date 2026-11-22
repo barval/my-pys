@@ -7,6 +7,7 @@ import subprocess
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,6 +41,10 @@ ACTION_TIMEOUTS = {
     "resolve": 30,
     "check": 120,
 }
+
+# Действия, которые не должны ждать освобождения колонки: остановка звука
+# обязана сработать, пока другое задание ещё проигрывает файл.
+LOCK_FREE_ACTIONS = {"stop-audio"}
 
 
 class JobRunner:
@@ -168,7 +173,10 @@ class JobRunner:
         env: dict[str, str],
         target: str,
     ) -> None:
-        lock = self._target_lock(target)
+        with self._lock:
+            action = self._jobs[job_id].action
+        # Остановка воспроизведения не должна ждать, пока доиграет файл.
+        lock = nullcontext() if action in LOCK_FREE_ACTIONS else self._target_lock(target)
         with lock:
             with self._lock:
                 job = self._jobs[job_id]

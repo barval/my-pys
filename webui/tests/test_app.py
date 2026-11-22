@@ -25,6 +25,12 @@ def test_speakers_page_has_audio_dialog(client, login):
     body = client.get("/").get_data(as_text=True)
     assert "Проверить аудиофайлом" in body
     assert "audio-dialog-speaker-a" in body
+    assert "Остановить звук" not in body
+
+
+def test_speaker_page_has_stop_audio(client, login):
+    login()
+    body = client.get("/speakers/speaker-a").get_data(as_text=True)
     assert "Остановить звук" in body
     assert "actions/stop-audio" in body
 
