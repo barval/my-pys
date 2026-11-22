@@ -93,6 +93,7 @@ JOB_ACTION_LABELS = {
     **{key: spec.label for key, spec in SPEAKER_ACTIONS.items()},
     **{key: spec.label for key, spec in HOST_ACTIONS.items()},
     "say": "Произнести",
+    "audio": "Проиграть аудио",
 }
 
 
@@ -827,6 +828,43 @@ def create_app(settings: Settings | None = None) -> Flask:
             abort(404)
         job = app.extensions["jobs"].submit(action, profile)
         audit(f"speaker.{action}", profile.name, detail=f"job={job.id}")
+        return redirect(url_for("job_page", job_id=job.id), code=303)
+
+    max_audio_bytes = 20 * 1024 * 1024
+
+    @app.post("/speakers/<name>/audio")
+    def speaker_audio(name: str):
+        profile = get_profile(name)
+        upload = request.files.get("file")
+        if upload is None or not upload.filename:
+            flash("Выберите аудиофайл")
+            return redirect(url_for("speaker_page", name=name), code=303)
+        suffix = Path(upload.filename).suffix.lower()
+        if suffix not in {".wav", ".mp3", ".ogg", ".oga", ".opus", ".m4a", ".aac", ".flac"}:
+            flash("Поддерживаются WAV, MP3, OGG/Opus, M4A/AAC и FLAC")
+            return redirect(url_for("speaker_page", name=name), code=303)
+        data = upload.read(max_audio_bytes + 1)
+        if not data:
+            flash("Файл пустой")
+            return redirect(url_for("speaker_page", name=name), code=303)
+        if len(data) > max_audio_bytes:
+            flash("Файл больше 20 МБ")
+            return redirect(url_for("speaker_page", name=name), code=303)
+        descriptor, path = tempfile.mkstemp(prefix="my-pys-audio-", suffix=suffix)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+        job = app.extensions["jobs"].submit_command(
+            "audio",
+            profile.name,
+            ["bash", "scripts/play-audio.sh"],
+            {
+                "SPEAKER_ENV": str(profile.path),
+                "SPEAKER_TRUST_IP": "1",
+                "AUDIO_FILE": path,
+                "AUDIO_FILE_REMOVE": "1",
+            },
+        )
+        audit("speaker.audio", profile.name, detail=f"job={job.id}")
         return redirect(url_for("job_page", job_id=job.id), code=303)
 
     max_say_chars = 500

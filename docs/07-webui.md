@@ -107,6 +107,19 @@ Piper». Выбор пишется в профиль (`SPEAKER_TTS`), задан
 перезапускает её Bridge. Для Piper сервис `tts` должен быть доступен с
 колонки (`TTS_BIND` в `make webui`, по умолчанию `0.0.0.0:8083`).
 
+### Проверка звука файлом
+
+Кнопка «Загрузить аудио» на странице колонки принимает файл до 20 МБ
+(WAV, MP3, OGG/Opus, M4A/AAC, FLAC) и запускает задание
+`scripts/play-audio.sh`: WAV проигрывается через `aplay`, остальное —
+через `gst-launch-1.0`. Файл копируется во временный каталог колонки и
+удаляется после проигрывания. Из командной строки:
+
+```bash
+AUDIO_FILE=/path/check.wav SPEAKER_ENV=local/speakers/speaker-a.env \
+  ./scripts/play-audio.sh
+```
+
 На шаге 4 запускается `scripts/adb-root-check.sh`, на шаге 5 —
 `scripts/post-root-ssh.sh`, на шаге 7 — `scripts/install-quasar-bridge.sh`,
 на шаге 8 — `scripts/check-llm.sh`. Каждый запуск создаёт задание, и его лог

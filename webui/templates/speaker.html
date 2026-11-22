@@ -100,8 +100,27 @@
     {% endfor %}
     <button class="btn btn-primary" type="button"
             data-dialog-open="say-dialog-{{ profile.name }}">Сказать</button>
+    <button class="btn" type="button"
+            data-dialog-open="audio-dialog-{{ profile.name }}">Загрузить аудио</button>
   </div>
   <p class="muted">Действия выполняются по очереди; лог откроется на отдельной странице.
+
+  <dialog class="say-dialog" id="audio-dialog-{{ profile.name }}">
+    <form method="post" action="/speakers/{{ profile.name }}/audio" enctype="multipart/form-data" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>Аудиофайл для проверки</h3>
+      <label>Файл
+        <input type="file" name="file" required
+               accept="audio/*,.wav,.mp3,.ogg,.oga,.opus,.m4a,.aac,.flac">
+      </label>
+      <p class="muted small">WAV проигрывается через aplay, остальное — через GStreamer.
+        До 20 МБ.</p>
+      <div class="form-actions">
+        <button class="btn btn-success" type="submit">Проиграть</button>
+        <button class="btn" type="button" data-dialog-close>Отмена</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog class="say-dialog" id="say-dialog-{{ profile.name }}">
     <form method="post" action="/speakers/{{ profile.name }}/say" class="stack">
