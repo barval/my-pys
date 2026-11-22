@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import json
+import os
 import subprocess
 
 import pytest
@@ -71,6 +73,38 @@ def test_setup_page_has_tts_toggle(client, login):
     body = client.get("/speakers/speaker-a/setup").get_data(as_text=True)
     assert "Тип TTS:" in body
     assert "Локальный TTS Piper" in body
+
+
+def test_speaker_audio_upload_creates_job(client, app, login, csrf):
+    login()
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    response = client.post(
+        "/speakers/speaker-a/audio",
+        data={"file": (io.BytesIO(b"RIFF\x00\x00\x00\x00WAVEfmt "), "check.wav")},
+        headers={"X-CSRF-Token": csrf(client)},
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 303
+    assert runner.commands and runner.commands[0][0] == "audio"
+    env = runner.commands[0][3]
+    assert env["AUDIO_FILE"].endswith(".wav")
+    assert env["AUDIO_FILE_REMOVE"] == "1"
+    assert os.path.exists(env["AUDIO_FILE"])
+
+
+def test_speaker_audio_rejects_unknown_format(client, app, login, csrf):
+    login()
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    response = client.post(
+        "/speakers/speaker-a/audio",
+        data={"file": (io.BytesIO(b"data"), "check.exe")},
+        headers={"X-CSRF-Token": csrf(client)},
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 303
+    assert not runner.commands
 
 
 def test_unknown_speaker_returns_404(client, login):
