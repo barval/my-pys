@@ -727,6 +727,8 @@ tr[id^="route-"] { scroll-margin-top: 5.5rem; }
   flex: 1 1 auto;
   min-height: 44px;
 }
+.speaker-card-actions form { display: flex; }
+.speaker-card-actions form .btn { flex: 1 1 auto; }
 
 .mode-switch { margin: 0; }
 .mode-switch .btn { min-height: 32px; }

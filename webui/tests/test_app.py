@@ -20,6 +20,27 @@ def test_healthz_is_public(tmp_path):
     assert payload["version"] == "2.3"
 
 
+def test_speakers_page_has_audio_dialog(client, login):
+    login()
+    body = client.get("/").get_data(as_text=True)
+    assert "Проверить аудиофайлом" in body
+    assert "audio-dialog-speaker-a" in body
+    assert "Остановить звук" in body
+    assert "actions/stop-audio" in body
+
+
+def test_stop_audio_action_creates_job(client, app, login, csrf):
+    login()
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    response = client.post(
+        "/speakers/speaker-a/actions/stop-audio",
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 303
+    assert runner.actions and runner.actions[0][0] == "stop-audio"
+
+
 def test_speaker_page_shows_full_identifiers(client, login):
     login()
     response = client.get("/speakers/speaker-a")
