@@ -470,6 +470,37 @@ def test_job_log_redacts_secret(client, app, login):
     assert "***" in body
 
 
+def test_job_page_has_stop_for_audio(client, app, login):
+    from types import SimpleNamespace
+
+    login()
+    job = SimpleNamespace(
+        id="job-audio",
+        action="audio",
+        target="speaker-a",
+        status="running",
+        exit_code=None,
+        started_at="now",
+        finished_at=None,
+    )
+
+    class Runner:
+        def get(self, job_id):
+            return job
+
+        def tail(self, job_id, offset=0):
+            return "playing", 7
+
+    app.extensions["jobs"] = Runner()
+    body = client.get("/jobs/job-audio").get_data(as_text=True)
+    assert "Остановить звук" in body
+    assert "actions/stop-audio" in body
+
+    job.action = "status"
+    body = client.get("/jobs/job-audio").get_data(as_text=True)
+    assert "Остановить звук" not in body
+
+
 def test_backup_page_requires_login(client):
     assert client.get("/backup").status_code == 302
 

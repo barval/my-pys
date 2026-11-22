@@ -17,6 +17,12 @@
   </div>
   {% if job_profile %}
   <a class="btn btn-ghost" href="/speakers/{{ job_profile.name }}/setup">Вернуться в мастер</a>
+    {% if job.action in ("audio", "say") and job.status in ("queued", "running") %}
+    <form method="post" action="/speakers/{{ job_profile.name }}/actions/stop-audio">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" type="submit">Остановить звук</button>
+    </form>
+    {% endif %}
   {% endif %}
   <span class="badge badge-{{ 'ok' if job.status == 'succeeded' else 'err' if job.status in ('failed', 'cancelled', 'interrupted') else 'warn' }}">{{ job_status_label(job.status) }}</span>
 </div>
