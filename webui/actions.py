@@ -50,6 +50,12 @@ SPEAKER_ACTIONS: dict[str, ActionSpec] = {
         argv=("bash", "scripts/set-speaker-tts.sh"),
         needs_profile=True,
     ),
+    "stop-audio": ActionSpec(
+        key="stop-audio",
+        label="Остановить аудио",
+        argv=("bash", "scripts/stop-audio.sh"),
+        needs_profile=True,
+    ),
     "routing": ActionSpec(
         key="routing",
         label="Применить маршрутизацию",

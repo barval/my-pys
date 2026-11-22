@@ -391,6 +391,8 @@ AUDIO_FILE=/path/check.wav SPEAKER_ENV=local/speakers/speaker-a.env \
 
 WAV стримится в `aplay`; остальное конвертируется в WAV через `ffmpeg` на
 хосте. В панели то же делает кнопка «Загрузить аудио» на странице колонки.
+Прервать воспроизведение: `SPEAKER_ENV=... ./scripts/stop-audio.sh` или
+кнопка «Остановить звук».
 
 ### Вариант A. Интерактивно
 

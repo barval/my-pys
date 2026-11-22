@@ -59,6 +59,10 @@
       <a class="btn btn-ghost" href="/test#voice">Проверить голосом</a>
       <button class="btn btn-ghost" type="button"
               data-dialog-open="audio-dialog-{{ card.profile.name }}">Проверить аудиофайлом</button>
+      <form method="post" action="/speakers/{{ card.profile.name }}/actions/stop-audio">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-ghost" type="submit">Остановить звук</button>
+      </form>
     </div>
     {% with profile=card.profile %}{% include "_audio_dialog.html" %}{% endwith %}
   </article>
