@@ -20,6 +20,13 @@ def test_healthz_is_public(tmp_path):
     assert payload["version"] == "2.3"
 
 
+def test_speakers_page_has_audio_dialog(client, login):
+    login()
+    body = client.get("/").get_data(as_text=True)
+    assert "Проверить аудиофайлом" in body
+    assert "audio-dialog-speaker-a" in body
+
+
 def test_speaker_page_shows_full_identifiers(client, login):
     login()
     response = client.get("/speakers/speaker-a")
