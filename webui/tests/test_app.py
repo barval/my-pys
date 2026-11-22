@@ -4,6 +4,7 @@ import io
 import json
 import os
 import subprocess
+from datetime import datetime, timezone
 
 import pytest
 
@@ -650,7 +651,7 @@ def test_home_shows_cached_status(client, app, login):
     settings = app.config["WEBUI_SETTINGS"]
     save_status(
         settings.state_dir / "speaker-status.json",
-        {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", True, False)},
+        {"speaker-a": SpeakerStatus(datetime.now(timezone.utc).isoformat(timespec="seconds"), True, False)},
     )
     body = client.get("/").get_data(as_text=True)
     assert "онлайн" in body
@@ -665,7 +666,7 @@ def test_home_shows_offline_status(client, app, login):
     settings = app.config["WEBUI_SETTINGS"]
     save_status(
         settings.state_dir / "speaker-status.json",
-        {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", False)},
+        {"speaker-a": SpeakerStatus(datetime.now(timezone.utc).isoformat(timespec="seconds"), False)},
     )
     body = client.get("/").get_data(as_text=True)
     assert "недоступна" in body
@@ -716,7 +717,7 @@ def test_speaker_page_shows_cached_status(client, app, login):
     settings = app.config["WEBUI_SETTINGS"]
     save_status(
         settings.state_dir / "speaker-status.json",
-        {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", True, False)},
+        {"speaker-a": SpeakerStatus(datetime.now(timezone.utc).isoformat(timespec="seconds"), True, False)},
     )
     body = client.get("/speakers/speaker-a").get_data(as_text=True)
     assert "онлайн" in body

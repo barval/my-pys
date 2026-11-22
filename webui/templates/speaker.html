@@ -113,8 +113,8 @@
         <input type="file" name="file" required
                accept="audio/*,.wav,.mp3,.ogg,.oga,.opus,.m4a,.aac,.flac">
       </label>
-      <p class="muted small">WAV проигрывается через aplay, остальное — через GStreamer.
-        До 20 МБ.</p>
+      <p class="muted small">WAV стримится в aplay, остальное конвертируется
+        через ffmpeg на хосте. До 20 МБ.</p>
       <div class="form-actions">
         <button class="btn btn-success" type="submit">Проиграть</button>
         <button class="btn" type="button" data-dialog-close>Отмена</button>

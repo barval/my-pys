@@ -72,7 +72,7 @@ from .providers import (
 )
 from .router_config import delete_route, read_config, save_config, upsert_route
 from .settings import Settings, load_settings
-from .status import sync_from_jobs
+from .status import fresh_only, sync_from_jobs
 from .subnets import fallback_prefixes, load_subnets, subnet_prefixes
 from .wizard import HOST_STEP, STEPS, Progress, advance, load_progress, save_progress, set_last_job, step_by_number
 
@@ -287,7 +287,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         jobs_list = jobs if jobs is not None else (
             runner.list(limit=200) if hasattr(runner, "list") else []
         )
-        return sync_from_jobs(status_path, jobs_list)
+        return fresh_only(sync_from_jobs(status_path, jobs_list))
 
     profiles_lock = threading.RLock()
 

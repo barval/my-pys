@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from webui.status import load_status, save_status, sync_from_jobs
@@ -50,6 +51,19 @@ def test_save_and_load_round_trip(tmp_path):
     save_status(path, {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", True)})
     assert load_status(path)["speaker-a"].online is True
     assert oct(path.stat().st_mode & 0o777) == "0o600"
+
+
+def test_stale_status_is_hidden(tmp_path):
+    from webui.status import SpeakerStatus, fresh_only
+
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    statuses = {
+        "stale": SpeakerStatus("2026-11-06T10:00:00+00:00", True),
+        "fresh": SpeakerStatus(now, True),
+    }
+    visible = fresh_only(statuses)
+    assert "stale" not in visible
+    assert visible["fresh"].online is True
 
 
 def test_sync_from_status_job_success_sets_online_and_bridge(tmp_path):

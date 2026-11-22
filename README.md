@@ -104,7 +104,7 @@ scripts/
   adb-root-check.sh           проверка ADB и root на колонке
   set-speaker-key.sh          запись адреса роутера, модели и ключа в Bridge
   set-speaker-tts.sh          тип TTS колонки: облачный Яндекс или локальный Piper
-  play-audio.sh               проиграть аудиофайл на колонке (aplay / GStreamer)
+  play-audio.sh               проиграть аудиофайл на колонке (WAV — aplay, остальное — ffmpeg)
   speaker-status.sh           статус Bridge, LLM и места на /data
   say-text.sh                 синтез и воспроизведение фразы на колонке
   host-subnets.sh             список подсетей хоста для поиска колонок
