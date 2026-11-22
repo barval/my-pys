@@ -48,7 +48,7 @@ def _synthesize(text: str) -> bytes:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "my-pys-tts/2.2"
+    server_version = "my-pys-tts/2.3"
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib naming
         parts = urlsplit(self.path)

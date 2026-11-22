@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import io
 import json
+import os
 import subprocess
+from datetime import datetime, timezone
 
 import pytest
 
@@ -14,7 +17,7 @@ def test_healthz_is_public(tmp_path):
     client = app.test_client()
     payload = client.get("/healthz").get_json()
     assert payload["status"] == "ok"
-    assert payload["version"] == "2.2"
+    assert payload["version"] == "2.3"
 
 
 def test_speaker_page_shows_full_identifiers(client, login):
@@ -71,6 +74,38 @@ def test_setup_page_has_tts_toggle(client, login):
     body = client.get("/speakers/speaker-a/setup").get_data(as_text=True)
     assert "Тип TTS:" in body
     assert "Локальный TTS Piper" in body
+
+
+def test_speaker_audio_upload_creates_job(client, app, login, csrf):
+    login()
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    response = client.post(
+        "/speakers/speaker-a/audio",
+        data={"file": (io.BytesIO(b"RIFF\x00\x00\x00\x00WAVEfmt "), "check.wav")},
+        headers={"X-CSRF-Token": csrf(client)},
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 303
+    assert runner.commands and runner.commands[0][0] == "audio"
+    env = runner.commands[0][3]
+    assert env["AUDIO_FILE"].endswith(".wav")
+    assert env["AUDIO_FILE_REMOVE"] == "1"
+    assert os.path.exists(env["AUDIO_FILE"])
+
+
+def test_speaker_audio_rejects_unknown_format(client, app, login, csrf):
+    login()
+    runner = FakeRunner()
+    app.extensions["jobs"] = runner
+    response = client.post(
+        "/speakers/speaker-a/audio",
+        data={"file": (io.BytesIO(b"data"), "check.exe")},
+        headers={"X-CSRF-Token": csrf(client)},
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 303
+    assert not runner.commands
 
 
 def test_unknown_speaker_returns_404(client, login):
@@ -616,7 +651,7 @@ def test_home_shows_cached_status(client, app, login):
     settings = app.config["WEBUI_SETTINGS"]
     save_status(
         settings.state_dir / "speaker-status.json",
-        {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", True, False)},
+        {"speaker-a": SpeakerStatus(datetime.now(timezone.utc).isoformat(timespec="seconds"), True, False)},
     )
     body = client.get("/").get_data(as_text=True)
     assert "онлайн" in body
@@ -631,7 +666,7 @@ def test_home_shows_offline_status(client, app, login):
     settings = app.config["WEBUI_SETTINGS"]
     save_status(
         settings.state_dir / "speaker-status.json",
-        {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", False)},
+        {"speaker-a": SpeakerStatus(datetime.now(timezone.utc).isoformat(timespec="seconds"), False)},
     )
     body = client.get("/").get_data(as_text=True)
     assert "недоступна" in body
@@ -682,7 +717,7 @@ def test_speaker_page_shows_cached_status(client, app, login):
     settings = app.config["WEBUI_SETTINGS"]
     save_status(
         settings.state_dir / "speaker-status.json",
-        {"speaker-a": SpeakerStatus("2026-11-06T10:00:00+00:00", True, False)},
+        {"speaker-a": SpeakerStatus(datetime.now(timezone.utc).isoformat(timespec="seconds"), True, False)},
     )
     body = client.get("/speakers/speaker-a").get_data(as_text=True)
     assert "онлайн" in body
@@ -808,7 +843,7 @@ def test_project_title_in_login_and_admin(client, login):
     login()
     admin_page = client.get("/").get_data(as_text=True)
     assert "Колонки — Моя персональная Яндекс Станция" in admin_page
-    assert "Моя персональная Яндекс Станция <small>v2.2</small>" in admin_page
+    assert "Моя персональная Яндекс Станция <small>v2.3</small>" in admin_page
 
 
 def test_firmware_page_requires_login(client):

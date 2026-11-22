@@ -3,4 +3,4 @@
 __all__ = ["APP_TITLE", "__version__"]
 
 APP_TITLE = "Моя персональная Яндекс Станция"
-__version__ = "2.2"
+__version__ = "2.3"

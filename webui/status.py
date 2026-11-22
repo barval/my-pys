@@ -4,10 +4,15 @@ import json
 import os
 import tempfile
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
 ACTION_FIELDS = {"resolve": ("online",), "status": ("online", "bridge"), "check": ("llm",)}
+
+# Карточка показывает снимок последней проверки; через час он считается
+# устаревшим, иначе «онлайн» висит неделями при смене IP или выключенной колонке.
+STATUS_TTL = timedelta(hours=1)
 
 
 @dataclass(frozen=True)
@@ -20,6 +25,21 @@ class SpeakerStatus:
 
 def _valid_optional_bool(value) -> bool:
     return value is None or isinstance(value, bool)
+
+
+def _is_fresh(at: str) -> bool:
+    try:
+        stamp = datetime.fromisoformat(at)
+    except (TypeError, ValueError):
+        return False
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - stamp <= STATUS_TTL
+
+
+def fresh_only(statuses: dict[str, SpeakerStatus]) -> dict[str, SpeakerStatus]:
+    """Оставляет только снимки не старше STATUS_TTL."""
+    return {name: status for name, status in statuses.items() if _is_fresh(status.at)}
 
 
 def load_status(path: Path) -> dict[str, SpeakerStatus]:

@@ -33,12 +33,21 @@ class Job:
     log_path: Path
 
 
+ACTION_TIMEOUTS = {
+    "audio": 300,
+    "say": 120,
+    "status": 60,
+    "resolve": 30,
+    "check": 120,
+}
+
+
 class JobRunner:
     def __init__(
         self,
         state_dir: Path,
         builder: CommandBuilder,
-        max_workers: int = 2,
+        max_workers: int = 4,
         timeout: int = 600,
     ):
         self.state_dir = Path(state_dir)
@@ -195,7 +204,8 @@ class JobRunner:
                 )
                 with self._lock:
                     self._procs[job_id] = proc
-                exit_code = proc.wait(timeout=self.timeout)
+                timeout = ACTION_TIMEOUTS.get(job.action, self.timeout)
+                exit_code = proc.wait(timeout=timeout)
                 status = "succeeded" if exit_code == 0 else "failed"
             except subprocess.TimeoutExpired:
                 if proc is not None:
